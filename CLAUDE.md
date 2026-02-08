@@ -169,6 +169,19 @@ cache_path = base_path.with_name(f"{base_path.stem}_{config_hash}.pt")
 - Every logical chunk of work gets its own branch → PR → merge
 - This ensures clean `git revert` and `git bisect` capability at all times
 - Keep commits atomic and well-described
+- **Use Gitmoji** in commit messages. Common ones:
+  - :sparkles: `:sparkles:` New feature
+  - :bug: `:bug:` Bug fix
+  - :recycle: `:recycle:` Refactor
+  - :memo: `:memo:` Documentation
+  - :rocket: `:rocket:` Deploy
+  - :wrench: `:wrench:` Config/tooling
+  - :chart_with_upwards_trend: `:chart_with_upwards_trend:` Analytics/experiments
+  - :art: `:art:` UI/style
+  - :tada: `:tada:` Initial commit / milestone
+  - :construction: `:construction:` Work in progress
+  - :white_check_mark: `:white_check_mark:` Tests
+  - :package: `:package:` Dependencies
 
 ## Code Style
 - Python: PEP 8, type hints preferred
@@ -212,6 +225,41 @@ Panacea/
 ├── PLAN.md                          # Technical specification
 └── README.md                        # Project overview
 ```
+
+## ESA Kelvins CDM Dataset Schema Reference
+**Source**: Zenodo (https://zenodo.org/records/4463683) -- 221MB zip
+**Train**: 162,634 rows, 13,154 events | **Test**: 24,484 rows, 2,167 events
+**Target column**: `risk` (log10 collision probability)
+**Event grouping**: `event_id`
+**Time ordering**: `time_to_tca` (days before closest approach, decreasing per event)
+
+**Key columns** (103 total, all numerical except `c_object_type`):
+- `event_id`, `time_to_tca`, `mission_id`, `risk`
+- `miss_distance` (meters), `relative_speed` (m/s)
+- `relative_position_{r,t,n}` (radial/transverse/normal, meters)
+- `relative_velocity_{r,t,n}` (m/s)
+- `max_risk_estimate`, `max_risk_scaling`
+- `c_object_type` (categorical: debris type)
+- `geocentric_latitude`, `azimuth`, `elevation` (degrees)
+- `F10`, `AP`, `F3M`, `SSN` (space weather indices)
+
+**Per-object columns** (prefixed `c_` for chaser/debris, `t_` for target/satellite):
+- `x_sigma_{r,n,t}` -- position covariance std devs (m)
+- `x_sigma_{rdot,ndot,tdot}` -- velocity covariance std devs (m/s)
+- `x_position_covariance_det` -- covariance determinant
+- `x_cn_r`, `x_cn_t`, `x_cndot_*`, `x_crdot_*`, `x_ctdot_*` -- correlations
+- `x_h_apo`, `x_h_per` -- apogee/perigee altitude (km)
+- `x_j2k_sma` -- semi-major axis (km)
+- `x_j2k_inc` -- inclination (degrees)
+- `x_ecc` -- eccentricity
+- `x_span` -- object physical size (m)
+- `x_cd_area_over_mass`, `x_cr_area_over_mass` -- ballistic coefficients
+- `x_rcs_estimate` -- radar cross-section (m^2)
+- `x_sedr` -- energy dissipation rate (W/kg)
+- `x_actual_od_span`, `x_recommended_od_span` -- OD intervals (days)
+- `x_obs_available`, `x_obs_used` -- observation counts
+- `x_time_lastob_start`, `x_time_lastob_end` -- observation timing (days)
+- `x_weighted_rms`, `x_residuals_accepted` -- orbit fit quality
 
 ## Key Lessons from SkinTag
 1. **Embedding-based approach wins**: Extract embeddings from large pretrained model → train lightweight classifier on top. XGBoost on frozen embeddings often beats end-to-end fine-tuning.
