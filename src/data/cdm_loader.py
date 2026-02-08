@@ -80,54 +80,62 @@ def get_feature_columns(df: pd.DataFrame) -> list[str]:
 
 
 def build_events(df: pd.DataFrame) -> list[ConjunctionEvent]:
-    """Group CDM rows by event_id into ConjunctionEvent objects."""
+    """Group CDM rows by event_id into ConjunctionEvent objects (vectorized)."""
     feature_cols = get_feature_columns(df)
     events = []
 
-    for event_id, group in df.groupby("event_id"):
-        # Sort by time_to_tca descending (earliest CDM first, closest to TCA last)
-        group = group.sort_values("time_to_tca", ascending=False)
+    # Pre-extract feature matrix as float64 (avoids per-row pandas indexing)
+    feature_matrix = df[feature_cols].values  # (N, F) float64
+    feature_matrix = np.nan_to_num(feature_matrix, nan=0.0, posinf=0.0, neginf=0.0)
 
+    # Sort entire dataframe by event_id then time_to_tca descending
+    df = df.copy()
+    df["_row_idx"] = np.arange(len(df))
+    df = df.sort_values(["event_id", "time_to_tca"], ascending=[True, False])
+
+    # Determine altitude column
+    alt_col = None
+    for col in ["t_h_apo", "c_h_apo"]:
+        if col in df.columns:
+            alt_col = col
+            break
+
+    has_miss = "miss_distance" in df.columns
+    has_speed = "relative_speed" in df.columns
+    has_risk = "risk" in df.columns
+    has_obj_type = "c_object_type" in df.columns
+
+    for event_id, group in df.groupby("event_id", sort=True):
+        row_indices = group["_row_idx"].values
+
+        # Build CDM sequence using pre-extracted arrays
         cdm_seq = []
-        for _, row in group.iterrows():
+        for ridx in row_indices:
             snap = CDMSnapshot(
-                time_to_tca=row["time_to_tca"],
-                miss_distance=row.get("miss_distance", 0.0),
-                relative_speed=row.get("relative_speed", 0.0),
-                risk=row.get("risk", 0.0),
-                features=row[feature_cols].values.astype(np.float32),
+                time_to_tca=float(df.iloc[ridx]["time_to_tca"]) if "time_to_tca" in df.columns else 0.0,
+                miss_distance=float(df.iloc[ridx]["miss_distance"]) if has_miss else 0.0,
+                relative_speed=float(df.iloc[ridx]["relative_speed"]) if has_speed else 0.0,
+                risk=float(df.iloc[ridx]["risk"]) if has_risk else 0.0,
+                features=feature_matrix[ridx].astype(np.float32),
             )
             cdm_seq.append(snap)
 
-        # Final CDM (closest to TCA) has the best estimate
         final_cdm = cdm_seq[-1]
-
-        # Risk label: use the risk column from the final CDM
-        # In the Kelvins dataset, risk is log10(collision_probability)
-        # High risk = risk > -5 (i.e., collision prob > 1e-5)
         risk_label = 1 if final_cdm.risk > -5 else 0
+        alt = float(group[alt_col].iloc[-1]) if alt_col else 0.0
+        obj_type = str(group["c_object_type"].iloc[0]) if has_obj_type else "unknown"
 
-        # Approximate altitude from semi-major axis columns if available
-        alt = 0.0
-        for col_prefix in ["t_h_apo", "c_h_apo"]:
-            if col_prefix in df.columns:
-                alt = group[col_prefix].iloc[-1]
-                break
-
-        event = ConjunctionEvent(
+        events.append(ConjunctionEvent(
             event_id=int(event_id),
             cdm_sequence=cdm_seq,
             risk_label=risk_label,
             final_miss_distance=final_cdm.miss_distance,
             altitude_km=alt,
-            object_type=str(group.get("c_object_type", pd.Series(["unknown"])).iloc[0]),
-        )
-        events.append(event)
+            object_type=obj_type,
+        ))
 
-    print(f"Built {len(events)} events, "
-          f"{sum(e.risk_label for e in events)} high-risk "
-          f"({100*sum(e.risk_label for e in events)/len(events):.1f}%)")
-
+    n_high = sum(e.risk_label for e in events)
+    print(f"Built {len(events)} events, {n_high} high-risk ({100*n_high/len(events):.1f}%)")
     return events
 
 
@@ -145,27 +153,23 @@ def events_to_flat_features(events: list[ConjunctionEvent]) -> tuple[np.ndarray,
     for event in events:
         seq = event.cdm_sequence
         last = seq[-1]
-
-        # Base features from latest CDM
         base = last.features.copy()
 
-        # Temporal trend features (computed over the CDM sequence)
         miss_values = np.array([s.miss_distance for s in seq])
         risk_values = np.array([s.risk for s in seq])
         tca_values = np.array([s.time_to_tca for s in seq])
 
-        # Trends and statistics
         n_cdms = len(seq)
-        miss_mean = np.mean(miss_values) if n_cdms > 0 else 0
-        miss_std = np.std(miss_values) if n_cdms > 1 else 0
+        miss_mean = float(np.mean(miss_values)) if n_cdms > 0 else 0.0
+        miss_std = float(np.std(miss_values)) if n_cdms > 1 else 0.0
+
         miss_trend = 0.0
         if n_cdms > 1 and np.std(tca_values) > 0:
-            # Linear regression slope of miss_distance vs time_to_tca
-            miss_trend = np.polyfit(tca_values, miss_values, 1)[0]
+            miss_trend = float(np.polyfit(tca_values, miss_values, 1)[0])
 
         risk_trend = 0.0
         if n_cdms > 1 and np.std(tca_values) > 0:
-            risk_trend = np.polyfit(tca_values, risk_values, 1)[0]
+            risk_trend = float(np.polyfit(tca_values, risk_values, 1)[0])
 
         temporal_feats = np.array([
             n_cdms,
@@ -173,7 +177,7 @@ def events_to_flat_features(events: list[ConjunctionEvent]) -> tuple[np.ndarray,
             miss_std,
             miss_trend,
             risk_trend,
-            miss_values[0] - miss_values[-1] if n_cdms > 1 else 0,  # total miss change
+            float(miss_values[0] - miss_values[-1]) if n_cdms > 1 else 0.0,
             last.time_to_tca,
             last.relative_speed,
         ], dtype=np.float32)
@@ -181,10 +185,9 @@ def events_to_flat_features(events: list[ConjunctionEvent]) -> tuple[np.ndarray,
         combined = np.concatenate([base, temporal_feats])
         X_list.append(combined)
         y_risk.append(event.risk_label)
-        y_miss.append(np.log1p(event.final_miss_distance))
+        y_miss.append(np.log1p(max(event.final_miss_distance, 0.0)))
 
     X = np.stack(X_list)
-    # Replace any remaining NaN/inf
     X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
 
     return X, np.array(y_risk), np.array(y_miss)
