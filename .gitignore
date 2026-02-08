@@ -1,7 +1,7 @@
-# Data (too large for git)
-data/
-models/
-results/
+# Data (too large for git) — /prefix = root only, won't match src/data/
+/data/
+/models/
+/results/
 
 # Python
 __pycache__/
