@@ -35,12 +35,20 @@ export function propagateSatellite(
   if (!posVel || !posVel.position || typeof posVel.position === 'boolean') return null;
 
   const pos = posVel.position as satellite.EciVec3<number>;
+
+  // Filter out decayed/bad TLEs that produce NaN or extreme positions
+  if (!isFinite(pos.x) || !isFinite(pos.y) || !isFinite(pos.z)) return null;
+  const rKm = Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+  if (rKm < EARTH_RADIUS_KM || rKm > 100_000) return null;
+
   const gmst = satellite.gstime(date);
   const geo = satellite.eciToGeodetic(pos, gmst);
 
   const lat = satellite.degreesLat(geo.latitude);
   const lon = satellite.degreesLong(geo.longitude);
   const alt = geo.height;
+
+  if (!isFinite(lat) || !isFinite(lon) || !isFinite(alt)) return null;
 
   return {
     name: tle.OBJECT_NAME,

@@ -1,10 +1,56 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, Component } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';
 import { Globe } from './components/Globe';
 import { Header } from './components/Header';
 import { InfoPanel } from './components/InfoPanel';
 import { StatusBar } from './components/StatusBar';
 import { useSatellites } from './hooks/useSatellites';
 import type { SatellitePosition } from './lib/types';
+
+// Error boundary to catch Three.js / WebGL crashes
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class SceneErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('3D Scene crashed:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--color-bg)]">
+          <p className="text-lg font-semibold text-red-400 mb-2">WebGL Render Error</p>
+          <p className="text-sm text-[var(--color-text-muted)] max-w-md text-center">
+            {this.state.error?.message || 'The 3D scene encountered an error.'}
+          </p>
+          <button
+            className="mt-4 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-white text-sm"
+            onClick={() => this.setState({ hasError: false, error: null })}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function LoadingScreen() {
   return (
@@ -38,13 +84,15 @@ function App() {
     <div className="w-full h-full relative">
       <Header />
 
-      <Suspense fallback={<LoadingScreen />}>
-        <Globe
-          satellites={satellites}
-          onSelectSatellite={setSelectedSatellite}
-          selectedSatellite={selectedSatellite}
-        />
-      </Suspense>
+      <SceneErrorBoundary>
+        <Suspense fallback={<LoadingScreen />}>
+          <Globe
+            satellites={satellites}
+            onSelectSatellite={setSelectedSatellite}
+            selectedSatellite={selectedSatellite}
+          />
+        </Suspense>
+      </SceneErrorBoundary>
 
       <InfoPanel
         satellite={selectedSatellite}
