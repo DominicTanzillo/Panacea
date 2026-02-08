@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
@@ -19,7 +19,7 @@ function Earth() {
 
   useFrame((_, delta) => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.02; // Slow rotation
+      meshRef.current.rotation.y += delta * 0.02;
     }
   });
 
@@ -39,8 +39,6 @@ function Earth() {
 }
 
 function Atmosphere() {
-  const shaderRef = useRef<THREE.ShaderMaterial>(null);
-
   const vertexShader = `
     varying vec3 vNormal;
     void main() {
@@ -61,7 +59,6 @@ function Atmosphere() {
     <mesh scale={[1.08, 1.08, 1.08]}>
       <sphereGeometry args={[1, 64, 64]} />
       <shaderMaterial
-        ref={shaderRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         blending={THREE.AdditiveBlending}
@@ -87,11 +84,13 @@ function Scene({ satellites, onSelectSatellite, selectedSatellite }: SceneProps)
 
       <Earth />
       <Atmosphere />
-      <SatelliteLayer
-        satellites={satellites}
-        onSelect={onSelectSatellite}
-        selected={selectedSatellite}
-      />
+      {satellites.length > 0 && (
+        <SatelliteLayer
+          satellites={satellites}
+          onSelect={onSelectSatellite}
+          selected={selectedSatellite}
+        />
+      )}
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
       <OrbitControls
@@ -119,8 +118,32 @@ export function Globe({ satellites, onSelectSatellite, selectedSatellite }: Glob
     far: 200,
   }), []);
 
+  // Log WebGL context loss
+  useEffect(() => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    const onLost = (e: Event) => {
+      console.error('WebGL CONTEXT LOST', e);
+      e.preventDefault();
+    };
+    const onRestored = () => console.log('WebGL context restored');
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
+    return () => {
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
+    };
+  }, []);
+
   return (
-    <Canvas camera={cameraConfig} gl={{ antialias: true, alpha: false }}>
+    <Canvas
+      camera={cameraConfig}
+      gl={{ antialias: false, alpha: false, powerPreference: 'high-performance' }}
+      onCreated={({ gl }) => {
+        console.log('R3F Canvas created, renderer:', gl.info);
+        gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      }}
+    >
       <color attach="background" args={['#050510']} />
       <fog attach="fog" args={['#050510', 15, 50]} />
       <Scene
