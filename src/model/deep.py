@@ -128,7 +128,7 @@ class PhysicsInformedTFT(nn.Module):
     Physics-Informed Temporal Fusion Transformer for conjunction assessment.
 
     Input flow:
-      temporal_features (B, S, F_t) → Variable Selection → time embedding → self-attention → pool last → heads
+      temporal_features (B, S, F_t) → Variable Selection → time embedding → self-attention → attention pool → heads
       static_features   (B, F_s)    → Variable Selection → context injection ↗
 
     Output:
@@ -191,6 +191,15 @@ class PhysicsInformedTFT(nn.Module):
         self.pre_attn_grn = GatedResidualNetwork(d_model, dropout=dropout)
         self.post_attn_grn = GatedResidualNetwork(d_model, dropout=dropout)
 
+        # --- Attention-weighted pooling ---
+        # Learns which time steps matter most instead of just taking the last one.
+        # Softmax attention over all real positions, with padding masked out.
+        self.pool_attention = nn.Sequential(
+            nn.Linear(d_model, d_model // 2),
+            nn.Tanh(),
+            nn.Linear(d_model // 2, 1),
+        )
+
         # --- Prediction heads ---
         self.risk_head = nn.Sequential(
             nn.LayerNorm(d_model),
@@ -246,16 +255,19 @@ class PhysicsInformedTFT(nn.Module):
         # 7. Post-attention GRN
         x = self.post_attn_grn(x)
 
-        # 8. Pool: take the last REAL position (most recent CDM)
-        # Find the last True position in each mask
-        # mask shape: (B, S)
-        seq_lengths = mask.sum(dim=1)  # (B,)
-        last_indices = (seq_lengths - 1).clamp(min=0).long()  # (B,)
-        x_last = x[torch.arange(B, device=x.device), last_indices]  # (B, D)
+        # 8. Attention-weighted pooling over all real positions
+        # Instead of just the last CDM, learn which time steps matter most
+        attn_scores = self.pool_attention(x).squeeze(-1)  # (B, S)
+        # Mask padding positions with -inf so they get zero attention
+        attn_scores = attn_scores.masked_fill(~mask, float("-inf"))
+        attn_weights = F.softmax(attn_scores, dim=-1)  # (B, S)
+        # Handle all-padding edge case (shouldn't happen but be safe)
+        attn_weights = attn_weights.nan_to_num(0.0)
+        x_pooled = (x * attn_weights.unsqueeze(-1)).sum(dim=1)  # (B, D)
 
         # 9. Prediction heads
-        risk_logit = self.risk_head(x_last)    # (B, 1)
-        miss_log = self.miss_head(x_last)      # (B, 1)
+        risk_logit = self.risk_head(x_pooled)    # (B, 1)
+        miss_log = self.miss_head(x_pooled)      # (B, 1)
 
         return risk_logit, miss_log, temporal_weights
 
@@ -263,11 +275,41 @@ class PhysicsInformedTFT(nn.Module):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
+class SigmoidFocalLoss(nn.Module):
+    """
+    Focal Loss for binary classification (Lin et al., 2017).
+
+    Down-weights well-classified examples so the model focuses on hard cases.
+    FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)
+
+    With gamma=0, this reduces to standard weighted BCE.
+    With gamma=2, easy examples (p_t > 0.9) get ~100x less weight.
+    """
+
+    def __init__(self, alpha: float = 0.75, gamma: float = 2.0):
+        super().__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        p = torch.sigmoid(logits)
+        # p_t = probability of the true class
+        p_t = targets * p + (1 - targets) * (1 - p)
+        # alpha_t = alpha for positive class, (1-alpha) for negative
+        alpha_t = targets * self.alpha + (1 - targets) * (1 - self.alpha)
+        # focal modulator: (1 - p_t)^gamma
+        focal_weight = (1 - p_t) ** self.gamma
+        # BCE per-element (numerically stable via log-sum-exp)
+        bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
+        loss = alpha_t * focal_weight * bce
+        return loss.mean()
+
+
 class PhysicsInformedLoss(nn.Module):
     """
     Combined task loss + physics regularization.
 
-    Total loss = risk_weight * BCE(risk) + miss_weight * MSE(miss_distance)
+    Total loss = risk_weight * FocalLoss(risk) + miss_weight * MSE(miss_distance)
                  + physics_weight * ReLU(MOID - predicted_miss)
 
     The physics term: MOID (Minimum Orbital Intersection Distance) is the
@@ -282,17 +324,23 @@ class PhysicsInformedLoss(nn.Module):
     def __init__(
         self,
         risk_weight: float = 1.0,
-        miss_weight: float = 0.5,
+        miss_weight: float = 0.1,
         physics_weight: float = 0.2,
         pos_weight: float = 50.0,
+        use_focal: bool = False,
+        focal_alpha: float = 0.75,
+        focal_gamma: float = 2.0,
     ):
         super().__init__()
         self.risk_weight = risk_weight
         self.miss_weight = miss_weight
         self.physics_weight = physics_weight
-        self.risk_loss = nn.BCEWithLogitsLoss(
-            pos_weight=torch.tensor(pos_weight)
-        )
+        if use_focal:
+            self.risk_loss = SigmoidFocalLoss(alpha=focal_alpha, gamma=focal_gamma)
+        else:
+            self.risk_loss = nn.BCEWithLogitsLoss(
+                pos_weight=torch.tensor(pos_weight)
+            )
         self.miss_loss = nn.MSELoss()
 
     def forward(

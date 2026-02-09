@@ -105,6 +105,33 @@ class CDMSequenceDataset(Dataset):
         if self.tca_std < 1e-8:
             self.tca_std = 1.0
 
+        # Compute delta normalization stats (approx from per-step differences)
+        # Deltas have different magnitude than raw features, need separate stats
+        self._compute_delta_stats(df)
+
+    def _compute_delta_stats(self, df: pd.DataFrame):
+        """Estimate normalization stats for temporal first-order differences."""
+        # Sample a subset of events to estimate delta distributions
+        delta_samples = []
+        for _, group in df.groupby("event_id"):
+            if len(group) < 2:
+                continue
+            vals = group[self.temporal_cols].values.astype(np.float32)
+            vals = np.nan_to_num(vals, nan=0.0, posinf=0.0, neginf=0.0)
+            deltas = np.diff(vals, axis=0)
+            delta_samples.append(deltas)
+            if len(delta_samples) >= 2000:  # cap for speed
+                break
+        if delta_samples:
+            all_deltas = np.concatenate(delta_samples, axis=0)
+            self.delta_mean = all_deltas.mean(axis=0).astype(np.float32)
+            self.delta_std = all_deltas.std(axis=0).astype(np.float32)
+            self.delta_std[self.delta_std < 1e-8] = 1.0
+        else:
+            n = len(self.temporal_cols)
+            self.delta_mean = np.zeros(n, dtype=np.float32)
+            self.delta_std = np.ones(n, dtype=np.float32)
+
     def set_normalization(self, other: "CDMSequenceDataset"):
         """Copy normalization stats from another dataset (e.g., training set)."""
         self.temporal_mean = other.temporal_mean
@@ -113,6 +140,8 @@ class CDMSequenceDataset(Dataset):
         self.static_std = other.static_std
         self.tca_mean = other.tca_mean
         self.tca_std = other.tca_std
+        self.delta_mean = other.delta_mean
+        self.delta_std = other.delta_std
 
     def __len__(self):
         return len(self.events)
@@ -125,6 +154,22 @@ class CDMSequenceDataset(Dataset):
         temporal = group[self.temporal_cols].values.astype(np.float32)
         temporal = np.nan_to_num(temporal, nan=0.0, posinf=0.0, neginf=0.0)
 
+        # Compute first-order differences (deltas) for temporal features
+        # This captures trends: is miss_distance shrinking? Is covariance tightening?
+        if len(temporal) > 1:
+            deltas = np.diff(temporal, axis=0)  # (seq_len-1, n_temporal)
+            # Prepend zeros for the first timestep (no prior to diff against)
+            deltas = np.concatenate([np.zeros((1, deltas.shape[1]), dtype=np.float32), deltas], axis=0)
+        else:
+            deltas = np.zeros_like(temporal)
+
+        # Normalize raw features and deltas separately
+        temporal = (temporal - self.temporal_mean) / self.temporal_std
+        deltas = (deltas - self.delta_mean) / self.delta_std
+
+        # Concatenate: (seq_len, n_temporal * 2)
+        temporal = np.concatenate([temporal, deltas], axis=1)
+
         # Extract static features from last row (they're constant per event)
         static = group[self.static_cols].iloc[-1].values.astype(np.float32)
         static = np.nan_to_num(static, nan=0.0, posinf=0.0, neginf=0.0)
@@ -133,7 +178,6 @@ class CDMSequenceDataset(Dataset):
         tca = group["time_to_tca"].values.astype(np.float32).reshape(-1, 1)
 
         # Normalize
-        temporal = (temporal - self.temporal_mean) / self.temporal_std
         static = (static - self.static_mean) / self.static_std
         tca = (tca - self.tca_mean) / self.tca_std
 
