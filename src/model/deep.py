@@ -217,15 +217,19 @@ class PhysicsInformedTFT(nn.Module):
             nn.Linear(64, 1),
         )
 
-    def forward(
+    def encode_sequence(
         self,
         temporal_features: torch.Tensor,  # (B, S, F_t)
         static_features: torch.Tensor,    # (B, F_s)
         time_to_tca: torch.Tensor,        # (B, S, 1)
         mask: torch.Tensor,               # (B, S) — True for real, False for padding
     ):
-        B, S, _ = temporal_features.shape
+        """Encode CDM sequence into per-timestep hidden states.
 
+        Returns:
+            hidden: (B, S, D) per-timestep representations after Transformer
+            temporal_weights: (B, S, F_t) variable selection attention weights
+        """
         # 1. Variable selection -- learn which features matter
         temporal_selected, temporal_weights = self.temporal_vsn(temporal_features)
         # temporal_selected: (B, S, D), temporal_weights: (B, S, F_t)
@@ -254,6 +258,22 @@ class PhysicsInformedTFT(nn.Module):
 
         # 7. Post-attention GRN
         x = self.post_attn_grn(x)
+
+        return x, temporal_weights
+
+    def forward(
+        self,
+        temporal_features: torch.Tensor,  # (B, S, F_t)
+        static_features: torch.Tensor,    # (B, F_s)
+        time_to_tca: torch.Tensor,        # (B, S, 1)
+        mask: torch.Tensor,               # (B, S) — True for real, False for padding
+    ):
+        B, S, _ = temporal_features.shape
+
+        # Steps 1-7: encode sequence into per-timestep hidden states
+        x, temporal_weights = self.encode_sequence(
+            temporal_features, static_features, time_to_tca, mask
+        )
 
         # 8. Attention-weighted pooling over all real positions
         # Instead of just the last CDM, learn which time steps matter most
