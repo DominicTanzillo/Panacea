@@ -50,10 +50,12 @@ def train_one_epoch(model, loader, criterion, optimizer, scaler, device, accum_s
         mask = batch["mask"].to(device)
         risk_target = batch["risk_label"].to(device)
         miss_target = batch["miss_log"].to(device)
+        dw = batch["domain_weight"].to(device) if "domain_weight" in batch else None
 
         with torch.amp.autocast("cuda", enabled=scaler.is_enabled()):
             risk_logit, miss_log, _ = model(temporal, static, tca, mask)
-            loss, metrics = criterion(risk_logit, miss_log, risk_target, miss_target)
+            loss, metrics = criterion(risk_logit, miss_log, risk_target, miss_target,
+                                      domain_weight=dw)
             loss = loss / accum_steps  # normalize for accumulation
 
         scaler.scale(loss).backward()
@@ -159,6 +161,10 @@ def main():
     parser.add_argument("--n-heads", type=int, default=4)
     parser.add_argument("--n-layers", type=int, default=2)
     parser.add_argument("--patience", type=int, default=15)
+    parser.add_argument("--augmented", action="store_true",
+                        help="Use augmented dataset (Space-Track + synthetic positives)")
+    parser.add_argument("--target-pos-ratio", type=float, default=0.05,
+                        help="Target positive event ratio for augmentation (default: 5%%)")
     args = parser.parse_args()
 
     if args.quick:
@@ -174,8 +180,16 @@ def main():
     results_dir.mkdir(parents=True, exist_ok=True)
 
     # Load data
-    print("Loading CDM dataset ...")
-    train_df, test_df = load_dataset(data_dir)
+    if args.augmented:
+        print("Loading AUGMENTED CDM dataset ...")
+        from src.data.augment import build_augmented_training_set
+        train_df, test_df = build_augmented_training_set(
+            ROOT / "data",
+            target_positive_ratio=args.target_pos_ratio,
+        )
+    else:
+        print("Loading CDM dataset ...")
+        train_df, test_df = load_dataset(data_dir)
 
     # Build sequence datasets
     print("\nBuilding sequence datasets ...")

@@ -350,13 +350,27 @@ class PhysicsInformedLoss(nn.Module):
         risk_target: torch.Tensor,      # (B,)
         miss_target_log: torch.Tensor,  # (B,)
         moid_log: torch.Tensor = None,  # (B,) optional, log1p(MOID_km)
+        domain_weight: torch.Tensor = None,  # (B,) per-sample weight
     ) -> tuple[torch.Tensor, dict]:
 
         # Risk classification loss (BCE with class weighting)
-        L_risk = self.risk_loss(risk_logit.squeeze(-1), risk_target)
+        if domain_weight is not None and not isinstance(self.risk_loss, SigmoidFocalLoss):
+            # Per-sample weighted BCE: compute element-wise then weight
+            bce_per_sample = F.binary_cross_entropy_with_logits(
+                risk_logit.squeeze(-1), risk_target,
+                pos_weight=self.risk_loss.pos_weight.to(risk_logit.device),
+                reduction="none",
+            )
+            L_risk = (bce_per_sample * domain_weight).mean()
+        else:
+            L_risk = self.risk_loss(risk_logit.squeeze(-1), risk_target)
 
-        # Miss distance regression loss (MSE in log space)
-        L_miss = self.miss_loss(miss_pred_log.squeeze(-1), miss_target_log)
+        # Miss distance regression loss — also domain-weighted
+        miss_residual = (miss_pred_log.squeeze(-1) - miss_target_log) ** 2
+        if domain_weight is not None:
+            L_miss = (miss_residual * domain_weight).mean()
+        else:
+            L_miss = miss_residual.mean()
 
         # Physics constraint: predicted miss >= MOID
         L_physics = torch.tensor(0.0, device=risk_logit.device)

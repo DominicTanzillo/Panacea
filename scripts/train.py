@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.data.cdm_loader import load_dataset, build_events, events_to_flat_features
+from src.data.cdm_loader import load_dataset, build_events, events_to_flat_features, get_feature_columns
 from src.model.baseline import OrbitalShellBaseline
 from src.model.classical import XGBoostConjunctionModel
 from src.evaluation.metrics import full_evaluation
@@ -106,19 +106,35 @@ def train_xgboost(events_train, events_test):
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--augmented", action="store_true",
+                        help="Use augmented dataset (Space-Track + synthetic positives)")
+    parser.add_argument("--target-pos-ratio", type=float, default=0.05)
+    args = parser.parse_args()
+
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
     # Load data
-    print("Loading CDM dataset ...")
-    train_df, test_df = load_dataset(DATA_DIR)
+    if args.augmented:
+        print("Loading AUGMENTED CDM dataset ...")
+        from src.data.augment import build_augmented_training_set
+        train_df, test_df = build_augmented_training_set(
+            ROOT / "data",
+            target_positive_ratio=args.target_pos_ratio,
+        )
+    else:
+        print("Loading CDM dataset ...")
+        train_df, test_df = load_dataset(DATA_DIR)
 
     # Build event objects
     print("\nBuilding conjunction events from training data ...")
-    events_train = build_events(train_df)
+    train_feature_cols = get_feature_columns(train_df)
+    events_train = build_events(train_df, feature_cols=train_feature_cols)
 
     print("\nBuilding conjunction events from test data ...")
-    events_test = build_events(test_df)
+    events_test = build_events(test_df, feature_cols=train_feature_cols)
 
     # Train models
     all_results = []

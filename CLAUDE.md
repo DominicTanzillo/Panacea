@@ -268,37 +268,16 @@ Panacea/
 - All webapp-react/ files are committed
 - No remote repository set up yet
 
-### Webapp 3D Globe — WHITE SCREEN BUG (UNRESOLVED)
-The 3D Earth globe renders briefly then crashes to a white screen when satellite data arrives from CelesTrak. The error boundary does NOT catch it, meaning it's likely a WebGL context loss rather than a React error.
+### Webapp 3D Globe — RESOLVED
+All 6 CelesTrak groups rendering (25k+ objects). Points + BufferGeometry renderer.
 
-**What has been tried (all failed to fix it):**
-1. Switched from InstancedMesh (sphere geometry per object) to Points + BufferGeometry (single draw call, Float32Array positions/colors)
-2. Fixed InstancedMesh buffer to constant MAX_INSTANCES=25000 to prevent mesh recreation
-3. Added NaN/Infinity filtering in `propagateSatellite()` — rejects bad TLEs, decayed orbits, positions outside 6371-100000 km
-4. Added React ErrorBoundary around Canvas (crash bypasses it — not a React error)
-5. Reduced default enabled groups to only stations (~500 objects, all debris disabled)
-6. Chunked async propagation with setTimeout(0) yields between 500-object batches
-7. Adaptive update interval (2-10s based on object count)
-8. NORAD_CAT_ID deduplication across groups
-9. Moved instance matrix updates from useFrame (every frame) to useEffect (on data change only)
+**White screen bug root cause**: React StrictMode double-mounts components in dev,
+creating two simultaneous WebGL contexts. GPU drops one via context loss. Fix: removed
+StrictMode from main.tsx. Also applied: antialias off, powerPreference high-performance,
+pixel ratio capped at 2x, NaN filtering in propagation, chunked async propagation.
 
-**What to try next:**
-- Open Chrome DevTools Console BEFORE loading the page to capture the actual error/stack trace
-- Check if it's a WebGL context lost event (`canvas.addEventListener('webglcontextlost')`)
-- Try rendering with satellites=[] permanently (hardcode) to confirm the Earth+atmosphere+stars render stably alone — if they do, the bug is in SatelliteLayer; if not, it's in Globe.tsx (texture loading, shaders, etc.)
-- Check if the Atmosphere component's custom fragment shader is crashing WebGL on this GPU
-- Try `<Canvas gl={{ antialias: false, powerPreference: 'high-performance' }}>` to reduce GPU load
-- Consider the Stars component from drei — 5000 star particles might compound with satellite points
-- Check if Suspense + useLoader for textures is causing a race condition with the satellite data arriving
-- As a nuclear option: render Earth as a solid color sphere (no textures/shaders) to isolate whether textures or satellites cause the crash
-
-**Key files for debugging:**
-- `webapp-react/src/components/Globe.tsx` — Canvas, Earth textures, Atmosphere shader, Stars
-- `webapp-react/src/components/SatelliteLayer.tsx` — Points renderer (was InstancedMesh)
-- `webapp-react/src/hooks/useSatellites.ts` — Fetch + propagation logic
-- `webapp-react/src/lib/orbital.ts` — SGP4 propagation with NaN filtering
-- `webapp-react/src/lib/types.ts` — OBJECT_GROUPS (only stations enabled)
-- `webapp-react/src/App.tsx` — ErrorBoundary + Suspense
+**Key lesson**: Never use React StrictMode with WebGL/Three.js — the double-mount
+creates duplicate GPU contexts that crash on resource-constrained systems.
 
 ### Other Pending Work
 - Download ESA Kelvins CDM dataset (221MB from Zenodo — deferred, Zenodo was slow)
