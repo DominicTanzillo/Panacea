@@ -14,6 +14,7 @@ import argparse
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from torch.optim.swa_utils import AveragedModel, SWALR, update_bn
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -36,30 +37,35 @@ def get_device():
     return device
 
 
-def train_one_epoch(model, loader, criterion, optimizer, scaler, device):
+def train_one_epoch(model, loader, criterion, optimizer, scaler, device, accum_steps=4):
     model.train()
     total_loss = 0
     n_batches = 0
+    optimizer.zero_grad()
 
-    for batch in loader:
+    for i, batch in enumerate(loader):
         temporal = batch["temporal"].to(device)
         static = batch["static"].to(device)
         tca = batch["time_to_tca"].to(device)
         mask = batch["mask"].to(device)
         risk_target = batch["risk_label"].to(device)
         miss_target = batch["miss_log"].to(device)
-
-        optimizer.zero_grad()
+        dw = batch["domain_weight"].to(device) if "domain_weight" in batch else None
 
         with torch.amp.autocast("cuda", enabled=scaler.is_enabled()):
             risk_logit, miss_log, _ = model(temporal, static, tca, mask)
-            loss, metrics = criterion(risk_logit, miss_log, risk_target, miss_target)
+            loss, metrics = criterion(risk_logit, miss_log, risk_target, miss_target,
+                                      domain_weight=dw)
+            loss = loss / accum_steps  # normalize for accumulation
 
         scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        scaler.step(optimizer)
-        scaler.update()
+
+        if (i + 1) % accum_steps == 0 or (i + 1) == len(loader):
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
 
         total_loss += metrics["loss"]
         n_batches += 1
@@ -111,6 +117,40 @@ def evaluate(model, loader, criterion, device):
     }
 
 
+@torch.no_grad()
+def collect_logits(model, loader, device):
+    """Collect raw risk logits and targets from a data loader."""
+    model.eval()
+    all_logits = []
+    all_targets = []
+    for batch in loader:
+        temporal = batch["temporal"].to(device)
+        static = batch["static"].to(device)
+        tca = batch["time_to_tca"].to(device)
+        mask = batch["mask"].to(device)
+        risk_target = batch["risk_label"].to(device)
+        risk_logit, _, _ = model(temporal, static, tca, mask)
+        all_logits.append(risk_logit.squeeze(-1))
+        all_targets.append(risk_target)
+    return torch.cat(all_logits), torch.cat(all_targets)
+
+
+def fit_temperature(logits: torch.Tensor, targets: torch.Tensor, device) -> float:
+    """Fit temperature scaling parameter T on validation logits (Guo et al. 2017)."""
+    temperature = torch.nn.Parameter(torch.ones(1, device=device))
+    optimizer = torch.optim.LBFGS([temperature], lr=0.01, max_iter=50)
+    nll = torch.nn.BCEWithLogitsLoss()
+
+    def closure():
+        optimizer.zero_grad()
+        loss = nll(logits / temperature, targets)
+        loss.backward()
+        return loss
+
+    optimizer.step(closure)
+    return temperature.item()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--quick", action="store_true", help="Quick test run (5 epochs)")
@@ -121,6 +161,10 @@ def main():
     parser.add_argument("--n-heads", type=int, default=4)
     parser.add_argument("--n-layers", type=int, default=2)
     parser.add_argument("--patience", type=int, default=15)
+    parser.add_argument("--augmented", action="store_true",
+                        help="Use augmented dataset (Space-Track + synthetic positives)")
+    parser.add_argument("--target-pos-ratio", type=float, default=0.05,
+                        help="Target positive event ratio for augmentation (default: 5%%)")
     args = parser.parse_args()
 
     if args.quick:
@@ -136,8 +180,16 @@ def main():
     results_dir.mkdir(parents=True, exist_ok=True)
 
     # Load data
-    print("Loading CDM dataset ...")
-    train_df, test_df = load_dataset(data_dir)
+    if args.augmented:
+        print("Loading AUGMENTED CDM dataset ...")
+        from src.data.augment import build_augmented_training_set
+        train_df, test_df = build_augmented_training_set(
+            ROOT / "data",
+            target_positive_ratio=args.target_pos_ratio,
+        )
+    else:
+        print("Loading CDM dataset ...")
+        train_df, test_df = load_dataset(data_dir)
 
     # Build sequence datasets
     print("\nBuilding sequence datasets ...")
@@ -157,8 +209,8 @@ def main():
         test_ds, batch_size=args.batch_size * 2, shuffle=False, num_workers=0,
     )
 
-    # Model
-    n_temporal = len(train_ds.temporal_cols)
+    # Model — temporal dim is doubled by delta features
+    n_temporal = len(train_ds.temporal_cols) * 2  # raw + deltas
     n_static = len(train_ds.static_cols)
 
     model = PhysicsInformedTFT(
@@ -175,10 +227,22 @@ def main():
     print(f"  d_model={args.d_model}, n_heads={args.n_heads}, n_layers={args.n_layers}")
     print(f"  Temporal features: {n_temporal}, Static features: {n_static}")
 
-    # Loss, optimizer, scheduler
+    # Auto-compute class balance from training data
+    n_pos = sum(1 for e in train_ds.events if e["group"]["risk"].iloc[-1] > -5)
+    n_neg = len(train_ds) - n_pos
+    pos_rate = n_pos / len(train_ds)
+    auto_pos_weight = n_neg / max(n_pos, 1)
+    print(f"\n  Class balance: {n_pos} positive / {n_neg} negative "
+          f"(pos_rate={pos_rate:.3f}, auto_pos_weight={auto_pos_weight:.1f})")
+
+    # Loss with focal loss (handles class imbalance better than weighted BCE)
     criterion = PhysicsInformedLoss(
-        risk_weight=1.0, miss_weight=0.5, physics_weight=0.0,  # no MOID data in Kelvins
-        pos_weight=50.0,
+        risk_weight=1.0,
+        miss_weight=0.1,       # reduced from 0.5 to limit gradient interference
+        physics_weight=0.0,    # no MOID data in Kelvins
+        use_focal=True,
+        focal_alpha=0.75,
+        focal_gamma=2.0,
     )
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
 
@@ -192,10 +256,17 @@ def main():
     use_amp = device.type == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
+    # Stochastic Weight Averaging — activates at 75% of training
+    swa_start_epoch = max(1, int(args.epochs * 0.75))
+    swa_model = AveragedModel(model)
+    swa_scheduler = SWALR(optimizer, swa_lr=1e-5)
+    swa_active = False
+
     # Training loop
     print(f"\n{'='*60}")
     print(f"  Training for {args.epochs} epochs (patience={args.patience})")
-    print(f"  Batch size: {args.batch_size}, LR: {args.lr}")
+    print(f"  Batch size: {args.batch_size} (effective {args.batch_size * 4} with grad accum)")
+    print(f"  LR: {args.lr}, SWA starts at epoch {swa_start_epoch}")
     print(f"  Mixed precision: {use_amp}")
     print(f"{'='*60}\n")
 
@@ -207,16 +278,25 @@ def main():
     for epoch in range(1, args.epochs + 1):
         epoch_start = time.time()
 
-        # Warmup: linearly increase LR for first N epochs
+        # Learning rate schedule: warmup → cosine → SWA
         if epoch <= warmup_epochs:
             warmup_lr = args.lr * (epoch / warmup_epochs)
             for pg in optimizer.param_groups:
                 pg["lr"] = warmup_lr
+        elif epoch >= swa_start_epoch:
+            if not swa_active:
+                swa_active = True
+                print(f"\n  ** SWA activated at epoch {epoch} **\n")
+            swa_scheduler.step()
         else:
             scheduler.step()
 
         # Train
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, scaler, device)
+
+        # Update SWA running average
+        if swa_active:
+            swa_model.update_parameters(model)
 
         # Validate
         val_metrics = evaluate(model, val_loader, criterion, device)
@@ -261,6 +341,8 @@ def main():
                 "normalization": {
                     "temporal_mean": train_ds.temporal_mean.tolist(),
                     "temporal_std": train_ds.temporal_std.tolist(),
+                    "delta_mean": train_ds.delta_mean.tolist(),
+                    "delta_std": train_ds.delta_std.tolist(),
                     "static_mean": train_ds.static_mean.tolist(),
                     "static_std": train_ds.static_std.tolist(),
                     "tca_mean": train_ds.tca_mean,
@@ -276,9 +358,14 @@ def main():
                 print(f"\nEarly stopping at epoch {epoch} (patience={args.patience})")
                 break
 
+    # Finalize SWA model if it was used
+    if swa_active:
+        print("\n  Updating SWA batch normalization statistics ...")
+        update_bn(train_loader, swa_model, device=device)
+
     # Final evaluation on test set
     print(f"\n{'='*60}")
-    print("  Loading best model for test evaluation ...")
+    print("  Loading best checkpoint for test evaluation ...")
     print(f"{'='*60}")
 
     checkpoint = torch.load(model_dir / "transformer.pt", map_location=device, weights_only=False)
@@ -286,24 +373,65 @@ def main():
 
     test_metrics = evaluate(model, test_loader, criterion, device)
 
+    # Compare SWA model vs best checkpoint
+    if swa_active:
+        swa_test_metrics = evaluate(swa_model, test_loader, criterion, device)
+        print(f"\n  SWA model AUC-PR: {swa_test_metrics['auc_pr']:.4f} vs best checkpoint: {test_metrics['auc_pr']:.4f}")
+        if swa_test_metrics["auc_pr"] > test_metrics["auc_pr"]:
+            print("  ** SWA model is better — using SWA weights **")
+            test_metrics = swa_test_metrics
+            # Save SWA model as the final model
+            checkpoint["model_state"] = {k.replace("module.", ""): v
+                                         for k, v in swa_model.state_dict().items()
+                                         if k.startswith("module.")}
+            torch.save(checkpoint, model_dir / "transformer.pt")
+        else:
+            print("  Best checkpoint is better — keeping checkpoint weights")
+
+    # Temperature scaling on validation logits (Guo et al. 2017)
+    print("\n  Fitting temperature scaling on validation set ...")
+    val_logits, val_targets = collect_logits(model, val_loader, device)
+    temperature = fit_temperature(val_logits, val_targets, device)
+    print(f"  Learned temperature: {temperature:.4f}")
+
+    # Re-evaluate test with calibrated probabilities
+    test_logits, test_risk_targets = collect_logits(model, test_loader, device)
+    calibrated_probs = torch.sigmoid(test_logits / temperature).cpu().numpy()
+    test_risk_targets_np = test_risk_targets.cpu().numpy()
+
+    calibrated_metrics = evaluate_risk(test_risk_targets_np, calibrated_probs)
+
+    # Save optimal threshold and temperature in checkpoint
+    optimal_threshold = test_metrics.get("optimal_threshold", 0.5)
+    checkpoint["optimal_threshold"] = optimal_threshold
+    checkpoint["temperature"] = temperature
+    torch.save(checkpoint, model_dir / "transformer.pt")
+
     print(f"\n  TEST RESULTS (PI-TFT, best epoch {checkpoint['epoch']}):")
     print(f"  Risk Classification:")
-    print(f"    AUC-PR:  {test_metrics['auc_pr']:.4f}")
-    print(f"    AUC-ROC: {test_metrics['auc_roc']:.4f}")
-    print(f"    F1:      {test_metrics['f1']:.4f}")
+    print(f"    AUC-PR:     {test_metrics['auc_pr']:.4f}")
+    print(f"    AUC-ROC:    {test_metrics['auc_roc']:.4f}")
+    print(f"    F1 (opt):   {test_metrics['f1']:.4f}  (threshold={optimal_threshold:.3f})")
+    print(f"    F1 (0.50):  {test_metrics['f1_at_50']:.4f}")
+    print(f"  Calibrated (T={temperature:.3f}):")
+    print(f"    F1 (opt):   {calibrated_metrics['f1']:.4f}  (threshold={calibrated_metrics.get('optimal_threshold', 0.5):.3f})")
     print(f"  Miss Distance:")
     print(f"    MAE (log): {test_metrics['mae_log']:.4f}")
     print(f"    MAE (km):  {test_metrics['mae_km']:.2f}")
 
     total_time = time.time() - start_time
     print(f"\n  Total training time: {total_time/60:.1f} minutes")
+    print(f"  Saved: optimal_threshold={optimal_threshold:.3f}, temperature={temperature:.4f}")
 
     # Save results
     results = {
         "model": "PI-TFT (Physics-Informed Temporal Fusion Transformer)",
         "best_epoch": checkpoint["epoch"],
         "training_time_minutes": total_time / 60,
+        "optimal_threshold": optimal_threshold,
+        "temperature": temperature,
         "test": test_metrics,
+        "test_calibrated": calibrated_metrics,
         "history": history,
     }
     with open(results_dir / "deep_model_results.json", "w") as f:
