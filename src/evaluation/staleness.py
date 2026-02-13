@@ -70,6 +70,12 @@ def evaluate_xgboost_at_cutoff(
 
     X, _, _ = events_to_flat_features(events)
 
+    # Pad features if model was trained on augmented data with more columns
+    expected_features = xgboost_model.scaler.n_features_in_
+    if X.shape[1] < expected_features:
+        padding = np.zeros((X.shape[0], expected_features - X.shape[1]), dtype=X.dtype)
+        X = np.hstack([X, padding])
+
     event_ids = [e.event_id for e in events]
     valid_mask = np.array([eid in ground_truth for eid in event_ids])
     X = X[valid_mask]
