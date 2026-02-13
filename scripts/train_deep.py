@@ -272,13 +272,23 @@ def main():
             pretrained_path = ROOT / pretrained_path
         print(f"\n  Loading pre-trained encoder from {pretrained_path} ...")
         pretrained_ckpt = torch.load(pretrained_path, map_location=device, weights_only=False)
-        missing, unexpected = model.load_state_dict(
-            pretrained_ckpt["encoder_state"], strict=False
-        )
+
+        # Filter out weights with shape mismatches (e.g., static_vsn changed due to density features)
+        pretrained_state = pretrained_ckpt["encoder_state"]
+        model_state = model.state_dict()
+        compatible = {}
+        skipped = []
+        for k, v in pretrained_state.items():
+            if k in model_state and v.shape == model_state[k].shape:
+                compatible[k] = v
+            elif k in model_state:
+                skipped.append(k)
+        missing, unexpected = model.load_state_dict(compatible, strict=False)
         print(f"  Loaded pre-trained weights (epoch {pretrained_ckpt['epoch']})")
-        print(f"  Missing keys (randomly init): {[k.split('.')[0] + '.*' for k in missing]}")
-        if unexpected:
-            print(f"  Unexpected keys (ignored): {unexpected}")
+        print(f"  Compatible: {len(compatible)} layers, Skipped (shape mismatch): {len(skipped)}")
+        if skipped:
+            print(f"  Skipped layers: {[k.split('.')[0] + '.*' for k in skipped]}")
+        print(f"  Missing keys (randomly init): {len(missing)}")
         print(f"  Freeze epochs: {args.freeze_epochs}, Encoder LR scale: {args.encoder_lr_scale}")
 
     # Auto-compute class balance from training data
