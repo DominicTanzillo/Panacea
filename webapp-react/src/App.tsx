@@ -7,6 +7,7 @@ import { StatusBar } from './components/StatusBar';
 import { SearchFilter } from './components/SearchFilter';
 import { ConjunctionAlerts } from './components/ConjunctionAlerts';
 import { RiskDashboard } from './components/RiskDashboard';
+import { AboutPage } from './components/AboutPage';
 import { useSatellites } from './hooks/useSatellites';
 import { useApi } from './hooks/useApi';
 import type { SatellitePosition } from './lib/types';
@@ -92,6 +93,8 @@ function App() {
   const [selectedSatellite, setSelectedSatellite] = useState<SatellitePosition | null>(null);
   const [showAlerts, setShowAlerts] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showBorders, setShowBorders] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   return (
     <div className="w-full h-full relative">
@@ -117,6 +120,18 @@ function App() {
         </div>
 
         <button
+          onClick={() => setShowBorders(!showBorders)}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all backdrop-blur-md ${
+            showBorders
+              ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
+              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)]'
+          }`}
+          title="Toggle country borders"
+        >
+          Borders
+        </button>
+
+        <button
           onClick={() => { setShowAlerts(!showAlerts); setShowDashboard(false); }}
           className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all backdrop-blur-md ${
             showAlerts
@@ -137,6 +152,13 @@ function App() {
         >
           Dashboard
         </button>
+
+        <button
+          onClick={() => setShowAbout(true)}
+          className="px-3 py-1.5 rounded-full text-xs font-medium border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all"
+        >
+          About
+        </button>
       </div>
 
       <SceneErrorBoundary>
@@ -145,6 +167,7 @@ function App() {
             satellites={satellites}
             onSelectSatellite={setSelectedSatellite}
             selectedSatellite={selectedSatellite}
+            showBorders={showBorders}
           />
         </Suspense>
       </SceneErrorBoundary>
@@ -176,6 +199,8 @@ function App() {
         onToggleGroup={toggleGroup}
         lastUpdate={lastUpdate}
       />
+
+      <AboutPage visible={showAbout} onClose={() => setShowAbout(false)} />
     </div>
   );
 }
