@@ -23,7 +23,7 @@ export function SatelliteLayer({ satellites, onSelect }: SatelliteLayerProps) {
   const { raycaster, pointer, camera } = useThree();
 
   // Build typed arrays for positions and colors from satellite data
-  const { positionArray, colorArray, count } = useMemo(() => {
+  const { positionArray, colorArray } = useMemo(() => {
     const n = satellites.length;
     const positions = new Float32Array(n * 3);
     const colors = new Float32Array(n * 3);
