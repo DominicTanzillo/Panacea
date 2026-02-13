@@ -21,9 +21,8 @@ const WHITE_RGB: [number, number, number] = [1, 1, 1];
 
 const SCALE = 1 / EARTH_RADIUS_KM;
 
-// Trail: 30 seconds behind. Prediction: 60 seconds ahead.
-const TRAIL_SECONDS = 30;
-const PREDICT_SECONDS = 60;
+// Trail: 60 seconds behind (no forward prediction)
+const TRAIL_SECONDS = 60;
 
 export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLayerProps) {
   const pointsRef = useRef<THREE.Points>(null);
@@ -81,14 +80,13 @@ export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLaye
     return geo;
   }, [satellites.length]);
 
-  // Trail line geometry: each satellite gets a line from trail→position→prediction
-  // Two segments per satellite: trail-to-current (behind), current-to-prediction (ahead)
+  // Trail line geometry: one segment per satellite (trail behind → current position)
   const trailGeo = useMemo(() => {
     const geo = new THREE.BufferGeometry();
     const n = satellites.length;
-    // 2 line segments = 4 vertices per satellite
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(n * 4 * 3), 3));
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n * 4 * 3), 3));
+    // 1 line segment = 2 vertices per satellite
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(n * 2 * 3), 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(n * 2 * 3), 3));
     return geo;
   }, [satellites.length]);
 
@@ -131,49 +129,32 @@ export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLaye
       colArr[i3 + 1] = data.colors[i3 + 1];
       colArr[i3 + 2] = data.colors[i3 + 2];
 
-      // Trail line: 4 vertices per satellite (2 line segments)
-      const ti = i * 12; // 4 vertices * 3 components
+      // Trail line: 2 vertices per satellite (trail start → current position)
+      const ti = i * 6; // 2 vertices * 3 components
 
-      // Segment 1: trail point → current position (where it's been)
-      const trailDt = -TRAIL_SECONDS;
-      tPosArr[ti] = cx + data.velocities[i3] * trailDt;
-      tPosArr[ti + 1] = cy + data.velocities[i3 + 1] * trailDt;
-      tPosArr[ti + 2] = cz + data.velocities[i3 + 2] * trailDt;
+      // Trail start: where the satellite was TRAIL_SECONDS ago
+      tPosArr[ti] = cx + data.velocities[i3] * (-TRAIL_SECONDS);
+      tPosArr[ti + 1] = cy + data.velocities[i3 + 1] * (-TRAIL_SECONDS);
+      tPosArr[ti + 2] = cz + data.velocities[i3 + 2] * (-TRAIL_SECONDS);
 
+      // Trail end: current position
       tPosArr[ti + 3] = cx;
       tPosArr[ti + 4] = cy;
       tPosArr[ti + 5] = cz;
 
-      // Segment 2: current position → prediction point (where it's going)
-      tPosArr[ti + 6] = cx;
-      tPosArr[ti + 7] = cy;
-      tPosArr[ti + 8] = cz;
-
-      tPosArr[ti + 9] = cx + data.velocities[i3] * PREDICT_SECONDS;
-      tPosArr[ti + 10] = cy + data.velocities[i3 + 1] * PREDICT_SECONDS;
-      tPosArr[ti + 11] = cz + data.velocities[i3 + 2] * PREDICT_SECONDS;
-
-      // Trail segment color: dimmed version of satellite color
+      // Trail color: faded at tail, brighter near satellite
       const r = data.colors[i3];
       const g = data.colors[i3 + 1];
       const b = data.colors[i3 + 2];
 
       // Trail start (faded)
-      tColArr[ti] = r * 0.2;
-      tColArr[ti + 1] = g * 0.2;
-      tColArr[ti + 2] = b * 0.2;
+      tColArr[ti] = r * 0.1;
+      tColArr[ti + 1] = g * 0.1;
+      tColArr[ti + 2] = b * 0.1;
       // Trail end at current pos (brighter)
-      tColArr[ti + 3] = r * 0.6;
-      tColArr[ti + 4] = g * 0.6;
-      tColArr[ti + 5] = b * 0.6;
-      // Prediction start at current pos
-      tColArr[ti + 6] = r * 0.5;
-      tColArr[ti + 7] = g * 0.5;
-      tColArr[ti + 8] = b * 0.5;
-      // Prediction end (faded)
-      tColArr[ti + 9] = r * 0.1;
-      tColArr[ti + 10] = g * 0.1;
-      tColArr[ti + 11] = b * 0.1;
+      tColArr[ti + 3] = r * 0.7;
+      tColArr[ti + 4] = g * 0.7;
+      tColArr[ti + 5] = b * 0.7;
     }
 
     posAttr.needsUpdate = true;
@@ -202,7 +183,7 @@ export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLaye
 
   return (
     <group>
-      {/* Trajectory lines: trail (behind) + prediction (ahead) */}
+      {/* Trailing trajectory lines (behind each satellite) */}
       <lineSegments ref={trailRef} geometry={trailGeo} frustumCulled={false}>
         <lineBasicMaterial
           vertexColors
