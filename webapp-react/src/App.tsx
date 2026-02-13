@@ -4,7 +4,11 @@ import { Globe } from './components/Globe';
 import { Header } from './components/Header';
 import { InfoPanel } from './components/InfoPanel';
 import { StatusBar } from './components/StatusBar';
+import { SearchFilter } from './components/SearchFilter';
+import { ConjunctionAlerts } from './components/ConjunctionAlerts';
+import { RiskDashboard } from './components/RiskDashboard';
 import { useSatellites } from './hooks/useSatellites';
+import { useApi } from './hooks/useApi';
 import type { SatellitePosition } from './lib/types';
 
 // Error boundary to catch Three.js / WebGL crashes
@@ -78,11 +82,62 @@ function App() {
     lastUpdate,
   } = useSatellites();
 
+  const {
+    healthy,
+    modelComparison,
+    experimentResults,
+    screeningPairs,
+  } = useApi();
+
   const [selectedSatellite, setSelectedSatellite] = useState<SatellitePosition | null>(null);
+  const [showAlerts, setShowAlerts] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   return (
     <div className="w-full h-full relative">
       <Header />
+
+      <SearchFilter
+        satellites={satellites}
+        onSelectSatellite={setSelectedSatellite}
+      />
+
+      {/* Toggle buttons */}
+      <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+        {/* Backend status indicator */}
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md"
+          title={healthy ? 'Backend connected' : 'Backend offline — globe still works'}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: healthy ? '#4fff8a' : '#ff4f5a' }}
+          />
+          {healthy ? 'API' : 'Offline'}
+        </div>
+
+        <button
+          onClick={() => { setShowAlerts(!showAlerts); setShowDashboard(false); }}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all backdrop-blur-md ${
+            showAlerts
+              ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
+              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)]'
+          }`}
+        >
+          Alerts{screeningPairs.length > 0 ? ` (${screeningPairs.length})` : ''}
+        </button>
+
+        <button
+          onClick={() => { setShowDashboard(!showDashboard); setShowAlerts(false); }}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all backdrop-blur-md ${
+            showDashboard
+              ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
+              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)]'
+          }`}
+        >
+          Dashboard
+        </button>
+      </div>
 
       <SceneErrorBoundary>
         <Suspense fallback={<LoadingScreen />}>
@@ -97,6 +152,20 @@ function App() {
       <InfoPanel
         satellite={selectedSatellite}
         onClose={() => setSelectedSatellite(null)}
+      />
+
+      <ConjunctionAlerts
+        pairs={screeningPairs}
+        visible={showAlerts}
+        onClose={() => setShowAlerts(false)}
+      />
+
+      <RiskDashboard
+        modelComparison={modelComparison}
+        experimentResults={experimentResults}
+        satellites={satellites}
+        visible={showDashboard}
+        onClose={() => setShowDashboard(false)}
       />
 
       <StatusBar
