@@ -12,11 +12,12 @@ Usage:
 import sys
 import json
 import time
+import math
 import argparse
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.swa_utils import AveragedModel, SWALR, update_bn
+from torch.optim.swa_utils import AveragedModel, update_bn
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -272,13 +273,23 @@ def main():
             pretrained_path = ROOT / pretrained_path
         print(f"\n  Loading pre-trained encoder from {pretrained_path} ...")
         pretrained_ckpt = torch.load(pretrained_path, map_location=device, weights_only=False)
-        missing, unexpected = model.load_state_dict(
-            pretrained_ckpt["encoder_state"], strict=False
-        )
+
+        # Filter out weights with shape mismatches (e.g., static_vsn changed due to density features)
+        pretrained_state = pretrained_ckpt["encoder_state"]
+        model_state = model.state_dict()
+        compatible = {}
+        skipped = []
+        for k, v in pretrained_state.items():
+            if k in model_state and v.shape == model_state[k].shape:
+                compatible[k] = v
+            elif k in model_state:
+                skipped.append(k)
+        missing, unexpected = model.load_state_dict(compatible, strict=False)
         print(f"  Loaded pre-trained weights (epoch {pretrained_ckpt['epoch']})")
-        print(f"  Missing keys (randomly init): {[k.split('.')[0] + '.*' for k in missing]}")
-        if unexpected:
-            print(f"  Unexpected keys (ignored): {unexpected}")
+        print(f"  Compatible: {len(compatible)} layers, Skipped (shape mismatch): {len(skipped)}")
+        if skipped:
+            print(f"  Skipped layers: {[k.split('.')[0] + '.*' for k in skipped]}")
+        print(f"  Missing keys (randomly init): {len(missing)}")
         print(f"  Freeze epochs: {args.freeze_epochs}, Encoder LR scale: {args.encoder_lr_scale}")
 
     # Auto-compute class balance from training data
@@ -317,20 +328,41 @@ def main():
     else:
         optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
 
-    # Cosine annealing with warmup
-    warmup_epochs = max(3, args.epochs // 10)  # at least 3 epochs warmup
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=args.epochs - warmup_epochs, eta_min=1e-6
-    )
+    # LR schedule phases (computed manually to avoid PyTorch scheduler bugs with freeze/unfreeze)
+    warmup_epochs = max(3, args.epochs // 10)
+    post_unfreeze_warmup = 5 if (args.pretrained and args.freeze_epochs > 0) else 0
+    swa_start_epoch = max(1, int(args.epochs * 0.75))
+    eta_min = 1e-6
+
+    def compute_lr(epoch: int, base_lr: float, unfreeze_epoch: int = 0) -> float:
+        """Compute LR for a given epoch, handling freeze → warmup → cosine → SWA."""
+        if args.pretrained and args.freeze_epochs > 0:
+            if epoch <= args.freeze_epochs:
+                return 0.0  # encoder frozen, heads handled separately
+            # Post-unfreeze warmup
+            warmup_end = unfreeze_epoch + post_unfreeze_warmup
+            if epoch <= warmup_end:
+                frac = (epoch - args.freeze_epochs) / post_unfreeze_warmup
+                return base_lr * frac
+            # Cosine decay
+            if epoch >= swa_start_epoch:
+                return 1e-5
+            cosine_progress = (epoch - warmup_end) / max(swa_start_epoch - warmup_end, 1)
+            return eta_min + (base_lr - eta_min) * 0.5 * (1 + math.cos(math.pi * cosine_progress))
+        else:
+            if epoch <= warmup_epochs:
+                return base_lr * (epoch / warmup_epochs)
+            if epoch >= swa_start_epoch:
+                return 1e-5
+            cosine_progress = (epoch - warmup_epochs) / max(swa_start_epoch - warmup_epochs, 1)
+            return eta_min + (base_lr - eta_min) * 0.5 * (1 + math.cos(math.pi * cosine_progress))
 
     # Mixed precision
     use_amp = device.type == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
     # Stochastic Weight Averaging — activates at 75% of training
-    swa_start_epoch = max(1, int(args.epochs * 0.75))
     swa_model = AveragedModel(model)
-    swa_scheduler = SWALR(optimizer, swa_lr=1e-5)
     swa_active = False
 
     # Training loop
@@ -369,32 +401,31 @@ def main():
             best_val_auc_pr = 0.0
             print(f"\n  ** Encoder unfrozen at epoch {epoch} — patience & best reset **\n")
 
-        # Learning rate schedule: warmup → cosine → SWA
+        # Learning rate schedule: freeze → warmup → cosine → SWA (all manual, no PyTorch scheduler)
+        unfreeze_epoch = args.freeze_epochs if (args.pretrained and args.freeze_epochs > 0) else 0
         if encoder_frozen:
-            # During freeze: full LR for heads (they need to aggressively adapt
-            # to pre-trained encoder representations, no warmup needed)
+            # Frozen: heads get full LR, encoder params have requires_grad=False
             if args.pretrained:
-                optimizer.param_groups[0]["lr"] = 0.0  # encoder frozen anyway
+                optimizer.param_groups[0]["lr"] = 0.0
                 optimizer.param_groups[1]["lr"] = args.lr
             else:
                 for pg in optimizer.param_groups:
                     pg["lr"] = args.lr
-        elif epoch <= warmup_epochs:
-            warmup_frac = epoch / warmup_epochs
-            if args.pretrained:
-                # Respect discriminative LR during warmup
-                optimizer.param_groups[0]["lr"] = args.lr * args.encoder_lr_scale * warmup_frac
-                optimizer.param_groups[1]["lr"] = args.lr * warmup_frac
-            else:
-                for pg in optimizer.param_groups:
-                    pg["lr"] = args.lr * warmup_frac
         elif epoch >= swa_start_epoch:
             if not swa_active:
                 swa_active = True
                 print(f"\n  ** SWA activated at epoch {epoch} **\n")
-            swa_scheduler.step()
+            for pg in optimizer.param_groups:
+                pg["lr"] = 1e-5
+        elif args.pretrained:
+            encoder_lr = compute_lr(epoch, args.lr * args.encoder_lr_scale, unfreeze_epoch)
+            head_lr = compute_lr(epoch, args.lr, unfreeze_epoch)
+            optimizer.param_groups[0]["lr"] = encoder_lr
+            optimizer.param_groups[1]["lr"] = head_lr
         else:
-            scheduler.step()
+            lr = compute_lr(epoch, args.lr)
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr
 
         # Train
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, scaler, device)
@@ -409,13 +440,16 @@ def main():
         elapsed = time.time() - epoch_start
         total_elapsed = time.time() - start_time
 
-        current_lr = optimizer.param_groups[0]["lr"]
+        if args.pretrained:
+            lr_str = f"enc_lr={optimizer.param_groups[0]['lr']:.2e} head_lr={optimizer.param_groups[1]['lr']:.2e}"
+        else:
+            lr_str = f"lr={optimizer.param_groups[0]['lr']:.2e}"
         print(f"Epoch {epoch:3d}/{args.epochs} | "
               f"train_loss={train_loss:.4f} | "
               f"val_loss={val_metrics['loss']:.4f} | "
               f"val_AUC-PR={val_metrics['auc_pr']:.4f} | "
               f"val_F1={val_metrics['f1']:.4f} | "
-              f"lr={current_lr:.2e} | "
+              f"{lr_str} | "
               f"{elapsed:.1f}s | total={total_elapsed/60:.1f}min")
 
         history.append({
@@ -427,8 +461,8 @@ def main():
             "val_mae_log": val_metrics["mae_log"],
         })
 
-        # Early stopping on validation AUC-PR (only after warmup)
-        min_epochs_before_stopping = warmup_epochs + 5
+        # Early stopping on validation AUC-PR (only after warmup + unfreeze warmup)
+        min_epochs_before_stopping = warmup_epochs + post_unfreeze_warmup + 5
         if val_metrics["auc_pr"] > best_val_auc_pr:
             best_val_auc_pr = val_metrics["auc_pr"]
             patience_counter = 0
