@@ -1,0 +1,42 @@
+# Weekly PI-TFT fine-tuning from accumulated prediction outcomes
+# Runs every Sunday at 02:00 UTC (after daily predictions at 00:00)
+name: Weekly Fine-Tune
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Every Sunday at 02:00 UTC
+  workflow_dispatch:  # Manual trigger for testing
+
+permissions:
+  contents: write
+
+jobs:
+  finetune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # Hard ceiling — script has its own 12-min limit
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy scikit-learn xgboost pandas pyyaml tqdm
+          pip install google-cloud-firestore google-auth || echo "Firebase SDK install failed"
+          pip install huggingface-hub || echo "HF Hub install failed"
+          pip install -e . 2>/dev/null || true
+
+      - name: Run weekly fine-tuning
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python scripts/weekly_finetune.py --max-epochs 5
