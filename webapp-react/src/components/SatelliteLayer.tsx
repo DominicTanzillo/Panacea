@@ -163,7 +163,24 @@ export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLaye
     tColAttr.needsUpdate = true;
   });
 
-  // Click handler — find nearest point
+  // Check if a point is on the camera-facing side of the globe
+  // (not occluded by Earth). Uses ray-sphere intersection.
+  const isOnNearSide = useCallback((point: THREE.Vector3, cam: THREE.Camera) => {
+    const dir = point.clone().sub(cam.position).normalize();
+    // Ray-sphere intersection: sphere at origin, radius 1 (Earth)
+    const oc = cam.position.clone();
+    const a = dir.dot(dir);
+    const b = 2.0 * oc.dot(dir);
+    const c = oc.dot(oc) - 1.0; // radius^2 = 1
+    const discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) return true; // ray misses Earth entirely
+    // Check if Earth intersection is closer than the satellite
+    const t_earth = (-b - Math.sqrt(discriminant)) / (2 * a);
+    const t_sat = point.clone().sub(cam.position).length();
+    return t_earth < 0 || t_sat < t_earth;
+  }, []);
+
+  // Click handler — find nearest point (only on near side of globe)
   const handleClick = useCallback(() => {
     if (!pointsRef.current) return;
 
@@ -171,15 +188,16 @@ export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLaye
     raycaster.params.Points = { threshold: 0.02 };
     const intersects = raycaster.intersectObject(pointsRef.current);
 
-    if (intersects.length > 0 && intersects[0].index !== undefined) {
-      const idx = intersects[0].index;
-      if (idx < satellites.length) {
-        onSelect(satellites[idx]);
+    for (const hit of intersects) {
+      if (hit.index === undefined || hit.index >= satellites.length) continue;
+      // Check if the satellite is on our side of the globe
+      if (hit.point && isOnNearSide(hit.point, camera)) {
+        onSelect(satellites[hit.index]);
         return;
       }
     }
     onSelect(null);
-  }, [satellites, onSelect, raycaster, pointer, camera]);
+  }, [satellites, onSelect, raycaster, pointer, camera, isOnNearSide]);
 
   return (
     <group>
