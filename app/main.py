@@ -340,7 +340,18 @@ def _build_xgboost_features(cdm_sequence: list[dict]) -> np.ndarray:
 
     combined = np.concatenate([base, temporal_feats])
     combined = np.nan_to_num(combined, nan=0.0, posinf=0.0, neginf=0.0)
-    return combined.reshape(1, -1)
+    X = combined.reshape(1, -1)
+
+    # Pad features if model was trained on augmented data with more columns
+    if "xgboost" in models:
+        expected = models["xgboost"].scaler.n_features_in_
+        if X.shape[1] < expected:
+            padding = np.zeros((X.shape[0], expected - X.shape[1]), dtype=X.dtype)
+            X = np.hstack([X, padding])
+        elif X.shape[1] > expected:
+            X = X[:, :expected]
+
+    return X
 
 
 def _run_pitft_inference(cdm_sequence: list[dict]) -> tuple[float, float]:
