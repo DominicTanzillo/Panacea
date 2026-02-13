@@ -2,6 +2,7 @@
 """FastAPI backend for Panacea collision avoidance inference."""
 
 import json
+import os
 import numpy as np
 import torch
 from contextlib import asynccontextmanager
@@ -23,13 +24,51 @@ from src.model.deep import PhysicsInformedTFT
 from src.model.triage import classify_urgency
 from src.data.sequence_builder import TEMPORAL_FEATURES, STATIC_FEATURES, MAX_SEQ_LEN
 
+HF_REPO_ID = "DTanzillo/panacea-models"
+
 # Global model storage
 models = {}
 
 
+def download_models_from_hf(model_dir: Path, results_dir: Path):
+    """Download models from HuggingFace Hub if not available locally."""
+    try:
+        from huggingface_hub import snapshot_download
+        token = os.environ.get("HF_TOKEN")
+        local = snapshot_download(
+            HF_REPO_ID,
+            token=token,
+            allow_patterns=["models/*", "results/*"],
+        )
+        local = Path(local)
+        # Copy files to expected locations
+        for src in (local / "models").iterdir():
+            dst = model_dir / src.name
+            if not dst.exists():
+                import shutil
+                shutil.copy2(src, dst)
+                print(f"  Downloaded {src.name} from HF Hub")
+        for src in (local / "results").iterdir():
+            dst = results_dir / src.name
+            if not dst.exists():
+                import shutil
+                shutil.copy2(src, dst)
+                print(f"  Downloaded {src.name} from HF Hub")
+    except Exception as e:
+        print(f"  HF Hub download skipped: {e}")
+
+
 def load_models():
-    """Load all 3 models at startup."""
+    """Load all 3 models at startup. Downloads from HF Hub if missing."""
     model_dir = ROOT / "models"
+    results_dir = ROOT / "results"
+    model_dir.mkdir(exist_ok=True)
+    results_dir.mkdir(exist_ok=True)
+
+    # Try downloading from HF Hub if local models are missing
+    if not (model_dir / "baseline.json").exists():
+        print("  Local models not found, trying HuggingFace Hub...")
+        download_models_from_hf(model_dir, results_dir)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     baseline_path = model_dir / "baseline.json"
