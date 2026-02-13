@@ -66,11 +66,7 @@ def main():
     train_df, test_df = load_dataset(data_dir)
     feature_cols = get_feature_columns(train_df)
 
-    # Build training dataset for normalization stats
-    print("Building training dataset (for normalization) ...")
-    train_ds = CDMSequenceDataset(train_df)
-
-    # Load models
+    # Load models first (need checkpoint columns for dataset)
     print("\nLoading models ...")
     baseline = OrbitalShellBaseline.load(model_dir / "baseline.json")
     print("  Baseline loaded")
@@ -79,12 +75,40 @@ def main():
     print("  XGBoost loaded")
 
     pitft_model = None
+    pitft_checkpoint = None
     pitft_path = model_dir / "transformer.pt"
     if pitft_path.exists():
-        pitft_model, checkpoint = load_pitft_model(pitft_path, device)
-        print(f"  PI-TFT loaded (epoch {checkpoint['epoch']})")
+        pitft_model, pitft_checkpoint = load_pitft_model(pitft_path, device)
+        temp = pitft_checkpoint.get("temperature", 1.0)
+        print(f"  PI-TFT loaded (epoch {pitft_checkpoint['epoch']}, T={temp:.3f})")
     else:
         print("  PI-TFT checkpoint not found, skipping")
+
+    # Build training dataset for normalization stats
+    # Use checkpoint's column names to ensure dimensionality match
+    print("\nBuilding training dataset (for normalization) ...")
+    temporal_cols = None
+    static_cols = None
+    if pitft_checkpoint:
+        temporal_cols = pitft_checkpoint.get("temporal_cols")
+        static_cols = pitft_checkpoint.get("static_cols")
+
+    # Pad missing columns in train_df
+    train_df_padded = train_df.copy()
+    if temporal_cols:
+        for col in temporal_cols:
+            if col not in train_df_padded.columns:
+                train_df_padded[col] = 0.0
+    if static_cols:
+        for col in static_cols:
+            if col not in train_df_padded.columns:
+                train_df_padded[col] = 0.0
+
+    train_ds = CDMSequenceDataset(
+        train_df_padded,
+        temporal_cols=temporal_cols,
+        static_cols=static_cols,
+    )
 
     # Run experiment
     print(f"\n{'='*60}")
@@ -95,6 +119,7 @@ def main():
         baseline_model=baseline,
         xgboost_model=xgboost,
         pitft_model=pitft_model,
+        pitft_checkpoint=pitft_checkpoint,
         test_df=test_df,
         train_ds=train_ds,
         feature_cols=feature_cols,
