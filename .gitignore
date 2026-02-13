@@ -41,3 +41,7 @@ webapp-react/dist/
 # Temp
 *.tmp
 *.log
+
+# Claude Code (private project config)
+CLAUDE.md
+.claude/
