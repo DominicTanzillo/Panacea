@@ -5,6 +5,7 @@ cdm_public only has a rolling ~30-day window of emergency-reportable CDMs.
 As of Feb 2026, that's ~3,200 CDMs — all high-risk (100% have PC > 1e-5).
 """
 
+import os
 import requests
 import csv
 import json
@@ -18,11 +19,16 @@ OUTPUT_DIR = ROOT / "data" / "cdm_spacetrack"
 def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Authenticate
+    # Authenticate (credentials from environment variables)
+    identity = os.environ.get("SPACETRACK_USER", "")
+    password = os.environ.get("SPACETRACK_PASS", "")
+    if not identity or not password:
+        raise SystemExit("Set SPACETRACK_USER and SPACETRACK_PASS environment variables")
+
     s = requests.Session()
     s.post(f"{BASE}/ajaxauth/login", data={
-        "identity": "dominic.p.tanzillo@gmail.com",
-        "password": "SpaceMedicine2034!",
+        "identity": identity,
+        "password": password,
     })
     print("Authenticated with Space-Track.org")
 
