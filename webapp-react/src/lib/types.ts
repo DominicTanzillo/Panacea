@@ -25,11 +25,15 @@ export interface SatellitePosition {
   x: number; // ECI km
   y: number;
   z: number;
+  vx: number; // ECI km/s
+  vy: number;
+  vz: number;
   lat: number;
   lon: number;
   alt: number; // km
   type: ObjectType;
   group: string;
+  propagatedAt: number; // Date.now() when this position was computed
 }
 
 export type ObjectType = 'active' | 'debris' | 'rocket_body' | 'station' | 'constellation';

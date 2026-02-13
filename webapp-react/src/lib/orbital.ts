@@ -33,8 +33,10 @@ export function propagateSatellite(
   }
 
   if (!posVel || !posVel.position || typeof posVel.position === 'boolean') return null;
+  if (!posVel.velocity || typeof posVel.velocity === 'boolean') return null;
 
   const pos = posVel.position as satellite.EciVec3<number>;
+  const vel = posVel.velocity as satellite.EciVec3<number>;
 
   // Filter out decayed/bad TLEs that produce NaN or extreme positions
   if (!isFinite(pos.x) || !isFinite(pos.y) || !isFinite(pos.z)) return null;
@@ -57,11 +59,15 @@ export function propagateSatellite(
     x: pos.x,
     y: pos.y,
     z: pos.z,
+    vx: vel.x,
+    vy: vel.y,
+    vz: vel.z,
     lat,
     lon,
     alt,
     type,
     group,
+    propagatedAt: date.getTime(),
   };
 }
 
