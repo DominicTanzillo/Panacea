@@ -2,9 +2,6 @@
 /data/
 !/data/tle_snapshots/
 !/data/prediction_logs/
-/models/
-!/models/baseline.json
-/results/
 
 # Python
 __pycache__/
