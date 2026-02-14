@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0  # Full history so we can push back
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,10 +29,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests numpy
+          pip install requests numpy scipy
           pip install google-cloud-firestore google-auth || echo "Firebase SDK install failed (optional)"
           pip install huggingface-hub || echo "HF Hub install failed (optional)"
-          pip install -e . 2>/dev/null || pip install scikit-learn xgboost || true
+          pip install scikit-learn xgboost || true
+
+      - name: Verify baseline model
+        run: |
+          if [ -f models/baseline.json ]; then
+            echo "Baseline model found ($(wc -c < models/baseline.json) bytes)"
+          else
+            echo "WARNING: models/baseline.json not found in repo"
+            echo "Predictions will use heuristic scoring fallback"
+          fi
 
       - name: Run daily predictions
         env:
@@ -41,10 +50,11 @@ jobs:
         run: |
           python scripts/daily_predictions.py --top-k 100
 
-      - name: Commit local prediction logs
+      - name: Commit and push prediction logs
         run: |
           git config user.name "Panacea Bot"
           git config user.email "panacea-bot@users.noreply.github.com"
-          git add data/prediction_logs/ data/tle_snapshots/ || true
+          # Force-add in case gitignore still interferes
+          git add -f data/prediction_logs/ data/tle_snapshots/ 2>/dev/null || true
           git diff --staged --quiet || git commit -m ":robot: Daily predictions $(date -u +%Y-%m-%d)"
           git push || echo "Push failed (non-critical)"
