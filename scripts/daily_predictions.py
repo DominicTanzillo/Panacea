@@ -109,15 +109,35 @@ def screen_pairs(tles: list[dict], alt_band_km: float = 50.0, raan_band_deg: flo
 
     print(f"  Found {len(pairs_i)} candidate pairs (from {n*(n-1)//2} total)")
 
-    # Score by altitude proximity (closer altitude = higher risk)
+    # Also extract inclination for better scoring
+    inclinations = np.zeros(n)
+    eccentricities = np.zeros(n)
+    for i, tle in enumerate(tles):
+        inclinations[i] = float(tle.get("INCLINATION", 0))
+        eccentricities[i] = float(tle.get("ECCENTRICITY", 0))
+
+    # Compute inclination differences for candidate pairs
+    inc_diff = np.abs(inclinations[:, None] - inclinations[None, :])
+
+    # Score candidates: combine altitude gap, RAAN proximity, and inclination
     candidates = []
     for idx in range(len(pairs_i)):
         i, j = int(pairs_i[idx]), int(pairs_j[idx])
         alt_gap = abs(altitudes[i] - altitudes[j])
         avg_alt = (altitudes[i] + altitudes[j]) / 2
+        rd = float(raan_diff[i, j])
+        id_ = float(inc_diff[i, j])
 
-        # Simple risk heuristic: inverse altitude gap, weighted by shell density
-        risk_score = max(0, 1.0 - alt_gap / alt_band_km)
+        # Composite risk heuristic:
+        #   - altitude closeness (0-1): closer = higher risk
+        #   - RAAN proximity (0-1): same plane = higher risk
+        #   - inclination similarity (0-1): coplanar = higher risk
+        alt_score = max(0, 1.0 - alt_gap / alt_band_km)
+        raan_score = max(0, 1.0 - rd / raan_band_deg)
+        inc_score = max(0, 1.0 - id_ / 10.0)  # 10° inc diff -> 0 score
+
+        # Weighted combination: RAAN matters most for close approaches
+        risk_score = 0.2 * alt_score + 0.5 * raan_score + 0.3 * inc_score
 
         candidates.append({
             "sat1_norad": norad_ids[i],
@@ -126,7 +146,8 @@ def screen_pairs(tles: list[dict], alt_band_km: float = 50.0, raan_band_deg: flo
             "sat2_name": names[j],
             "altitude_km": round(avg_alt, 1),
             "alt_gap_km": round(alt_gap, 2),
-            "raan_diff_deg": round(float(raan_diff[i, j]), 2),
+            "raan_diff_deg": round(rd, 2),
+            "inc_diff_deg": round(id_, 2),
             "risk_score": round(risk_score, 4),
         })
 

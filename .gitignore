@@ -1,6 +1,9 @@
 # Data (too large for git) — /prefix = root only, won't match src/data/
 /data/
+!/data/tle_snapshots/
+!/data/prediction_logs/
 /models/
+!/models/baseline.json
 /results/
 
 # Python
