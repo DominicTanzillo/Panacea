@@ -1,0 +1,326 @@
+{
+  "timestamp": "2026-02-14T17:48:24.871593+00:00",
+  "date": "2026-02-14",
+  "time_utc": "17:48:24",
+  "label": "baseline-day1",
+  "models": {
+    "Orbital Shell Baseline": {
+      "auc_pr": 0.061184,
+      "auc_roc": 0.637451,
+      "f1": 0.132231,
+      "optimal_threshold": 0.032374,
+      "mae_km": 10600.13,
+      "median_abs_error_km": 7222.84
+    },
+    "XGBoost (Engineered Features)": {
+      "auc_pr": 0.988422,
+      "auc_roc": 0.999594,
+      "f1": 0.947368,
+      "optimal_threshold": 0.553959,
+      "mae_km": 80.86,
+      "median_abs_error_km": 42.99
+    },
+    "PI-TFT": {
+      "auc_pr": 0.507679,
+      "auc_roc": 0.946749,
+      "f1": 0.518519,
+      "optimal_threshold": 0.263938,
+      "mae_km": 1533.62,
+      "median_abs_error_km": 926.88,
+      "temperature": 0.617919,
+      "best_epoch": 36,
+      "recall_at_prec_30": 0.7808,
+      "recall_at_prec_50": 0.4932,
+      "recall_at_prec_70": 0.2877
+    }
+  },
+  "conformal": {
+    "alpha_0.01": {
+      "conformal_metrics": {
+        "alpha": 0.01,
+        "target_coverage": 0.99,
+        "marginal_coverage": 0.9700046146746655,
+        "coverage_guarantee_met": false,
+        "avg_set_size": 2.1033687125057683,
+        "efficiency": 0.4741578218735579,
+        "positive_coverage": 0.136986301369863,
+        "negative_coverage": 0.9990448901623686,
+        "set_size_distribution": {
+          "2": 1948,
+          "3": 214,
+          "4": 5
+        },
+        "n_test": 2167,
+        "mean_interval_width": 0.35249775648117065,
+        "median_interval_width": 0.3299492597579956
+      },
+      "conformal_state": {
+        "is_calibrated": true,
+        "alpha": 0.01,
+        "q_hat": 0.31530878875241947,
+        "q_residual": 0.31530878875241947,
+        "n_cal": 527,
+        "tiers": {
+          "LOW": [
+            0.0,
+            0.1
+          ],
+          "MODERATE": [
+            0.1,
+            0.4
+          ],
+          "HIGH": [
+            0.4,
+            0.7
+          ],
+          "CRITICAL": [
+            0.7,
+            1.0
+          ]
+        }
+      }
+    },
+    "alpha_0.05": {
+      "conformal_metrics": {
+        "alpha": 0.05,
+        "target_coverage": 0.95,
+        "marginal_coverage": 0.9487771112136595,
+        "coverage_guarantee_met": true,
+        "avg_set_size": 1.9856945085371482,
+        "efficiency": 0.503576372865713,
+        "positive_coverage": 0.0,
+        "negative_coverage": 0.9818529130850048,
+        "set_size_distribution": {
+          "1": 31,
+          "2": 2136
+        },
+        "n_test": 2167,
+        "mean_interval_width": 0.14139389991760254,
+        "median_interval_width": 0.1266784965991974
+      },
+      "conformal_state": {
+        "is_calibrated": true,
+        "alpha": 0.05,
+        "q_hat": 0.1120380280677236,
+        "q_residual": 0.1120380280677236,
+        "n_cal": 527,
+        "tiers": {
+          "LOW": [
+            0.0,
+            0.1
+          ],
+          "MODERATE": [
+            0.1,
+            0.4
+          ],
+          "HIGH": [
+            0.4,
+            0.7
+          ],
+          "CRITICAL": [
+            0.7,
+            1.0
+          ]
+        }
+      }
+    },
+    "alpha_0.1": {
+      "conformal_metrics": {
+        "alpha": 0.1,
+        "target_coverage": 0.9,
+        "marginal_coverage": 0.9284725426857406,
+        "coverage_guarantee_met": true,
+        "avg_set_size": 1.103830179972312,
+        "efficiency": 0.724042455006922,
+        "positive_coverage": 0.0,
+        "negative_coverage": 0.9608404966571156,
+        "set_size_distribution": {
+          "1": 1942,
+          "2": 225
+        },
+        "n_test": 2167,
+        "mean_interval_width": 0.060726769268512726,
+        "median_interval_width": 0.05510023236274719
+      },
+      "conformal_state": {
+        "is_calibrated": true,
+        "alpha": 0.1,
+        "q_hat": 0.04045976169647709,
+        "q_residual": 0.04045976169647709,
+        "n_cal": 527,
+        "tiers": {
+          "LOW": [
+            0.0,
+            0.1
+          ],
+          "MODERATE": [
+            0.1,
+            0.4
+          ],
+          "HIGH": [
+            0.4,
+            0.7
+          ],
+          "CRITICAL": [
+            0.7,
+            1.0
+          ]
+        }
+      }
+    },
+    "alpha_0.2": {
+      "conformal_metrics": {
+        "alpha": 0.2,
+        "target_coverage": 0.8,
+        "marginal_coverage": 0.9220119981541302,
+        "coverage_guarantee_met": true,
+        "avg_set_size": 1.054453161052146,
+        "efficiency": 0.7363867097369635,
+        "positive_coverage": 0.0,
+        "negative_coverage": 0.9541547277936963,
+        "set_size_distribution": {
+          "1": 2049,
+          "2": 118
+        },
+        "n_test": 2167,
+        "mean_interval_width": 0.04071307182312012,
+        "median_interval_width": 0.039181869477033615
+      },
+      "conformal_state": {
+        "is_calibrated": true,
+        "alpha": 0.2,
+        "q_hat": 0.024541400479014954,
+        "q_residual": 0.024541400479014954,
+        "n_cal": 527,
+        "tiers": {
+          "LOW": [
+            0.0,
+            0.1
+          ],
+          "MODERATE": [
+            0.1,
+            0.4
+          ],
+          "HIGH": [
+            0.4,
+            0.7
+          ],
+          "CRITICAL": [
+            0.7,
+            1.0
+          ]
+        }
+      }
+    }
+  },
+  "staleness_auc_pr": {
+    "cutoffs_days": [
+      2.0,
+      2.5,
+      3.0,
+      3.5,
+      4.0,
+      5.0,
+      6.0
+    ],
+    "xgboost": [
+      0.988314,
+      0.91232,
+      0.711264,
+      0.722417,
+      0.639243,
+      0.422952,
+      0.321903
+    ],
+    "pitft": [
+      0.510832,
+      0.409295,
+      0.312616,
+      0.32549,
+      0.286925,
+      0.238775,
+      0.183832
+    ],
+    "baseline": [
+      0.061184,
+      0.061184,
+      0.061184,
+      0.061184,
+      0.061184,
+      0.061184,
+      0.061184
+    ]
+  },
+  "staleness_f1": {
+    "cutoffs_days": [
+      2.0,
+      2.5,
+      3.0,
+      3.5,
+      4.0,
+      5.0,
+      6.0
+    ],
+    "xgboost": [
+      0.941176,
+      0.846715,
+      0.722222,
+      0.680272,
+      0.637037,
+      0.545455,
+      0.425926
+    ],
+    "pitft": [
+      0.532544,
+      0.45122,
+      0.396825,
+      0.371681,
+      0.373626,
+      0.330827,
+      0.274194
+    ],
+    "baseline": [
+      0.132231,
+      0.132231,
+      0.132231,
+      0.132231,
+      0.132231,
+      0.132231,
+      0.132231
+    ]
+  },
+  "staleness_recall_at_prec50": {
+    "cutoffs_days": [
+      2.0,
+      2.5,
+      3.0,
+      3.5,
+      4.0,
+      5.0,
+      6.0
+    ],
+    "xgboost": [
+      1.0,
+      0.9714,
+      0.8507,
+      0.8615,
+      0.8065,
+      0.569,
+      0.1273
+    ],
+    "pitft": [
+      0.5068,
+      0.3571,
+      0.209,
+      0.2615,
+      0.2258,
+      0.1897,
+      0.0727
+    ]
+  },
+  "statistical_tests": {
+    "paired_ttest_xgb_vs_pitft": {
+      "description": "Paired t-test on AUC-PR across staleness cutoffs",
+      "t_statistic": 6.6429,
+      "p_value": 0.000562,
+      "significant_at_005": 
