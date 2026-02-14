@@ -142,15 +142,20 @@ def load_model(device: torch.device):
     # Try HuggingFace first if local doesn't exist
     if not model_path.exists():
         try:
-            from huggingface_hub import hf_hub_download
+            from huggingface_hub import hf_hub_download, HfApi
             hf_token = os.environ.get("HF_TOKEN", "")
+            # Auto-detect HF username
+            api = HfApi(token=hf_token)
+            user_info = api.whoami()
+            hf_user = user_info.get("name", user_info.get("fullname", "unknown"))
+            hf_repo = f"{hf_user}/panacea-models"
             downloaded = hf_hub_download(
-                repo_id="DominicTanzillo/panacea-models",
+                repo_id=hf_repo,
                 filename="transformer.pt",
                 token=hf_token or None,
                 local_dir=str(MODEL_DIR),
             )
-            print(f"  Downloaded model from HuggingFace: {downloaded}")
+            print(f"  Downloaded model from HuggingFace ({hf_repo}): {downloaded}")
         except Exception as e:
             print(f"  HuggingFace download failed: {e}")
             return None, None
@@ -368,7 +373,10 @@ def save_updated_model(model, checkpoint, finetune_results, device):
         try:
             from huggingface_hub import HfApi
             api = HfApi(token=hf_token)
-            repo_id = "DominicTanzillo/panacea-models"
+            # Auto-detect HF username from token
+            user_info = api.whoami()
+            hf_username = user_info.get("name", user_info.get("fullname", "unknown"))
+            repo_id = f"{hf_username}/panacea-models"
 
             try:
                 api.create_repo(repo_id, repo_type="model", exist_ok=True)

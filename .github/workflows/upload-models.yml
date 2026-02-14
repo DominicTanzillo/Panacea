@@ -42,8 +42,16 @@ jobs:
 
           token = os.environ["HF_TOKEN"]
           api = HfApi(token=token)
-          repo_id = "DominicTanzillo/panacea-models"
           upload_all = "${{ inputs.upload_all }}" != "false"
+
+          # Detect the authenticated user
+          user_info = api.whoami()
+          username = user_info.get("name", user_info.get("fullname", "unknown"))
+          print(f"Authenticated as: {username}")
+
+          # Use the token owner's namespace
+          repo_id = f"{username}/panacea-models"
+          print(f"Target repo: {repo_id}")
 
           # Create repo if it doesn't exist
           api.create_repo(repo_id, repo_type="model", exist_ok=True)
@@ -85,7 +93,7 @@ jobs:
                   print(f"  SKIP {local_path} (not found)")
 
           # Create a model card
-          card = """---
+          card = f"""---
           license: apache-2.0
           tags:
             - space-safety
@@ -112,7 +120,7 @@ jobs:
           from huggingface_hub import hf_hub_download
 
           # Download PI-TFT model
-          path = hf_hub_download("DominicTanzillo/panacea-models", "transformer.pt")
+          path = hf_hub_download("{repo_id}", "transformer.pt")
           checkpoint = torch.load(path, map_location="cpu", weights_only=False)
           ```
 
@@ -122,7 +130,6 @@ jobs:
           detections as proxy training labels. See the
           [Panacea repo](https://github.com/DominicTanzillo/Panacea) for details.
           """
-          # Dedent the card
           import textwrap
           card = textwrap.dedent(card).strip()
 
@@ -134,5 +141,8 @@ jobs:
           )
           uploaded += 1
 
+          # Save the repo_id for other workflows to reference
           print(f"\nDone! Uploaded {uploaded} files to https://huggingface.co/{repo_id}")
+          print(f"\n::notice::HuggingFace repo: {repo_id}")
+          print(f"NOTE: Update HF_REPO_ID in weekly-finetune.yml if needed: {repo_id}")
           PYEOF

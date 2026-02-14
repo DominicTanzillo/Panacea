@@ -43,9 +43,14 @@ jobs:
           import os
           from pathlib import Path
           try:
-              from huggingface_hub import hf_hub_download
+              from huggingface_hub import hf_hub_download, HfApi
               token = os.environ.get("HF_TOKEN", "")
-              repo_id = "DominicTanzillo/panacea-models"
+              # Auto-detect HF username from token
+              api = HfApi(token=token)
+              user_info = api.whoami()
+              username = user_info.get("name", user_info.get("fullname", "unknown"))
+              repo_id = f"{username}/panacea-models"
+              print(f"  Authenticated as: {username}, repo: {repo_id}")
               models_dir = Path("models")
               models_dir.mkdir(exist_ok=True)
 
