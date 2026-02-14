@@ -1,0 +1,40 @@
+[
+  {
+    "model": "Orbital Shell Baseline",
+    "auc_pr": 0.061184346220415166,
+    "auc_roc": 0.6374507725922728,
+    "f1_at_50": 0.0,
+    "n_positive": 73,
+    "n_total": 2167,
+    "pos_rate": 0.03368712505768343,
+    "f1": 0.13223140017211957,
+    "optimal_threshold": 0.03237410071942446,
+    "threshold": 0.03237410071942446,
+    "recall_at_prec_30": 0.0,
+    "recall_at_prec_50": 0.0,
+    "recall_at_prec_70": 0.0,
+    "mae_log": 0.9927019602313063,
+    "rmse_log": 1.2867684153860748,
+    "mae_km": 10600.126897201788,
+    "median_abs_error_km": 7222.8428976622645
+  },
+  {
+    "model": "XGBoost (Engineered Features)",
+    "auc_pr": 0.9884220304219559,
+    "auc_roc": 0.9995944054114168,
+    "f1_at_50": 0.9411764705882353,
+    "n_positive": 73,
+    "n_total": 2167,
+    "pos_rate": 0.03368712505768343,
+    "f1": 0.9473684160604224,
+    "optimal_threshold": 0.5539590716362,
+    "threshold": 0.5539590716362,
+    "recall_at_prec_30": 1.0,
+    "recall_at_prec_50": 1.0,
+    "recall_at_prec_70": 1.0,
+    "mae_log": 0.011742588180292227,
+    "rmse_log": 0.03972278871639667,
+    "mae_km": 80.85688587394668,
+    "median_abs_error_km": 42.99218749998545
+  }
+]

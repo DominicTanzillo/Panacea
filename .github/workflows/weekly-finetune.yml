@@ -1,5 +1,6 @@
 # Weekly PI-TFT fine-tuning from accumulated prediction outcomes
 # Runs every Sunday at 02:00 UTC (after daily predictions at 00:00)
+# Downloads model from HuggingFace, fine-tunes on new outcomes, uploads back
 name: Weekly Fine-Tune
 
 on:
@@ -19,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0  # Full history for git push
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,10 +30,50 @@ jobs:
       - name: Install dependencies
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install numpy scikit-learn xgboost pandas pyyaml tqdm
+          pip install numpy scikit-learn xgboost pandas pyyaml tqdm scipy
           pip install google-cloud-firestore google-auth || echo "Firebase SDK install failed"
           pip install huggingface-hub || echo "HF Hub install failed"
           pip install -e . 2>/dev/null || true
+
+      - name: Download models from HuggingFace
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PYEOF'
+          import os
+          from pathlib import Path
+          try:
+              from huggingface_hub import hf_hub_download
+              token = os.environ.get("HF_TOKEN", "")
+              repo_id = "DominicTanzillo/panacea-models"
+              models_dir = Path("models")
+              models_dir.mkdir(exist_ok=True)
+
+              for filename in ["transformer.pt", "xgboost.pkl", "density_computer.json"]:
+                  try:
+                      path = hf_hub_download(
+                          repo_id=repo_id,
+                          filename=filename,
+                          token=token or None,
+                          local_dir=str(models_dir),
+                      )
+                      size_kb = Path(path).stat().st_size / 1024
+                      print(f"  Downloaded {filename} ({size_kb:.1f} KB)")
+                  except Exception as e:
+                      print(f"  Could not download {filename}: {e}")
+
+          except ImportError:
+              print("huggingface_hub not installed — using local models only")
+          PYEOF
+
+          # Verify transformer.pt exists (required)
+          if [ -f models/transformer.pt ]; then
+            echo "PI-TFT model ready ($(wc -c < models/transformer.pt) bytes)"
+          else
+            echo "ERROR: transformer.pt not available"
+            echo "Run the 'Upload Models to HuggingFace' workflow first"
+            exit 1
+          fi
 
       - name: Run weekly fine-tuning
         env:
@@ -40,3 +81,11 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python scripts/weekly_finetune.py --max-epochs 5
+
+      - name: Commit fine-tune logs
+        run: |
+          git config user.name "Panacea Bot"
+          git config user.email "panacea-bot@users.noreply.github.com"
+          git add -f data/prediction_logs/finetune_log.jsonl 2>/dev/null || true
+          git diff --staged --quiet || git commit -m ":brain: Weekly fine-tune results $(date -u +%Y-%m-%d)"
+          git push || echo "Push failed (non-critical)"
