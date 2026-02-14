@@ -1,0 +1,80 @@
+name: Query Firebase
+on:
+  workflow_dispatch:
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install google-cloud-firestore google-auth
+
+      - name: Query Firestore
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          python3 << 'PYEOF'
+          import os, json
+          from google.cloud.firestore import Client
+          from google.oauth2.service_account import Credentials
+
+          sa_json = os.environ.get('FIREBASE_SERVICE_ACCOUNT', '')
+          sa_info = json.loads(sa_json)
+          creds = Credentials.from_service_account_info(sa_info)
+          db = Client(project=sa_info['project_id'], credentials=creds)
+
+          print("=" * 70)
+          print("  Firebase Firestore Records")
+          print("=" * 70)
+
+          print("\n=== PREDICTIONS ===")
+          preds = list(db.collection('predictions').stream())
+          print(f"Prediction dates stored: {len(preds)}")
+          for doc in preds:
+              data = doc.to_dict()
+              print(f"\n--- Date: {doc.id} | doc-level count: {data.get('count', '?')} ---")
+              pairs = list(db.collection('predictions').document(doc.id).collection('pairs').stream())
+              print(f"    Pairs in subcollection: {len(pairs)}")
+              for pair in pairs[:15]:
+                  p = pair.to_dict()
+                  risk = p.get('model_risk_score', p.get('risk_score', '?'))
+                  print(f"    {pair.id}: {str(p.get('sat1_name','?')):22s} <-> {str(p.get('sat2_name','?')):22s} | risk={risk} | alt={p.get('altitude_km','?')}km | raan_diff={p.get('raan_diff_deg','?')}deg")
+              if len(pairs) > 15:
+                  print(f"    ... and {len(pairs) - 15} more pairs")
+
+          print("\n=== DAILY SUMMARIES ===")
+          summaries = list(db.collection('daily_summaries').stream())
+          print(f"Summaries stored: {len(summaries)}")
+          for doc in summaries:
+              data = doc.to_dict()
+              print(f"\n--- {doc.id} ---")
+              for k in ['n_satellites_screened', 'n_candidate_pairs', 'n_predictions_logged', 'top_risk_score', 'date']:
+                  if k in data:
+                      print(f"    {k}: {data[k]}")
+              val = data.get('validation', {})
+              print(f"    validation.validated: {val.get('validated', '?')}")
+              print(f"    validation.reason: {val.get('reason', 'N/A')}")
+              if val.get('n_maneuvers_total') is not None:
+                  print(f"    validation.n_maneuvers: {val.get('n_maneuvers_total')}")
+                  print(f"    validation.accuracy: {val.get('accuracy')}")
+
+          print("\n=== OUTCOMES ===")
+          outcomes = list(db.collection('outcomes').stream())
+          print(f"Outcome dates: {len(outcomes)}")
+          for doc in outcomes:
+              data = doc.to_dict()
+              print(f"  {doc.id}: {data}")
+              results = list(db.collection('outcomes').document(doc.id).collection('results').limit(10).stream())
+              print(f"    Results: {len(results)}")
+              for r in results:
+                  rd = r.to_dict()
+                  print(f"      {str(rd.get('sat1_name','')):22s} <-> {str(rd.get('sat2_name','')):22s} | maneuvered={rd.get('either_maneuvered','?')} | risk={rd.get('predicted_risk','?')}")
+
+          print("\n" + "=" * 70)
+          print("  Query complete")
+          print("=" * 70)
+          PYEOF
