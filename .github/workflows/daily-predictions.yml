@@ -50,11 +50,21 @@ jobs:
         run: |
           python scripts/daily_predictions.py --top-k 100
 
+      - name: Prune old TLE snapshots
+        run: |
+          # Keep only last 2 snapshots (today + yesterday) to avoid repo bloat
+          # Each snapshot is ~6MB; without pruning = 2.3GB/year in git history
+          cd data/tle_snapshots
+          ls -1 *.json 2>/dev/null | sort | head -n -2 | xargs -r rm -v
+          cd ../..
+
       - name: Commit and push prediction logs
         run: |
           git config user.name "Panacea Bot"
           git config user.email "panacea-bot@users.noreply.github.com"
           # Force-add in case gitignore still interferes
           git add -f data/prediction_logs/ data/tle_snapshots/ 2>/dev/null || true
+          # Also stage deletions of pruned snapshots
+          git add -u data/tle_snapshots/ 2>/dev/null || true
           git diff --staged --quiet || git commit -m ":robot: Daily predictions $(date -u +%Y-%m-%d)"
           git push || echo "Push failed (non-critical)"
