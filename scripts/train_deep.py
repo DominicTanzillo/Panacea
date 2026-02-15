@@ -138,19 +138,26 @@ def collect_logits(model, loader, device):
 
 
 def fit_temperature(logits: torch.Tensor, targets: torch.Tensor, device) -> float:
-    """Fit temperature scaling parameter T on validation logits (Guo et al. 2017)."""
-    temperature = torch.nn.Parameter(torch.ones(1, device=device))
-    optimizer = torch.optim.LBFGS([temperature], lr=0.01, max_iter=50)
+    """Fit temperature scaling parameter T on validation logits (Guo et al. 2017).
+
+    Optimizes log(T) to ensure T > 0 (exp parameterization).
+    Temperature > 1 softens probabilities, < 1 sharpens them.
+    """
+    # Parameterize as log(T) so T = exp(log_T) is always positive
+    log_temperature = torch.nn.Parameter(torch.zeros(1, device=device))
+    optimizer = torch.optim.LBFGS([log_temperature], lr=0.01, max_iter=100)
     nll = torch.nn.BCEWithLogitsLoss()
 
     def closure():
         optimizer.zero_grad()
-        loss = nll(logits / temperature, targets)
+        T = torch.exp(log_temperature).clamp(min=0.01, max=100.0)
+        loss = nll(logits / T, targets)
         loss.backward()
         return loss
 
     optimizer.step(closure)
-    return temperature.item()
+    T = torch.exp(log_temperature).clamp(min=0.01, max=100.0).item()
+    return T
 
 
 def main():
@@ -311,7 +318,7 @@ def main():
         optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
 
     # Cosine annealing with warmup
-    warmup_epochs = max(1, args.epochs // 10)
+    warmup_epochs = max(3, args.epochs // 10)  # at least 3 epochs warmup
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=args.epochs - warmup_epochs, eta_min=1e-6
     )
@@ -420,7 +427,8 @@ def main():
             "val_mae_log": val_metrics["mae_log"],
         })
 
-        # Early stopping on validation AUC-PR
+        # Early stopping on validation AUC-PR (only after warmup)
+        min_epochs_before_stopping = warmup_epochs + 5
         if val_metrics["auc_pr"] > best_val_auc_pr:
             best_val_auc_pr = val_metrics["auc_pr"]
             patience_counter = 0
@@ -454,7 +462,7 @@ def main():
             print(f"  ** New best val AUC-PR: {best_val_auc_pr:.4f} — saved **")
         else:
             patience_counter += 1
-            if patience_counter >= args.patience:
+            if patience_counter >= args.patience and epoch >= min_epochs_before_stopping:
                 print(f"\nEarly stopping at epoch {epoch} (patience={args.patience})")
                 break
 
