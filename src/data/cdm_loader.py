@@ -79,9 +79,21 @@ def get_feature_columns(df: pd.DataFrame) -> list[str]:
     return [c for c in numeric_cols if c not in EXCLUDE_COLS]
 
 
-def build_events(df: pd.DataFrame) -> list[ConjunctionEvent]:
-    """Group CDM rows by event_id into ConjunctionEvent objects (vectorized)."""
-    feature_cols = get_feature_columns(df)
+def build_events(df: pd.DataFrame, feature_cols: list[str] = None) -> list[ConjunctionEvent]:
+    """Group CDM rows by event_id into ConjunctionEvent objects (vectorized).
+
+    Args:
+        df: CDM DataFrame
+        feature_cols: optional fixed list of feature columns (for train/test consistency)
+    """
+    if feature_cols is None:
+        feature_cols = get_feature_columns(df)
+    else:
+        # Ensure all requested columns exist; fill missing with 0
+        for col in feature_cols:
+            if col not in df.columns:
+                df = df.copy()
+                df[col] = 0.0
     events = []
 
     # Pre-extract feature matrix as float64 (avoids per-row pandas indexing)

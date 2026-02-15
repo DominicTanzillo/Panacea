@@ -85,9 +85,14 @@ class CDMSequenceDataset(Dataset):
         for event_id, group in df.groupby("event_id"):
             # Sort by time_to_tca descending (first CDM = furthest from TCA)
             group = group.sort_values("time_to_tca", ascending=False)
+            # Track data source for domain weighting
+            source = "kelvins"
+            if "source" in group.columns:
+                source = group["source"].iloc[0]
             self.events.append({
                 "event_id": event_id,
                 "group": group,
+                "source": source,
             })
 
         # Compute global normalization stats from training data
@@ -105,6 +110,33 @@ class CDMSequenceDataset(Dataset):
         if self.tca_std < 1e-8:
             self.tca_std = 1.0
 
+        # Compute delta normalization stats (approx from per-step differences)
+        # Deltas have different magnitude than raw features, need separate stats
+        self._compute_delta_stats(df)
+
+    def _compute_delta_stats(self, df: pd.DataFrame):
+        """Estimate normalization stats for temporal first-order differences."""
+        # Sample a subset of events to estimate delta distributions
+        delta_samples = []
+        for _, group in df.groupby("event_id"):
+            if len(group) < 2:
+                continue
+            vals = group[self.temporal_cols].values.astype(np.float32)
+            vals = np.nan_to_num(vals, nan=0.0, posinf=0.0, neginf=0.0)
+            deltas = np.diff(vals, axis=0)
+            delta_samples.append(deltas)
+            if len(delta_samples) >= 2000:  # cap for speed
+                break
+        if delta_samples:
+            all_deltas = np.concatenate(delta_samples, axis=0)
+            self.delta_mean = all_deltas.mean(axis=0).astype(np.float32)
+            self.delta_std = all_deltas.std(axis=0).astype(np.float32)
+            self.delta_std[self.delta_std < 1e-8] = 1.0
+        else:
+            n = len(self.temporal_cols)
+            self.delta_mean = np.zeros(n, dtype=np.float32)
+            self.delta_std = np.ones(n, dtype=np.float32)
+
     def set_normalization(self, other: "CDMSequenceDataset"):
         """Copy normalization stats from another dataset (e.g., training set)."""
         self.temporal_mean = other.temporal_mean
@@ -113,6 +145,8 @@ class CDMSequenceDataset(Dataset):
         self.static_std = other.static_std
         self.tca_mean = other.tca_mean
         self.tca_std = other.tca_std
+        self.delta_mean = other.delta_mean
+        self.delta_std = other.delta_std
 
     def __len__(self):
         return len(self.events)
@@ -125,6 +159,22 @@ class CDMSequenceDataset(Dataset):
         temporal = group[self.temporal_cols].values.astype(np.float32)
         temporal = np.nan_to_num(temporal, nan=0.0, posinf=0.0, neginf=0.0)
 
+        # Compute first-order differences (deltas) for temporal features
+        # This captures trends: is miss_distance shrinking? Is covariance tightening?
+        if len(temporal) > 1:
+            deltas = np.diff(temporal, axis=0)  # (seq_len-1, n_temporal)
+            # Prepend zeros for the first timestep (no prior to diff against)
+            deltas = np.concatenate([np.zeros((1, deltas.shape[1]), dtype=np.float32), deltas], axis=0)
+        else:
+            deltas = np.zeros_like(temporal)
+
+        # Normalize raw features and deltas separately
+        temporal = (temporal - self.temporal_mean) / self.temporal_std
+        deltas = (deltas - self.delta_mean) / self.delta_std
+
+        # Concatenate: (seq_len, n_temporal * 2)
+        temporal = np.concatenate([temporal, deltas], axis=1)
+
         # Extract static features from last row (they're constant per event)
         static = group[self.static_cols].iloc[-1].values.astype(np.float32)
         static = np.nan_to_num(static, nan=0.0, posinf=0.0, neginf=0.0)
@@ -133,7 +183,6 @@ class CDMSequenceDataset(Dataset):
         tca = group["time_to_tca"].values.astype(np.float32).reshape(-1, 1)
 
         # Normalize
-        temporal = (temporal - self.temporal_mean) / self.temporal_std
         static = (static - self.static_mean) / self.static_std
         tca = (tca - self.tca_mean) / self.tca_std
 
@@ -164,6 +213,12 @@ class CDMSequenceDataset(Dataset):
         final_miss = group["miss_distance"].iloc[-1] if "miss_distance" in group.columns else 0.0
         miss_log = np.log1p(max(final_miss, 0.0))
 
+        # Domain weight: Kelvins events get full weight, Space-Track events
+        # get reduced weight since they have sparse features (16 vs 103 columns).
+        # This prevents the model from learning shortcuts on zero-padded features.
+        source = event.get("source", "kelvins")
+        domain_weight = 1.0 if source == "kelvins" else 0.3
+
         return {
             "temporal": torch.tensor(temporal, dtype=torch.float32),
             "static": torch.tensor(static, dtype=torch.float32),
@@ -171,6 +226,7 @@ class CDMSequenceDataset(Dataset):
             "mask": torch.tensor(mask, dtype=torch.bool),
             "risk_label": torch.tensor(risk_label, dtype=torch.float32),
             "miss_log": torch.tensor(miss_log, dtype=torch.float32),
+            "domain_weight": torch.tensor(domain_weight, dtype=torch.float32),
         }
 
 
@@ -185,24 +241,47 @@ def build_datasets(
     Splits training data into train + val by event_id (stratified by risk).
     """
     # Determine risk label per event for stratification
-    event_risks = train_df.groupby("event_id")["risk"].last().reset_index()
-    event_risks["label"] = (event_risks["risk"] > -5).astype(int)
-    event_ids = event_risks["event_id"].values
-    labels = event_risks["label"].values
+    has_source = "source" in train_df.columns
+    agg_dict = {"risk": ("risk", "last")}
+    if has_source:
+        agg_dict["source"] = ("source", "first")
+    event_meta = train_df.groupby("event_id").agg(**agg_dict).reset_index()
+    event_meta["label"] = (event_meta["risk"] > -5).astype(int)
 
-    # Stratified split
-    train_ids, val_ids = train_test_split(
-        event_ids, test_size=val_fraction, stratify=labels, random_state=42
-    )
+    # Split validation from KELVINS-ONLY events for fair model selection.
+    # Space-Track events (sparse features, all high-risk) inflate val metrics.
+    if has_source:
+        kelvins_events = event_meta[event_meta["source"] == "kelvins"]
+        other_events = event_meta[event_meta["source"] != "kelvins"]
+
+        kelvins_ids = kelvins_events["event_id"].values
+        kelvins_labels = kelvins_events["label"].values
+
+        # Stratified split on Kelvins events only
+        k_train_ids, val_ids = train_test_split(
+            kelvins_ids, test_size=val_fraction, stratify=kelvins_labels, random_state=42
+        )
+        # Training = Kelvins train split + all Space-Track events
+        train_ids = np.concatenate([k_train_ids, other_events["event_id"].values])
+    else:
+        event_ids = event_meta["event_id"].values
+        labels = event_meta["label"].values
+        train_ids, val_ids = train_test_split(
+            event_ids, test_size=val_fraction, stratify=labels, random_state=42
+        )
 
     train_sub = train_df[train_df["event_id"].isin(train_ids)]
     val_sub = train_df[train_df["event_id"].isin(val_ids)]
 
     print(f"Building datasets:")
     print(f"  Train events: {len(train_ids)}")
+    if has_source:
+        n_k = train_sub[train_sub["source"] == "kelvins"]["event_id"].nunique()
+        n_s = train_sub[train_sub["source"] != "kelvins"]["event_id"].nunique()
+        print(f"    (Kelvins: {n_k}, Space-Track: {n_s})")
     train_ds = CDMSequenceDataset(train_sub)
 
-    print(f"  Val events:   {len(val_ids)}")
+    print(f"  Val events:   {len(val_ids)} (Kelvins-only)")
     val_ds = CDMSequenceDataset(val_sub)
     val_ds.set_normalization(train_ds)  # use training stats
 
