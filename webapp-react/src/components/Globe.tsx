@@ -76,22 +76,48 @@ function Atmosphere() {
   );
 }
 
+// Zoom-out threshold: if camera is farther than this, deselect
+const DESELECT_DISTANCE = 6.0;
+
 // Smoothly move camera to look at the selected satellite
-function CameraController({ target }: { target: SatellitePosition | null }) {
-  const { camera } = useThree();
-  const controlsRef = useRef<any>(null);
+// Stops animation on user interaction; deselects on zoom out
+function CameraController({
+  target,
+  onDeselect,
+}: {
+  target: SatellitePosition | null;
+  onDeselect: () => void;
+}) {
+  const { camera, gl } = useThree();
   const targetPos = useRef<THREE.Vector3 | null>(null);
   const animating = useRef(false);
   const prevTargetId = useRef<number | null>(null);
+  const prevDistance = useRef(camera.position.length());
+
+  // Cancel animation on any user interaction (mouse drag, scroll, touch)
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const cancelAnimation = () => {
+      if (animating.current) {
+        animating.current = false;
+      }
+    };
+    canvas.addEventListener('pointerdown', cancelAnimation);
+    canvas.addEventListener('wheel', cancelAnimation);
+    return () => {
+      canvas.removeEventListener('pointerdown', cancelAnimation);
+      canvas.removeEventListener('wheel', cancelAnimation);
+    };
+  }, [gl]);
 
   useEffect(() => {
-    // Store ref to OrbitControls — find it via the canvas parent
-    const controls = (camera as any).__orbitControls;
-    if (controls) controlsRef.current = controls;
-  });
-
-  useEffect(() => {
-    if (!target || target.noradId === prevTargetId.current) return;
+    if (!target) {
+      animating.current = false;
+      prevTargetId.current = null;
+      targetPos.current = null;
+      return;
+    }
+    if (target.noradId === prevTargetId.current) return;
     prevTargetId.current = target.noradId;
     // Compute satellite scene position
     const dt = (Date.now() - target.propagatedAt) / 1000;
@@ -103,6 +129,16 @@ function CameraController({ target }: { target: SatellitePosition | null }) {
   }, [target]);
 
   useFrame(() => {
+    const currentDist = camera.position.length();
+
+    // Deselect when user zooms out past threshold
+    if (target && !animating.current) {
+      if (currentDist > DESELECT_DISTANCE && prevDistance.current <= DESELECT_DISTANCE) {
+        onDeselect();
+      }
+    }
+    prevDistance.current = currentDist;
+
     if (!animating.current || !targetPos.current) return;
 
     // Smoothly move camera to look at the satellite from a closer distance
@@ -138,7 +174,7 @@ function Scene({ satellites, onSelectSatellite, selectedSatellite, showBorders }
       <Earth />
       <Atmosphere />
       <CountryBorders visible={showBorders} />
-      <CameraController target={selectedSatellite} />
+      <CameraController target={selectedSatellite} onDeselect={() => onSelectSatellite(null)} />
       {satellites.length > 0 && (
         <SatelliteLayer
           satellites={satellites}

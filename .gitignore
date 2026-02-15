@@ -45,3 +45,6 @@ webapp-react/dist/
 # Claude Code (private project config)
 CLAUDE.md
 .claude/
+
+# Private writeup (NeurIPS paper draft)
+/writeup/
