@@ -219,26 +219,34 @@ export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLaye
   );
 }
 
-// Ring around selected satellite
+// Ring around selected satellite — always faces the camera (billboard)
 export function SelectionRing({ satellite }: { satellite: SatellitePosition }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const innerRef = useRef<THREE.Mesh>(null);
+  const { camera } = useThree();
 
   useFrame(() => {
-    if (meshRef.current) {
+    if (groupRef.current) {
       const dt = (Date.now() - satellite.propagatedAt) / 1000;
-      meshRef.current.position.set(
+      groupRef.current.position.set(
         (satellite.x + satellite.vx * dt) * SCALE,
         (satellite.z + satellite.vz * dt) * SCALE,
         -(satellite.y + satellite.vy * dt) * SCALE,
       );
-      meshRef.current.rotation.z += 0.03;
+      // Billboard: make the ring always face the camera
+      groupRef.current.quaternion.copy(camera.quaternion);
+    }
+    if (innerRef.current) {
+      innerRef.current.rotation.z += 0.03;
     }
   });
 
   return (
-    <mesh ref={meshRef}>
-      <ringGeometry args={[0.02, 0.025, 32]} />
-      <meshBasicMaterial color="#4f8aff" side={THREE.DoubleSide} transparent opacity={0.8} />
-    </mesh>
+    <group ref={groupRef}>
+      <mesh ref={innerRef}>
+        <ringGeometry args={[0.02, 0.025, 32]} />
+        <meshBasicMaterial color="#4f8aff" side={THREE.DoubleSide} transparent opacity={0.8} />
+      </mesh>
+    </group>
   );
 }
