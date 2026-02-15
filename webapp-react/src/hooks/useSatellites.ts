@@ -15,15 +15,30 @@ interface UseSatellitesResult {
   refresh: () => void;
 }
 
-// Deduplicate TLEs across groups by NORAD_CAT_ID (first group wins)
+// Priority order: specific groups win over generic "active"
+// e.g. Starlink (constellation) should be blue, not green from active
+const TYPE_PRIORITY: Record<string, number> = {
+  station: 0,
+  constellation: 1,
+  debris: 2,
+  rocket_body: 3,
+  active: 4,
+};
+
+// Deduplicate TLEs across groups by NORAD_CAT_ID (highest-priority group wins)
 function deduplicateTLEs(
   enabledGroups: ObjectGroup[],
   tleCache: Map<string, TLERecord[]>
 ): { tle: TLERecord; group: ObjectGroup }[] {
+  // Sort by priority: specific groups first, generic "active" last
+  const sorted = [...enabledGroups].sort(
+    (a, b) => (TYPE_PRIORITY[a.type] ?? 99) - (TYPE_PRIORITY[b.type] ?? 99)
+  );
+
   const seen = new Set<number>();
   const result: { tle: TLERecord; group: ObjectGroup }[] = [];
 
-  for (const group of enabledGroups) {
+  for (const group of sorted) {
     const tles = tleCache.get(group.id);
     if (!tles) continue;
 

@@ -1,10 +1,14 @@
 import { useRef, useMemo, useEffect } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import * as satellite from 'satellite.js';
 import { SatelliteLayer } from './SatelliteLayer';
+import { CountryBorders } from './CountryBorders';
 import type { SatellitePosition } from '../lib/types';
+import { EARTH_RADIUS_KM } from '../lib/types';
+
+const SCALE = 1 / EARTH_RADIUS_KM;
 
 const EARTH_TEXTURE_URL = 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg';
 const EARTH_BUMP_URL = 'https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png';
@@ -72,13 +76,59 @@ function Atmosphere() {
   );
 }
 
+// Smoothly move camera to look at the selected satellite
+function CameraController({ target }: { target: SatellitePosition | null }) {
+  const { camera } = useThree();
+  const controlsRef = useRef<any>(null);
+  const targetPos = useRef<THREE.Vector3 | null>(null);
+  const animating = useRef(false);
+  const prevTargetId = useRef<number | null>(null);
+
+  useEffect(() => {
+    // Store ref to OrbitControls — find it via the canvas parent
+    const controls = (camera as any).__orbitControls;
+    if (controls) controlsRef.current = controls;
+  });
+
+  useEffect(() => {
+    if (!target || target.noradId === prevTargetId.current) return;
+    prevTargetId.current = target.noradId;
+    // Compute satellite scene position
+    const dt = (Date.now() - target.propagatedAt) / 1000;
+    const sx = (target.x + target.vx * dt) * SCALE;
+    const sy = (target.z + target.vz * dt) * SCALE;
+    const sz = -(target.y + target.vy * dt) * SCALE;
+    targetPos.current = new THREE.Vector3(sx, sy, sz);
+    animating.current = true;
+  }, [target]);
+
+  useFrame(() => {
+    if (!animating.current || !targetPos.current) return;
+
+    // Smoothly move camera to look at the satellite from a closer distance
+    const satPos = targetPos.current;
+    const dir = satPos.clone().normalize();
+    const desiredCamPos = dir.clone().multiplyScalar(satPos.length() + 1.2);
+
+    camera.position.lerp(desiredCamPos, 0.04);
+
+    // After close enough, stop animating
+    if (camera.position.distanceTo(desiredCamPos) < 0.01) {
+      animating.current = false;
+    }
+  });
+
+  return null;
+}
+
 interface SceneProps {
   satellites: SatellitePosition[];
   onSelectSatellite: (sat: SatellitePosition | null) => void;
   selectedSatellite: SatellitePosition | null;
+  showBorders: boolean;
 }
 
-function Scene({ satellites, onSelectSatellite, selectedSatellite }: SceneProps) {
+function Scene({ satellites, onSelectSatellite, selectedSatellite, showBorders }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.15} />
@@ -87,6 +137,8 @@ function Scene({ satellites, onSelectSatellite, selectedSatellite }: SceneProps)
 
       <Earth />
       <Atmosphere />
+      <CountryBorders visible={showBorders} />
+      <CameraController target={selectedSatellite} />
       {satellites.length > 0 && (
         <SatelliteLayer
           satellites={satellites}
@@ -111,9 +163,10 @@ interface GlobeProps {
   satellites: SatellitePosition[];
   onSelectSatellite: (sat: SatellitePosition | null) => void;
   selectedSatellite: SatellitePosition | null;
+  showBorders?: boolean;
 }
 
-export function Globe({ satellites, onSelectSatellite, selectedSatellite }: GlobeProps) {
+export function Globe({ satellites, onSelectSatellite, selectedSatellite, showBorders = false }: GlobeProps) {
   const cameraConfig = useMemo(() => ({
     position: [0, 0, 3.5] as [number, number, number],
     fov: 45,
@@ -153,6 +206,7 @@ export function Globe({ satellites, onSelectSatellite, selectedSatellite }: Glob
         satellites={satellites}
         onSelectSatellite={onSelectSatellite}
         selectedSatellite={selectedSatellite}
+        showBorders={showBorders}
       />
     </Canvas>
   );
