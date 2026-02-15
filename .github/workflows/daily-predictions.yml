@@ -1,0 +1,50 @@
+# Daily conjunction prediction pipeline
+# Runs at 00:00 UTC every day, fetching TLEs, screening pairs,
+# logging predictions, and validating yesterday's results.
+name: Daily Predictions
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Every day at midnight UTC
+  workflow_dispatch:  # Manual trigger for testing
+
+permissions:
+  contents: write  # For pushing prediction logs
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests numpy
+          pip install google-cloud-firestore google-auth || echo "Firebase SDK install failed (optional)"
+          pip install huggingface-hub || echo "HF Hub install failed (optional)"
+          pip install -e . 2>/dev/null || pip install scikit-learn xgboost || true
+
+      - name: Run daily predictions
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python scripts/daily_predictions.py --top-k 100
+
+      - name: Commit local prediction logs
+        run: |
+          git config user.name "Panacea Bot"
+          git config user.email "panacea-bot@users.noreply.github.com"
+          git add data/prediction_logs/ data/tle_snapshots/ || true
+          git diff --staged --quiet || git commit -m ":robot: Daily predictions $(date -u +%Y-%m-%d)"
+          git push || echo "Push failed (non-critical)"
