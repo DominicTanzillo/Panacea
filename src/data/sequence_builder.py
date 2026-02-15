@@ -230,6 +230,138 @@ class CDMSequenceDataset(Dataset):
         }
 
 
+class PretrainDataset(Dataset):
+    """Simplified CDM dataset for self-supervised pre-training (no labels needed).
+
+    Returns only temporal features, static features, time_to_tca, and mask.
+    Can process combined train+test data since labels aren't used.
+    """
+
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        max_seq_len: int = MAX_SEQ_LEN,
+        temporal_cols: list[str] = None,
+        static_cols: list[str] = None,
+    ):
+        self.max_seq_len = max_seq_len
+
+        self.temporal_cols = temporal_cols or find_available_features(df, TEMPORAL_FEATURES)
+        self.static_cols = static_cols or find_available_features(df, STATIC_FEATURES)
+
+        print(f"  PretrainDataset — Temporal: {len(self.temporal_cols)}, Static: {len(self.static_cols)}")
+
+        # Group by event_id
+        self.events = []
+        for event_id, group in df.groupby("event_id"):
+            group = group.sort_values("time_to_tca", ascending=False)
+            self.events.append({"event_id": event_id, "group": group})
+
+        # Compute global normalization stats
+        self.temporal_mean = df[self.temporal_cols].mean().values.astype(np.float32)
+        self.temporal_std = df[self.temporal_cols].std().values.astype(np.float32)
+        self.temporal_std[self.temporal_std < 1e-8] = 1.0
+
+        self.static_mean = df[self.static_cols].mean().values.astype(np.float32)
+        self.static_std = df[self.static_cols].std().values.astype(np.float32)
+        self.static_std[self.static_std < 1e-8] = 1.0
+
+        self.tca_mean = float(df["time_to_tca"].mean())
+        self.tca_std = float(df["time_to_tca"].std())
+        if self.tca_std < 1e-8:
+            self.tca_std = 1.0
+
+        self._compute_delta_stats(df)
+
+    def _compute_delta_stats(self, df: pd.DataFrame):
+        """Estimate normalization stats for temporal first-order differences."""
+        delta_samples = []
+        for _, group in df.groupby("event_id"):
+            if len(group) < 2:
+                continue
+            vals = group[self.temporal_cols].values.astype(np.float32)
+            vals = np.nan_to_num(vals, nan=0.0, posinf=0.0, neginf=0.0)
+            deltas = np.diff(vals, axis=0)
+            delta_samples.append(deltas)
+            if len(delta_samples) >= 2000:
+                break
+        if delta_samples:
+            all_deltas = np.concatenate(delta_samples, axis=0)
+            self.delta_mean = all_deltas.mean(axis=0).astype(np.float32)
+            self.delta_std = all_deltas.std(axis=0).astype(np.float32)
+            self.delta_std[self.delta_std < 1e-8] = 1.0
+        else:
+            n = len(self.temporal_cols)
+            self.delta_mean = np.zeros(n, dtype=np.float32)
+            self.delta_std = np.ones(n, dtype=np.float32)
+
+    def set_normalization(self, other):
+        """Copy normalization stats from another dataset."""
+        self.temporal_mean = other.temporal_mean
+        self.temporal_std = other.temporal_std
+        self.static_mean = other.static_mean
+        self.static_std = other.static_std
+        self.tca_mean = other.tca_mean
+        self.tca_std = other.tca_std
+        self.delta_mean = other.delta_mean
+        self.delta_std = other.delta_std
+
+    def __len__(self):
+        return len(self.events)
+
+    def __getitem__(self, idx):
+        event = self.events[idx]
+        group = event["group"]
+
+        # Extract temporal features
+        temporal = group[self.temporal_cols].values.astype(np.float32)
+        temporal = np.nan_to_num(temporal, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Compute first-order differences
+        if len(temporal) > 1:
+            deltas = np.diff(temporal, axis=0)
+            deltas = np.concatenate([np.zeros((1, deltas.shape[1]), dtype=np.float32), deltas], axis=0)
+        else:
+            deltas = np.zeros_like(temporal)
+
+        # Normalize
+        temporal = (temporal - self.temporal_mean) / self.temporal_std
+        deltas = (deltas - self.delta_mean) / self.delta_std
+        temporal = np.concatenate([temporal, deltas], axis=1)
+
+        # Static features
+        static = group[self.static_cols].iloc[-1].values.astype(np.float32)
+        static = np.nan_to_num(static, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Time-to-TCA
+        tca = group["time_to_tca"].values.astype(np.float32).reshape(-1, 1)
+
+        static = (static - self.static_mean) / self.static_std
+        tca = (tca - self.tca_mean) / self.tca_std
+
+        # Truncate or pad
+        seq_len = len(temporal)
+        if seq_len > self.max_seq_len:
+            temporal = temporal[-self.max_seq_len:]
+            tca = tca[-self.max_seq_len:]
+            seq_len = self.max_seq_len
+
+        pad_len = self.max_seq_len - seq_len
+        if pad_len > 0:
+            temporal = np.pad(temporal, ((pad_len, 0), (0, 0)), constant_values=0)
+            tca = np.pad(tca, ((pad_len, 0), (0, 0)), constant_values=0)
+
+        mask = np.zeros(self.max_seq_len, dtype=bool)
+        mask[pad_len:] = True
+
+        return {
+            "temporal": torch.tensor(temporal, dtype=torch.float32),
+            "static": torch.tensor(static, dtype=torch.float32),
+            "time_to_tca": torch.tensor(tca, dtype=torch.float32),
+            "mask": torch.tensor(mask, dtype=torch.bool),
+        }
+
+
 def build_datasets(
     train_df: pd.DataFrame,
     test_df: pd.DataFrame,

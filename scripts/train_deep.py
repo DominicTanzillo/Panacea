@@ -165,6 +165,12 @@ def main():
                         help="Use augmented dataset (Space-Track + synthetic positives)")
     parser.add_argument("--target-pos-ratio", type=float, default=0.05,
                         help="Target positive event ratio for augmentation (default: 5%%)")
+    parser.add_argument("--pretrained", type=str, default=None,
+                        help="Path to pre-trained encoder checkpoint (from pretrain_deep.py)")
+    parser.add_argument("--freeze-epochs", type=int, default=5,
+                        help="Freeze encoder for N epochs (heads-only warmup)")
+    parser.add_argument("--encoder-lr-scale", type=float, default=0.1,
+                        help="LR multiplier for pre-trained encoder layers")
     args = parser.parse_args()
 
     if args.quick:
@@ -227,6 +233,22 @@ def main():
     print(f"  d_model={args.d_model}, n_heads={args.n_heads}, n_layers={args.n_layers}")
     print(f"  Temporal features: {n_temporal}, Static features: {n_static}")
 
+    # Load pre-trained encoder weights if provided
+    if args.pretrained:
+        pretrained_path = Path(args.pretrained)
+        if not pretrained_path.is_absolute():
+            pretrained_path = ROOT / pretrained_path
+        print(f"\n  Loading pre-trained encoder from {pretrained_path} ...")
+        pretrained_ckpt = torch.load(pretrained_path, map_location=device, weights_only=False)
+        missing, unexpected = model.load_state_dict(
+            pretrained_ckpt["encoder_state"], strict=False
+        )
+        print(f"  Loaded pre-trained weights (epoch {pretrained_ckpt['epoch']})")
+        print(f"  Missing keys (randomly init): {[k.split('.')[0] + '.*' for k in missing]}")
+        if unexpected:
+            print(f"  Unexpected keys (ignored): {unexpected}")
+        print(f"  Freeze epochs: {args.freeze_epochs}, Encoder LR scale: {args.encoder_lr_scale}")
+
     # Auto-compute class balance from training data
     n_pos = sum(1 for e in train_ds.events if e["group"]["risk"].iloc[-1] > -5)
     n_neg = len(train_ds) - n_pos
@@ -244,7 +266,24 @@ def main():
         focal_alpha=0.75,
         focal_gamma=2.0,
     )
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
+    # Discriminative LR: encoder layers get lower LR when fine-tuning from pre-trained
+    if args.pretrained:
+        head_names = {"risk_head", "miss_head", "pool_attention"}
+        head_params = []
+        encoder_params = []
+        for name, param in model.named_parameters():
+            if any(name.startswith(h) for h in head_names):
+                head_params.append(param)
+            else:
+                encoder_params.append(param)
+        optimizer = torch.optim.AdamW([
+            {"params": encoder_params, "lr": args.lr * args.encoder_lr_scale},
+            {"params": head_params, "lr": args.lr},
+        ], weight_decay=1e-2)
+        print(f"\n  Discriminative LR: encoder={args.lr * args.encoder_lr_scale:.2e}, "
+              f"heads={args.lr:.2e}")
+    else:
+        optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-2)
 
     # Cosine annealing with warmup
     warmup_epochs = max(1, args.epochs // 10)
@@ -270,6 +309,16 @@ def main():
     print(f"  Mixed precision: {use_amp}")
     print(f"{'='*60}\n")
 
+    # Freeze encoder for initial epochs when fine-tuning from pre-trained
+    encoder_frozen = False
+    if args.pretrained and args.freeze_epochs > 0:
+        head_names = {"risk_head", "miss_head", "pool_attention"}
+        for name, param in model.named_parameters():
+            if not any(name.startswith(h) for h in head_names):
+                param.requires_grad = False
+        encoder_frozen = True
+        print(f"  Encoder frozen for first {args.freeze_epochs} epochs (heads-only warmup)")
+
     best_val_auc_pr = 0.0
     patience_counter = 0
     history = []
@@ -278,11 +327,24 @@ def main():
     for epoch in range(1, args.epochs + 1):
         epoch_start = time.time()
 
+        # Unfreeze encoder after freeze_epochs
+        if encoder_frozen and epoch > args.freeze_epochs:
+            for name, param in model.named_parameters():
+                param.requires_grad = True
+            encoder_frozen = False
+            print(f"\n  ** Encoder unfrozen at epoch {epoch} with LR scale "
+                  f"{args.encoder_lr_scale} **\n")
+
         # Learning rate schedule: warmup → cosine → SWA
         if epoch <= warmup_epochs:
-            warmup_lr = args.lr * (epoch / warmup_epochs)
-            for pg in optimizer.param_groups:
-                pg["lr"] = warmup_lr
+            warmup_frac = epoch / warmup_epochs
+            if args.pretrained:
+                # Respect discriminative LR during warmup
+                optimizer.param_groups[0]["lr"] = args.lr * args.encoder_lr_scale * warmup_frac
+                optimizer.param_groups[1]["lr"] = args.lr * warmup_frac
+            else:
+                for pg in optimizer.param_groups:
+                    pg["lr"] = args.lr * warmup_frac
         elif epoch >= swa_start_epoch:
             if not swa_active:
                 swa_active = True
