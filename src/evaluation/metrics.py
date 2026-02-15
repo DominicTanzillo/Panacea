@@ -13,6 +13,16 @@ from sklearn.metrics import (
 )
 
 
+def find_optimal_threshold(y_true: np.ndarray, y_prob: np.ndarray) -> tuple[float, float]:
+    """Find the threshold that maximizes F1 score on the precision-recall curve."""
+    precisions, recalls, thresholds = precision_recall_curve(y_true, y_prob)
+    # precision_recall_curve returns len(thresholds) = len(precisions) - 1
+    # Compute F1 for each threshold
+    f1_scores = 2 * (precisions[:-1] * recalls[:-1]) / (precisions[:-1] + recalls[:-1] + 1e-8)
+    best_idx = np.argmax(f1_scores)
+    return float(thresholds[best_idx]), float(f1_scores[best_idx])
+
+
 def evaluate_risk(y_true: np.ndarray, y_prob: np.ndarray, threshold: float = 0.5) -> dict:
     """
     Evaluate risk classification predictions.
@@ -20,21 +30,31 @@ def evaluate_risk(y_true: np.ndarray, y_prob: np.ndarray, threshold: float = 0.5
     Args:
         y_true: binary ground truth labels
         y_prob: predicted probabilities
-        threshold: classification threshold
+        threshold: classification threshold (used for f1_at_50)
 
-    Returns: dict of metrics
+    Returns: dict of metrics including optimal threshold F1
     """
-    y_pred = (y_prob >= threshold).astype(int)
+    y_pred_fixed = (y_prob >= threshold).astype(int)
 
     results = {
         "auc_pr": float(average_precision_score(y_true, y_prob)) if y_true.sum() > 0 else 0.0,
         "auc_roc": float(roc_auc_score(y_true, y_prob)) if len(np.unique(y_true)) > 1 else 0.0,
-        "f1": float(f1_score(y_true, y_pred, zero_division=0)),
-        "threshold": threshold,
+        "f1_at_50": float(f1_score(y_true, y_pred_fixed, zero_division=0)),
         "n_positive": int(y_true.sum()),
         "n_total": int(len(y_true)),
         "pos_rate": float(y_true.mean()),
     }
+
+    # Find optimal threshold that maximizes F1
+    if y_true.sum() > 0:
+        opt_threshold, opt_f1 = find_optimal_threshold(y_true, y_prob)
+        results["f1"] = opt_f1
+        results["optimal_threshold"] = opt_threshold
+        results["threshold"] = opt_threshold
+    else:
+        results["f1"] = results["f1_at_50"]
+        results["optimal_threshold"] = threshold
+        results["threshold"] = threshold
 
     # Recall at fixed precision levels
     if y_true.sum() > 0:
@@ -93,10 +113,11 @@ def full_evaluation(
     print(f"  {model_name}")
     print(f"{'='*60}")
     print(f"  Risk Classification:")
-    print(f"    AUC-PR:  {risk_metrics['auc_pr']:.4f}")
-    print(f"    AUC-ROC: {risk_metrics['auc_roc']:.4f}")
-    print(f"    F1:      {risk_metrics['f1']:.4f}")
-    print(f"    Positives: {risk_metrics['n_positive']}/{risk_metrics['n_total']} "
+    print(f"    AUC-PR:     {risk_metrics['auc_pr']:.4f}")
+    print(f"    AUC-ROC:    {risk_metrics['auc_roc']:.4f}")
+    print(f"    F1 (opt):   {risk_metrics['f1']:.4f}  (threshold={risk_metrics.get('optimal_threshold', 0.5):.3f})")
+    print(f"    F1 (0.50):  {risk_metrics['f1_at_50']:.4f}")
+    print(f"    Positives:  {risk_metrics['n_positive']}/{risk_metrics['n_total']} "
           f"({risk_metrics['pos_rate']:.1%})")
     print(f"  Miss Distance:")
     print(f"    MAE (log): {miss_metrics['mae_log']:.4f}")
