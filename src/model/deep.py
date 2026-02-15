@@ -306,10 +306,11 @@ class SigmoidFocalLoss(nn.Module):
     With gamma=2, easy examples (p_t > 0.9) get ~100x less weight.
     """
 
-    def __init__(self, alpha: float = 0.75, gamma: float = 2.0):
+    def __init__(self, alpha: float = 0.75, gamma: float = 2.0, reduction: str = "mean"):
         super().__init__()
         self.alpha = alpha
         self.gamma = gamma
+        self.reduction = reduction
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         p = torch.sigmoid(logits)
@@ -322,6 +323,8 @@ class SigmoidFocalLoss(nn.Module):
         # BCE per-element (numerically stable via log-sum-exp)
         bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
         loss = alpha_t * focal_weight * bce
+        if self.reduction == "none":
+            return loss
         return loss.mean()
 
 

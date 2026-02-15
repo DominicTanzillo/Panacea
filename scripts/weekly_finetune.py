@@ -99,10 +99,16 @@ def load_outcomes_from_local() -> list[dict]:
 
 
 def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
-    """Convert outcome records into training examples.
+    """Convert outcome records into training examples with weighted soft labels.
 
-    Each outcome has sat1/sat2 info and whether either maneuvered.
-    We create a labeled example: maneuvered = high risk (positive).
+    Uses enrichment fields (when available) to produce nuanced labels:
+      - CDM-confirmed avoidance: label=1.0, weight=1.0
+      - Counterfactual collision:  label=1.0, weight=0.9
+      - Likely avoidance (no CDM): label=0.8, weight=0.7
+      - Any maneuver (not avoidance): label=0.3, weight=0.3
+      - No maneuver: label=0.0, weight=1.0
+
+    Falls back to binary labels for outcomes without enrichment_version.
     """
     examples = []
     seen = set()
@@ -119,10 +125,36 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
         seen.add(key)
 
         either_maneuvered = outcome.get("either_maneuvered", False)
-        risk_label = 1.0 if either_maneuvered else 0.0
+        has_enrichment = outcome.get("enrichment_version", 0) >= 1
+
+        if not either_maneuvered:
+            risk_label = 0.0
+            sample_weight = 1.0
+        elif has_enrichment:
+            has_cdm = outcome.get("has_cdm", False)
+            likely_avoidance = outcome.get("likely_avoidance", False)
+            would_have_collided = outcome.get("would_have_collided", False)
+
+            if has_cdm and likely_avoidance:
+                risk_label = 1.0
+                sample_weight = 1.0
+            elif would_have_collided:
+                risk_label = 1.0
+                sample_weight = 0.9
+            elif likely_avoidance:
+                risk_label = 0.8
+                sample_weight = 0.7
+            else:
+                risk_label = 0.3
+                sample_weight = 0.3
+        else:
+            # Legacy outcomes without enrichment: binary fallback
+            risk_label = 1.0
+            sample_weight = 0.5
 
         examples.append({
             "risk_label": risk_label,
+            "sample_weight": sample_weight,
             "predicted_risk": outcome.get("predicted_risk", 0.0),
             "sat1_norad": outcome.get("sat1_norad", 0),
             "sat2_norad": outcome.get("sat2_norad", 0),
@@ -130,8 +162,9 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
             "sat2_delta_a_m": outcome.get("sat2_delta_a_m", 0.0),
         })
 
-    n_pos = sum(1 for e in examples if e["risk_label"] > 0)
-    print(f"  Training examples: {len(examples)} ({n_pos} positive)")
+    n_pos = sum(1 for e in examples if e["risk_label"] > 0.5)
+    n_soft = sum(1 for e in examples if 0 < e["risk_label"] <= 0.5)
+    print(f"  Training examples: {len(examples)} ({n_pos} positive, {n_soft} soft-positive)")
     return examples
 
 
@@ -142,15 +175,20 @@ def load_model(device: torch.device):
     # Try HuggingFace first if local doesn't exist
     if not model_path.exists():
         try:
-            from huggingface_hub import hf_hub_download
+            from huggingface_hub import hf_hub_download, HfApi
             hf_token = os.environ.get("HF_TOKEN", "")
+            # Auto-detect HF username
+            api = HfApi(token=hf_token)
+            user_info = api.whoami()
+            hf_user = user_info.get("name", user_info.get("fullname", "unknown"))
+            hf_repo = f"{hf_user}/panacea-models"
             downloaded = hf_hub_download(
-                repo_id="DominicTanzillo/panacea-models",
+                repo_id=hf_repo,
                 filename="transformer.pt",
                 token=hf_token or None,
                 local_dir=str(MODEL_DIR),
             )
-            print(f"  Downloaded model from HuggingFace: {downloaded}")
+            print(f"  Downloaded model from HuggingFace ({hf_repo}): {downloaded}")
         except Exception as e:
             print(f"  HuggingFace download failed: {e}")
             return None, None
@@ -201,7 +239,7 @@ def finetune_on_outcomes(
     # Set up training
     model.train()
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
-    loss_fn = SigmoidFocalLoss(alpha=0.75, gamma=2.0)
+    loss_fn = SigmoidFocalLoss(alpha=0.75, gamma=2.0, reduction="none")
     miss_loss_fn = nn.MSELoss()
 
     train_loader = torch.utils.data.DataLoader(
@@ -232,9 +270,19 @@ def finetune_on_outcomes(
             risk_target = batch["risk_label"].to(device)
             miss_target = batch["miss_log"].to(device)
 
+            # Sample weights for enriched soft labels
+            weights = batch.get("sample_weight")
+            if weights is not None:
+                weights = weights.to(device)
+
             risk_logit, miss_pred, _ = model(temporal, static, tca, mask)
 
-            risk_loss = loss_fn(risk_logit.squeeze(-1), risk_target)
+            # Per-sample focal loss, weighted by enrichment confidence
+            risk_loss_raw = loss_fn(risk_logit.squeeze(-1), risk_target)
+            if weights is not None and risk_loss_raw.dim() > 0:
+                risk_loss = (risk_loss_raw * weights).mean()
+            else:
+                risk_loss = risk_loss_raw.mean() if risk_loss_raw.dim() > 0 else risk_loss_raw
             miss_loss = miss_loss_fn(miss_pred.squeeze(-1), miss_target)
             loss = risk_loss + 0.1 * miss_loss
 
@@ -368,7 +416,10 @@ def save_updated_model(model, checkpoint, finetune_results, device):
         try:
             from huggingface_hub import HfApi
             api = HfApi(token=hf_token)
-            repo_id = "DominicTanzillo/panacea-models"
+            # Auto-detect HF username from token
+            user_info = api.whoami()
+            hf_username = user_info.get("name", user_info.get("fullname", "unknown"))
+            repo_id = f"{hf_username}/panacea-models"
 
             try:
                 api.create_repo(repo_id, repo_type="model", exist_ok=True)
