@@ -5,6 +5,8 @@ Usage:
     python scripts/train_deep.py                    # Full training (~4-6hr GPU)
     python scripts/train_deep.py --quick             # Quick test (5 epochs, CPU ok)
     python scripts/train_deep.py --epochs 100        # Custom epoch count
+    python scripts/train_deep.py --density           # Add orbital density features
+    python scripts/train_deep.py --density --conformal  # + conformal prediction
 """
 
 import sys
@@ -171,6 +173,12 @@ def main():
                         help="Freeze encoder for N epochs (heads-only warmup)")
     parser.add_argument("--encoder-lr-scale", type=float, default=0.1,
                         help="LR multiplier for pre-trained encoder layers")
+    parser.add_argument("--density", action="store_true",
+                        help="Add orbital density features (CRASH Clock)")
+    parser.add_argument("--conformal", action="store_true",
+                        help="Run conformal prediction calibration after training")
+    parser.add_argument("--conformal-alpha", type=float, default=0.10,
+                        help="Conformal miscoverage rate (default: 0.10 = 90%% coverage)")
     args = parser.parse_args()
 
     if args.quick:
@@ -199,9 +207,21 @@ def main():
 
     # Build sequence datasets
     print("\nBuilding sequence datasets ...")
-    train_ds, val_ds, test_ds = build_datasets(train_df, test_df)
+    cal_ds = None
+    cal_fraction = 0.4 if args.conformal else 0.0  # 40% of val set for calibration
 
-    print(f"\nDataset sizes: train={len(train_ds)}, val={len(val_ds)}, test={len(test_ds)}")
+    dataset_result = build_datasets(
+        train_df, test_df,
+        use_density=args.density,
+        cal_fraction=cal_fraction,
+    )
+    if cal_fraction > 0:
+        train_ds, val_ds, cal_ds, test_ds = dataset_result
+        print(f"\nDataset sizes: train={len(train_ds)}, val={len(val_ds)}, "
+              f"cal={len(cal_ds)}, test={len(test_ds)}")
+    else:
+        train_ds, val_ds, test_ds = dataset_result
+        print(f"\nDataset sizes: train={len(train_ds)}, val={len(val_ds)}, test={len(test_ds)}")
 
     # Data loaders
     train_loader = DataLoader(
@@ -214,6 +234,11 @@ def main():
     test_loader = DataLoader(
         test_ds, batch_size=args.batch_size * 2, shuffle=False, num_workers=0,
     )
+    cal_loader = None
+    if cal_ds is not None:
+        cal_loader = DataLoader(
+            cal_ds, batch_size=args.batch_size * 2, shuffle=False, num_workers=0,
+        )
 
     # Model — temporal dim is doubled by delta features
     n_temporal = len(train_ds.temporal_cols) * 2  # raw + deltas
@@ -400,7 +425,7 @@ def main():
             best_val_auc_pr = val_metrics["auc_pr"]
             patience_counter = 0
             # Save best model
-            torch.save({
+            ckpt_data = {
                 "model_state": model.state_dict(),
                 "epoch": epoch,
                 "val_auc_pr": best_val_auc_pr,
@@ -423,7 +448,9 @@ def main():
                 },
                 "temporal_cols": train_ds.temporal_cols,
                 "static_cols": train_ds.static_cols,
-            }, model_dir / "transformer.pt")
+                "use_density": args.density,
+            }
+            torch.save(ckpt_data, model_dir / "transformer.pt")
             print(f"  ** New best val AUC-PR: {best_val_auc_pr:.4f} — saved **")
         else:
             patience_counter += 1
@@ -480,7 +507,11 @@ def main():
     checkpoint["temperature"] = temperature
     torch.save(checkpoint, model_dir / "transformer.pt")
 
-    print(f"\n  TEST RESULTS (PI-TFT, best epoch {checkpoint['epoch']}):")
+    variant = "PI-TFT"
+    if args.density:
+        variant += " + Density"
+
+    print(f"\n  TEST RESULTS ({variant}, best epoch {checkpoint['epoch']}):")
     print(f"  Risk Classification:")
     print(f"    AUC-PR:     {test_metrics['auc_pr']:.4f}")
     print(f"    AUC-ROC:    {test_metrics['auc_roc']:.4f}")
@@ -491,10 +522,49 @@ def main():
     print(f"  Miss Distance:")
     print(f"    MAE (log): {test_metrics['mae_log']:.4f}")
     print(f"    MAE (km):  {test_metrics['mae_km']:.2f}")
+    if args.density:
+        print(f"  Density Features: {len(train_ds.static_cols)} static "
+              f"(+{len(train_ds.static_cols) - 12} from CRASH Clock density)")
 
     total_time = time.time() - start_time
     print(f"\n  Total training time: {total_time/60:.1f} minutes")
     print(f"  Saved: optimal_threshold={optimal_threshold:.3f}, temperature={temperature:.4f}")
+
+    # Conformal prediction calibration
+    conformal_results = None
+    if args.conformal and cal_loader is not None:
+        from src.evaluation.conformal import ConformalPredictor, run_conformal_at_multiple_levels
+
+        print(f"\n{'='*60}")
+        print("  Conformal Prediction Calibration")
+        print(f"{'='*60}")
+
+        # Collect calibrated probabilities on calibration set
+        cal_logits, cal_targets = collect_logits(model, cal_loader, device)
+        cal_probs = torch.sigmoid(cal_logits / temperature).cpu().numpy()
+        cal_labels = cal_targets.cpu().numpy()
+
+        # Collect calibrated probabilities on test set
+        test_probs_conf = calibrated_probs  # already computed above
+
+        # Run at multiple coverage levels
+        conformal_results = run_conformal_at_multiple_levels(
+            cal_probs, cal_labels,
+            test_probs_conf, test_risk_targets_np,
+            alphas=[0.01, 0.05, 0.10, 0.20],
+        )
+
+        # Save primary conformal predictor state in checkpoint
+        cp_primary = ConformalPredictor()
+        cp_primary.calibrate(cal_probs, cal_labels, alpha=args.conformal_alpha)
+        cp_eval = cp_primary.evaluate(test_probs_conf, test_risk_targets_np)
+        checkpoint["conformal"] = cp_primary.save_state()
+        torch.save(checkpoint, model_dir / "transformer.pt")
+
+        # Save density computer alongside model
+        if hasattr(train_ds, "_density_computer") and train_ds._density_computer is not None:
+            train_ds._density_computer.save(model_dir / "density_computer.json")
+            print(f"\n  Saved density computer to {model_dir / 'density_computer.json'}")
 
     # Save results
     results = {
@@ -503,10 +573,13 @@ def main():
         "training_time_minutes": total_time / 60,
         "optimal_threshold": optimal_threshold,
         "temperature": temperature,
+        "use_density": args.density,
         "test": test_metrics,
         "test_calibrated": calibrated_metrics,
         "history": history,
     }
+    if conformal_results is not None:
+        results["conformal"] = conformal_results
     with open(results_dir / "deep_model_results.json", "w") as f:
         json.dump(results, f, indent=2)
 

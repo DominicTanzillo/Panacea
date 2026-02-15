@@ -41,6 +41,16 @@ STATIC_FEATURES = [
     "t_span", "c_span",
 ]
 
+# Orbital density features from CRASH Clock analysis (added by OrbitalDensityComputer)
+DENSITY_FEATURES = [
+    "shell_density",
+    "shell_collision_rate",
+    "local_crash_clock_log",
+    "altitude_percentile",
+    "n_events_in_shell",
+    "shell_risk_rate",
+]
+
 
 def find_available_features(df: pd.DataFrame, candidates: list[str]) -> list[str]:
     """Filter feature list to only columns that exist in the DataFrame."""
@@ -366,12 +376,43 @@ def build_datasets(
     train_df: pd.DataFrame,
     test_df: pd.DataFrame,
     val_fraction: float = 0.1,
-) -> tuple[CDMSequenceDataset, CDMSequenceDataset, CDMSequenceDataset]:
+    use_density: bool = False,
+    cal_fraction: float = 0.0,
+) -> tuple:
     """
     Build train, validation, and test datasets with shared normalization.
 
     Splits training data into train + val by event_id (stratified by risk).
+
+    Args:
+        train_df: Training CDM DataFrame
+        test_df: Test CDM DataFrame
+        val_fraction: Fraction of Kelvins training events for validation
+        use_density: If True, include DENSITY_FEATURES in static features
+        cal_fraction: If > 0, further split validation into val + calibration
+                      for conformal prediction. Returns 4-tuple instead of 3.
+
+    Returns:
+        If cal_fraction == 0: (train_ds, val_ds, test_ds)
+        If cal_fraction > 0:  (train_ds, val_ds, cal_ds, test_ds)
     """
+    # Compute density features if requested
+    if use_density:
+        from src.data.density_features import OrbitalDensityComputer
+        density_computer = OrbitalDensityComputer()
+        density_computer.fit(train_df)
+        train_df = density_computer.transform(train_df)
+        test_df = density_computer.transform(test_df)
+    else:
+        density_computer = None
+
+    # Static columns: base (filtered to available) + optional density
+    static_cols = [c for c in STATIC_FEATURES if c in train_df.columns]
+    if use_density:
+        static_cols = static_cols + [
+            f for f in DENSITY_FEATURES if f in train_df.columns
+        ]
+
     # Determine risk label per event for stratification
     has_source = "source" in train_df.columns
     agg_dict = {"risk": ("risk", "last")}
@@ -402,6 +443,18 @@ def build_datasets(
             event_ids, test_size=val_fraction, stratify=labels, random_state=42
         )
 
+    # Further split validation into val + calibration for conformal prediction
+    cal_ids = np.array([])
+    if cal_fraction > 0 and len(val_ids) > 20:
+        val_labels = event_meta[event_meta["event_id"].isin(val_ids)]["label"].values
+        val_ids_arr = val_ids
+        val_ids, cal_ids = train_test_split(
+            val_ids_arr,
+            test_size=cal_fraction,
+            stratify=val_labels,
+            random_state=123,  # different seed from train/val split
+        )
+
     train_sub = train_df[train_df["event_id"].isin(train_ids)]
     val_sub = train_df[train_df["event_id"].isin(val_ids)]
 
@@ -411,14 +464,29 @@ def build_datasets(
         n_k = train_sub[train_sub["source"] == "kelvins"]["event_id"].nunique()
         n_s = train_sub[train_sub["source"] != "kelvins"]["event_id"].nunique()
         print(f"    (Kelvins: {n_k}, Space-Track: {n_s})")
-    train_ds = CDMSequenceDataset(train_sub)
+    if use_density:
+        print(f"  Static features: {len(static_cols)} (base: {len(STATIC_FEATURES)}, "
+              f"density: {len(static_cols) - len(STATIC_FEATURES)})")
+
+    train_ds = CDMSequenceDataset(train_sub, static_cols=static_cols)
 
     print(f"  Val events:   {len(val_ids)} (Kelvins-only)")
-    val_ds = CDMSequenceDataset(val_sub)
+    val_ds = CDMSequenceDataset(val_sub, static_cols=static_cols)
     val_ds.set_normalization(train_ds)  # use training stats
 
     print(f"  Test events:  {test_df['event_id'].nunique()}")
-    test_ds = CDMSequenceDataset(test_df, temporal_cols=train_ds.temporal_cols, static_cols=train_ds.static_cols)
+    test_ds = CDMSequenceDataset(test_df, temporal_cols=train_ds.temporal_cols, static_cols=static_cols)
     test_ds.set_normalization(train_ds)
+
+    # Store density computer on train_ds for checkpoint saving
+    if density_computer is not None:
+        train_ds._density_computer = density_computer
+
+    if cal_fraction > 0 and len(cal_ids) > 0:
+        cal_sub = train_df[train_df["event_id"].isin(cal_ids)]
+        print(f"  Cal events:   {len(cal_ids)} (for conformal prediction)")
+        cal_ds = CDMSequenceDataset(cal_sub, static_cols=static_cols)
+        cal_ds.set_normalization(train_ds)
+        return train_ds, val_ds, cal_ds, test_ds
 
     return train_ds, val_ds, test_ds
