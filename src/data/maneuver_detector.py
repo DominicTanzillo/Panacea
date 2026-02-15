@@ -147,6 +147,51 @@ def detect_maneuvers(
     return maneuvers
 
 
+def detect_maneuvers_dual_threshold(
+    prev_tles: list[dict],
+    curr_tles: list[dict],
+) -> list[dict]:
+    """Detect maneuvers using constellation-aware thresholds.
+
+    Uses 100m threshold for Starlink (smaller maneuvers) and
+    200m for everything else. Merges results, deduplicating by NORAD ID.
+    """
+    # Split current TLEs by constellation
+    starlink_curr = []
+    other_curr = []
+    for tle in curr_tles:
+        name = tle.get("OBJECT_NAME", "")
+        if "STARLINK" in name.upper():
+            starlink_curr.append(tle)
+        else:
+            other_curr.append(tle)
+
+    # Split previous TLEs the same way
+    starlink_prev = []
+    other_prev = []
+    for tle in prev_tles:
+        name = tle.get("OBJECT_NAME", "")
+        if "STARLINK" in name.upper():
+            starlink_prev.append(tle)
+        else:
+            other_prev.append(tle)
+
+    # Detect with appropriate thresholds
+    starlink_maneuvers = detect_maneuvers(
+        starlink_prev, starlink_curr,
+        threshold_m=STARLINK_DELTA_A_THRESHOLD_M,
+    )
+    other_maneuvers = detect_maneuvers(
+        other_prev, other_curr,
+        threshold_m=DEFAULT_DELTA_A_THRESHOLD_M,
+    )
+
+    # Merge and sort by delta_a descending
+    all_maneuvers = starlink_maneuvers + other_maneuvers
+    all_maneuvers.sort(key=lambda m: m["delta_a_m"], reverse=True)
+    return all_maneuvers
+
+
 def load_tle_snapshot(path: Path) -> list[dict]:
     """Load a TLE snapshot from a JSON file."""
     with open(path) as f:
