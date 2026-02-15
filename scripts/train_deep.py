@@ -332,11 +332,22 @@ def main():
             for name, param in model.named_parameters():
                 param.requires_grad = True
             encoder_frozen = False
-            print(f"\n  ** Encoder unfrozen at epoch {epoch} with LR scale "
-                  f"{args.encoder_lr_scale} **\n")
+            # Reset patience — representations shift when encoder unfreezes
+            patience_counter = 0
+            best_val_auc_pr = 0.0
+            print(f"\n  ** Encoder unfrozen at epoch {epoch} — patience & best reset **\n")
 
         # Learning rate schedule: warmup → cosine → SWA
-        if epoch <= warmup_epochs:
+        if encoder_frozen:
+            # During freeze: full LR for heads (they need to aggressively adapt
+            # to pre-trained encoder representations, no warmup needed)
+            if args.pretrained:
+                optimizer.param_groups[0]["lr"] = 0.0  # encoder frozen anyway
+                optimizer.param_groups[1]["lr"] = args.lr
+            else:
+                for pg in optimizer.param_groups:
+                    pg["lr"] = args.lr
+        elif epoch <= warmup_epochs:
             warmup_frac = epoch / warmup_epochs
             if args.pretrained:
                 # Respect discriminative LR during warmup
