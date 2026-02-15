@@ -2,6 +2,7 @@ import { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
+import * as satellite from 'satellite.js';
 import { SatelliteLayer } from './SatelliteLayer';
 import type { SatellitePosition } from '../lib/types';
 
@@ -17,9 +18,11 @@ function Earth() {
     EARTH_SPEC_URL,
   ]);
 
-  useFrame((_, delta) => {
+  // Rotate Earth to match GMST so continents align with ECI satellite positions
+  useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.02;
+      const gmst = satellite.gstime(new Date());
+      meshRef.current.rotation.y = gmst;
     }
   });
 
