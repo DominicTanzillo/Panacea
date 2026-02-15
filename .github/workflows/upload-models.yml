@@ -1,0 +1,148 @@
+# Upload all model artifacts and results to HuggingFace Hub
+# Run manually for initial upload, or when models are retrained locally
+name: Upload Models to HuggingFace
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_all:
+        description: 'Upload all models (not just transformer.pt)'
+        required: false
+        default: 'true'
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install huggingface-hub
+        run: pip install huggingface-hub
+
+      - name: Upload models to HuggingFace
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PYEOF'
+          import os
+          from pathlib import Path
+          from huggingface_hub import HfApi
+
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+          upload_all = "${{ inputs.upload_all }}" != "false"
+
+          # Detect the authenticated user
+          user_info = api.whoami()
+          username = user_info.get("name", user_info.get("fullname", "unknown"))
+          print(f"Authenticated as: {username}")
+
+          # Use the token owner's namespace
+          repo_id = f"{username}/panacea-models"
+          print(f"Target repo: {repo_id}")
+
+          # Create repo if it doesn't exist
+          api.create_repo(repo_id, repo_type="model", exist_ok=True)
+          print(f"Repo ready: {repo_id}")
+
+          # Model files to upload
+          model_files = [
+              ("models/transformer.pt", "transformer.pt"),
+              ("models/baseline.json", "baseline.json"),
+          ]
+
+          if upload_all:
+              model_files.extend([
+                  ("models/xgboost.pkl", "xgboost.pkl"),
+                  ("models/density_computer.json", "density_computer.json"),
+                  ("models/pretrained_encoder.pt", "pretrained_encoder.pt"),
+              ])
+
+          # Results files
+          result_files = [
+              ("results/model_comparison.json", "results/model_comparison.json"),
+              ("results/deep_model_results.json", "results/deep_model_results.json"),
+              ("results/staleness_experiment.json", "results/staleness_experiment.json"),
+          ]
+
+          uploaded = 0
+          for local_path, repo_path in model_files + result_files:
+              if Path(local_path).exists():
+                  size_kb = Path(local_path).stat().st_size / 1024
+                  print(f"  Uploading {local_path} ({size_kb:.1f} KB) -> {repo_path}")
+                  api.upload_file(
+                      path_or_fileobj=local_path,
+                      path_in_repo=repo_path,
+                      repo_id=repo_id,
+                      repo_type="model",
+                  )
+                  uploaded += 1
+              else:
+                  print(f"  SKIP {local_path} (not found)")
+
+          # Create a model card
+          card = f"""---
+          license: apache-2.0
+          tags:
+            - space-safety
+            - conjunction-assessment
+            - satellite-collision
+            - physics-informed
+          ---
+
+          # Panacea — Satellite Collision Avoidance Models
+
+          ML models for satellite conjunction assessment, trained on ESA Kelvins CDM dataset.
+
+          ## Models
+
+          | Model | File | AUC-PR | Description |
+          |-------|------|--------|-------------|
+          | Orbital Shell Baseline | `baseline.json` | 0.061 | Altitude-binned collision rates |
+          | XGBoost | `xgboost.pkl` | 0.988 | Gradient-boosted trees on CDM features |
+          | PI-TFT | `transformer.pt` | 0.511 | Physics-Informed Temporal Fusion Transformer |
+
+          ## Usage
+
+          ```python
+          from huggingface_hub import hf_hub_download
+
+          # Download PI-TFT model
+          path = hf_hub_download("{repo_id}", "transformer.pt")
+          checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+          ```
+
+          ## Weekly Fine-Tuning
+
+          The PI-TFT model is automatically fine-tuned weekly using Starlink maneuver
+          detections as proxy training labels. See the
+          [Panacea repo](https://github.com/DominicTanzillo/Panacea) for details.
+          """
+          import textwrap
+          card = textwrap.dedent(card).strip()
+
+          api.upload_file(
+              path_or_fileobj=card.encode(),
+              path_in_repo="README.md",
+              repo_id=repo_id,
+              repo_type="model",
+          )
+          uploaded += 1
+
+          # Save the repo_id for other workflows to reference
+          print(f"\nDone! Uploaded {uploaded} files to https://huggingface.co/{repo_id}")
+          print(f"\n::notice::HuggingFace repo: {repo_id}")
+          print(f"NOTE: Update HF_REPO_ID in weekly-finetune.yml if needed: {repo_id}")
+          PYEOF

@@ -1,7 +1,7 @@
 # Data (too large for git) — /prefix = root only, won't match src/data/
 /data/
-/models/
-/results/
+!/data/tle_snapshots/
+!/data/prediction_logs/
 
 # Python
 __pycache__/
@@ -46,5 +46,5 @@ webapp-react/dist/
 CLAUDE.md
 .claude/
 
-# Private writeup (NeurIPS paper draft)
-/writeup/
+# Private writeup — track snapshots for longitudinal model comparison
+# /writeup/drafts/ can be added back if needed for private content

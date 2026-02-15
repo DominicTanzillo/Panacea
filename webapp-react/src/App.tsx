@@ -105,15 +105,15 @@ function App() {
         onSelectSatellite={setSelectedSatellite}
       />
 
-      {/* Toggle buttons */}
-      <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+      {/* Toggle buttons — spaced for easy tapping on mobile */}
+      <div className="absolute top-3 right-3 z-30 flex flex-wrap items-center justify-end gap-3 max-w-[min(90vw,480px)]">
         {/* Backend status indicator */}
         <div
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-[11px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md"
           title={healthy ? 'Backend connected' : 'Backend offline — globe still works'}
         >
           <span
-            className="w-1.5 h-1.5 rounded-full"
+            className="w-2 h-2 rounded-full"
             style={{ background: healthy ? '#4fff8a' : '#ff4f5a' }}
           />
           {healthy ? 'API' : 'Offline'}
@@ -121,10 +121,10 @@ function App() {
 
         <button
           onClick={() => setShowBorders(!showBorders)}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all backdrop-blur-md ${
+          className={`px-4 py-2 rounded-full text-sm font-medium border transition-all backdrop-blur-md min-h-[36px] ${
             showBorders
               ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
-              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)]'
+              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
           }`}
           title="Toggle country borders"
         >
@@ -133,10 +133,10 @@ function App() {
 
         <button
           onClick={() => { setShowAlerts(!showAlerts); setShowDashboard(false); }}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all backdrop-blur-md ${
+          className={`px-4 py-2 rounded-full text-sm font-medium border transition-all backdrop-blur-md min-h-[36px] ${
             showAlerts
               ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
-              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)]'
+              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
           }`}
         >
           Alerts{screeningPairs.length > 0 ? ` (${screeningPairs.length})` : ''}
@@ -144,10 +144,10 @@ function App() {
 
         <button
           onClick={() => { setShowDashboard(!showDashboard); setShowAlerts(false); }}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all backdrop-blur-md ${
+          className={`px-4 py-2 rounded-full text-sm font-medium border transition-all backdrop-blur-md min-h-[36px] ${
             showDashboard
               ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
-              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)]'
+              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
           }`}
         >
           Dashboard
@@ -155,7 +155,7 @@ function App() {
 
         <button
           onClick={() => setShowAbout(true)}
-          className="px-3 py-1.5 rounded-full text-xs font-medium border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all"
+          className="px-4 py-2 rounded-full text-sm font-medium border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all min-h-[36px]"
         >
           About
         </button>

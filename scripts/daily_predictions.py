@@ -32,6 +32,7 @@ sys.path.insert(0, str(ROOT))
 
 from src.data.maneuver_detector import (
     detect_maneuvers,
+    detect_maneuvers_dual_threshold,
     extract_orbital_elements,
     load_tle_snapshot,
     save_tle_snapshot,
@@ -40,11 +41,13 @@ from src.data.maneuver_detector import (
     STARLINK_DELTA_A_THRESHOLD_M,
     DEFAULT_DELTA_A_THRESHOLD_M,
 )
+from src.data.maneuver_classifier import classify_maneuver
 from src.data.firebase_client import PredictionLogger
 
 CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SNAPSHOT_DIR = ROOT / "data" / "tle_snapshots"
 LOG_DIR = ROOT / "data" / "prediction_logs"
+MANEUVER_HISTORY_PATH = LOG_DIR / "maneuver_history.jsonl"
 
 
 def fetch_active_tles(max_objects: int = None) -> list[dict]:
@@ -109,15 +112,35 @@ def screen_pairs(tles: list[dict], alt_band_km: float = 50.0, raan_band_deg: flo
 
     print(f"  Found {len(pairs_i)} candidate pairs (from {n*(n-1)//2} total)")
 
-    # Score by altitude proximity (closer altitude = higher risk)
+    # Also extract inclination for better scoring
+    inclinations = np.zeros(n)
+    eccentricities = np.zeros(n)
+    for i, tle in enumerate(tles):
+        inclinations[i] = float(tle.get("INCLINATION", 0))
+        eccentricities[i] = float(tle.get("ECCENTRICITY", 0))
+
+    # Compute inclination differences for candidate pairs
+    inc_diff = np.abs(inclinations[:, None] - inclinations[None, :])
+
+    # Score candidates: combine altitude gap, RAAN proximity, and inclination
     candidates = []
     for idx in range(len(pairs_i)):
         i, j = int(pairs_i[idx]), int(pairs_j[idx])
         alt_gap = abs(altitudes[i] - altitudes[j])
         avg_alt = (altitudes[i] + altitudes[j]) / 2
+        rd = float(raan_diff[i, j])
+        id_ = float(inc_diff[i, j])
 
-        # Simple risk heuristic: inverse altitude gap, weighted by shell density
-        risk_score = max(0, 1.0 - alt_gap / alt_band_km)
+        # Composite risk heuristic:
+        #   - altitude closeness (0-1): closer = higher risk
+        #   - RAAN proximity (0-1): same plane = higher risk
+        #   - inclination similarity (0-1): coplanar = higher risk
+        alt_score = max(0, 1.0 - alt_gap / alt_band_km)
+        raan_score = max(0, 1.0 - rd / raan_band_deg)
+        inc_score = max(0, 1.0 - id_ / 10.0)  # 10° inc diff -> 0 score
+
+        # Weighted combination: RAAN matters most for close approaches
+        risk_score = 0.2 * alt_score + 0.5 * raan_score + 0.3 * inc_score
 
         candidates.append({
             "sat1_norad": norad_ids[i],
@@ -126,7 +149,8 @@ def screen_pairs(tles: list[dict], alt_band_km: float = 50.0, raan_band_deg: flo
             "sat2_name": names[j],
             "altitude_km": round(avg_alt, 1),
             "alt_gap_km": round(alt_gap, 2),
-            "raan_diff_deg": round(float(raan_diff[i, j]), 2),
+            "raan_diff_deg": round(rd, 2),
+            "inc_diff_deg": round(id_, 2),
             "risk_score": round(risk_score, 4),
         })
 
@@ -170,6 +194,129 @@ def score_with_model(candidates: list[dict], model) -> list[dict]:
     return candidates
 
 
+def load_maneuver_history() -> dict[int, list[dict]]:
+    """Load maneuver history keyed by NORAD ID."""
+    history: dict[int, list[dict]] = {}
+    if not MANEUVER_HISTORY_PATH.exists():
+        return history
+    with open(MANEUVER_HISTORY_PATH) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            record = json.loads(line)
+            nid = record.get("norad_id", 0)
+            if nid > 0:
+                history.setdefault(nid, []).append(record)
+    return history
+
+
+def save_maneuver_history(enriched_maneuvers: list[dict]):
+    """Append enriched maneuvers to history file."""
+    MANEUVER_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(MANEUVER_HISTORY_PATH, "a") as f:
+        for m in enriched_maneuvers:
+            f.write(json.dumps(m) + "\n")
+
+
+def enrich_maneuvers(
+    maneuvers: list[dict],
+    prev_tles: list[dict],
+    today_tles: list[dict],
+) -> list[dict]:
+    """Classify maneuvers, run counterfactuals, and cross-reference CDMs.
+
+    Returns enriched maneuver list with all Phase A/B/C fields.
+    """
+    # Phase A: Classify maneuvers
+    print("  Enriching maneuvers ...")
+    history = load_maneuver_history()
+
+    enriched = []
+    for m in maneuvers:
+        nid = m["norad_id"]
+        sat_history = history.get(nid, [])
+        em = classify_maneuver(m, sat_history)
+        enriched.append(em)
+
+    n_avoidance = sum(1 for e in enriched if e.get("likely_avoidance"))
+    n_sk = sum(1 for e in enriched if e.get("is_stationkeeping"))
+    print(f"    Classified: {n_avoidance} likely avoidance, {n_sk} stationkeeping, "
+          f"{len(enriched) - n_avoidance - n_sk} other")
+
+    # Phase B: SGP4 counterfactual for likely-avoidance maneuvers
+    avoidance_maneuvers = [e for e in enriched if e.get("likely_avoidance")]
+    try:
+        from src.data.counterfactual import (
+            propagate_counterfactual,
+            find_nearby_satellites,
+            SGP4_AVAILABLE,
+        )
+        if SGP4_AVAILABLE and avoidance_maneuvers:
+            # Build TLE lookup for pre-maneuver orbits
+            prev_by_id = {}
+            for tle in prev_tles:
+                nid = int(tle.get("NORAD_CAT_ID", 0))
+                if nid > 0:
+                    prev_by_id[nid] = tle
+
+            n_counterfactual = 0
+            n_collisions = 0
+            for em in avoidance_maneuvers:
+                nid = em["norad_id"]
+                pre_tle = prev_by_id.get(nid)
+                if not pre_tle:
+                    continue
+
+                nearby = find_nearby_satellites(pre_tle, today_tles)
+                if not nearby:
+                    continue
+
+                result = propagate_counterfactual(pre_tle, nearby)
+                em["counterfactual_min_distance_km"] = result.get("min_distance_km")
+                em["would_have_collided"] = result.get("would_have_collided", False)
+                em["counterfactual_closest_norad"] = result.get("closest_norad_id", 0)
+                n_counterfactual += 1
+                if result.get("would_have_collided"):
+                    n_collisions += 1
+
+            print(f"    Counterfactual: {n_counterfactual} propagated, "
+                  f"{n_collisions} would-have-collided")
+        elif not SGP4_AVAILABLE:
+            print("    Counterfactual: sgp4 not installed, skipping")
+    except Exception as e:
+        print(f"    Counterfactual failed (non-critical): {e}")
+
+    # Phase C: Space-Track CDM cross-reference
+    try:
+        from src.data.spacetrack_crossref import check_cdm_for_norad_ids
+        avoidance_ids = [e["norad_id"] for e in avoidance_maneuvers]
+        if avoidance_ids:
+            cdm_results = check_cdm_for_norad_ids(avoidance_ids, cache_dir=LOG_DIR)
+            n_with_cdm = 0
+            for em in enriched:
+                nid = em["norad_id"]
+                cdms = cdm_results.get(nid, [])
+                if cdms:
+                    em["has_cdm"] = True
+                    em["cdm_pc"] = max(c["pc"] for c in cdms)
+                    em["cdm_miss_distance_km"] = min(c["miss_distance_km"] for c in cdms)
+                    n_with_cdm += 1
+                else:
+                    em["has_cdm"] = False
+            if n_with_cdm:
+                print(f"    CDM cross-ref: {n_with_cdm} maneuvers confirmed by CDM")
+        else:
+            print("    CDM cross-ref: no avoidance maneuvers to check")
+    except Exception as e:
+        print(f"    CDM cross-ref skipped: {e}")
+
+    # Save enriched maneuvers to history
+    save_maneuver_history(enriched)
+
+    return enriched
+
+
 def validate_yesterday(
     logger: PredictionLogger,
     today_tles: list[dict],
@@ -177,7 +324,8 @@ def validate_yesterday(
 ) -> dict:
     """Validate yesterday's predictions against today's TLE data.
 
-    Checks if any predicted high-risk satellites actually maneuvered.
+    Detects maneuvers with dual-threshold, classifies them, runs
+    counterfactual propagation, and cross-references CDMs.
     """
     print(f"\nValidating predictions from {yesterday_str} ...")
 
@@ -189,16 +337,16 @@ def validate_yesterday(
 
     prev_tles = load_tle_snapshot(yesterday_snapshot)
 
-    # Detect maneuvers
-    maneuvers = detect_maneuvers(
-        prev_tles, today_tles,
-        threshold_m=DEFAULT_DELTA_A_THRESHOLD_M,
-    )
+    # Detect maneuvers with constellation-aware thresholds
+    maneuvers = detect_maneuvers_dual_threshold(prev_tles, today_tles)
     print(f"  Detected {len(maneuvers)} maneuvers since yesterday")
 
+    # Enrich maneuvers (classify, counterfactual, CDM)
+    enriched_maneuvers = enrich_maneuvers(maneuvers, prev_tles, today_tles)
+
     # Build maneuver lookup
-    maneuvered_ids = {m["norad_id"] for m in maneuvers}
-    maneuver_by_id = {m["norad_id"]: m for m in maneuvers}
+    maneuvered_ids = {m["norad_id"] for m in enriched_maneuvers}
+    maneuver_by_id = {m["norad_id"]: m for m in enriched_maneuvers}
 
     # Load yesterday's predictions
     predictions = logger.get_predictions_for_date(yesterday_str)
@@ -206,9 +354,9 @@ def validate_yesterday(
         print(f"  No predictions found for {yesterday_str}")
         return {
             "validated": True,
-            "n_maneuvers": len(maneuvers),
+            "n_maneuvers": len(enriched_maneuvers),
             "n_predictions": 0,
-            "top_maneuvers": maneuvers[:10],
+            "top_maneuvers": enriched_maneuvers[:10],
         }
 
     # Check predictions against maneuvers
@@ -246,9 +394,31 @@ def validate_yesterday(
             outcome["sat2_delta_a_m"] = m["delta_a_m"]
             outcome["sat2_delta_v_m_s"] = m["delta_v_m_s"]
 
+        # Add enrichment fields from whichever sat maneuvered
+        maneuvered_sat = None
+        if sat1_maneuvered and sat1 in maneuver_by_id:
+            maneuvered_sat = maneuver_by_id[sat1]
+        elif sat2_maneuvered and sat2 in maneuver_by_id:
+            maneuvered_sat = maneuver_by_id[sat2]
+
+        # Always stamp enrichment_version so we can distinguish
+        # new-pipeline outcomes from legacy ones in weekly_finetune
+        outcome["enrichment_version"] = 1
+
+        if maneuvered_sat:
+            outcome["magnitude_class"] = maneuvered_sat.get("magnitude_class")
+            outcome["constellation"] = maneuvered_sat.get("constellation")
+            outcome["is_stationkeeping"] = maneuvered_sat.get("is_stationkeeping")
+            outcome["likely_avoidance"] = maneuvered_sat.get("likely_avoidance")
+            outcome["has_cdm"] = maneuvered_sat.get("has_cdm", False)
+            outcome["cdm_pc"] = maneuvered_sat.get("cdm_pc")
+            outcome["cdm_miss_distance_km"] = maneuvered_sat.get("cdm_miss_distance_km")
+            outcome["counterfactual_min_distance_km"] = maneuvered_sat.get("counterfactual_min_distance_km")
+            outcome["would_have_collided"] = maneuvered_sat.get("would_have_collided", False)
+
         outcomes.append(outcome)
 
-        # For accuracy: did we predict risk > 0.5 and a maneuver happened?
+        # For accuracy: did we predict risk > 0.3 and a maneuver happened?
         if risk > 0.3:
             total_checked += 1
             if either_maneuvered:
@@ -259,15 +429,17 @@ def validate_yesterday(
         logger.log_outcomes(yesterday_str, outcomes)
 
     accuracy = correct / max(total_checked, 1)
+    n_avoidance = sum(1 for m in enriched_maneuvers if m.get("likely_avoidance"))
     summary = {
         "validated": True,
         "prediction_date": yesterday_str,
-        "n_maneuvers_total": len(maneuvers),
+        "n_maneuvers_total": len(enriched_maneuvers),
+        "n_likely_avoidance": n_avoidance,
         "n_predictions": len(predictions),
         "n_high_risk_predictions": total_checked,
         "n_correct": correct,
         "accuracy": round(accuracy, 4),
-        "top_maneuvers": maneuvers[:10],
+        "top_maneuvers": enriched_maneuvers[:10],
     }
 
     print(f"  Predictions: {len(predictions)}, High-risk checked: {total_checked}, "

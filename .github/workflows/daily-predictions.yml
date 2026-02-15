@@ -20,7 +20,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0  # Full history so we can push back
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,22 +29,73 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests numpy
+          pip install requests numpy scipy sgp4
           pip install google-cloud-firestore google-auth || echo "Firebase SDK install failed (optional)"
           pip install huggingface-hub || echo "HF Hub install failed (optional)"
-          pip install -e . 2>/dev/null || pip install scikit-learn xgboost || true
+          pip install scikit-learn xgboost || true
+
+      - name: Verify baseline model
+        run: |
+          if [ -f models/baseline.json ]; then
+            echo "Baseline model found ($(wc -c < models/baseline.json) bytes)"
+          else
+            echo "WARNING: models/baseline.json not found in repo"
+            echo "Predictions will use heuristic scoring fallback"
+          fi
 
       - name: Run daily predictions
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACETRACK_USER: ${{ secrets.SPACETRACK_USER }}
+          SPACETRACK_PASS: ${{ secrets.SPACETRACK_PASS }}
         run: |
           python scripts/daily_predictions.py --top-k 100
 
-      - name: Commit local prediction logs
+      - name: Prune old TLE snapshots
+        run: |
+          # Keep only last 2 snapshots (today + yesterday) to avoid repo bloat
+          # Each snapshot is ~6MB; without pruning = 2.3GB/year in git history
+          cd data/tle_snapshots
+          ls -1 *.json 2>/dev/null | sort | head -n -2 | xargs -r rm -v
+          cd ../..
+
+      - name: Prune maneuver history
+        run: |
+          # Keep last 90 days of maneuver history (needed for stationkeeping detection)
+          # ~537 maneuvers/day × 500 bytes = ~260KB/day; 90 days ≈ 23MB max
+          HISTORY_FILE="data/prediction_logs/maneuver_history.jsonl"
+          if [ -f "$HISTORY_FILE" ]; then
+            CUTOFF=$(date -u -d '90 days ago' +%Y-%m-%dT 2>/dev/null || date -u -v-90d +%Y-%m-%dT)
+            python3 -c "
+import json, sys
+cutoff = '$CUTOFF'
+kept = 0
+with open('$HISTORY_FILE') as f:
+    lines = f.readlines()
+with open('$HISTORY_FILE', 'w') as f:
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+            if rec.get('detected_at', '') >= cutoff:
+                f.write(line + '\n')
+                kept += 1
+        except json.JSONDecodeError:
+            continue
+print(f'  Maneuver history: kept {kept}/{len(lines)} records (cutoff {cutoff})')
+"
+          fi
+
+      - name: Commit and push prediction logs
         run: |
           git config user.name "Panacea Bot"
           git config user.email "panacea-bot@users.noreply.github.com"
-          git add data/prediction_logs/ data/tle_snapshots/ || true
+          # Force-add in case gitignore still interferes
+          git add -f data/prediction_logs/ data/tle_snapshots/ 2>/dev/null || true
+          # Also stage deletions of pruned snapshots
+          git add -u data/tle_snapshots/ 2>/dev/null || true
           git diff --staged --quiet || git commit -m ":robot: Daily predictions $(date -u +%Y-%m-%d)"
           git push || echo "Push failed (non-critical)"
