@@ -61,32 +61,35 @@ jobs:
           cd ../..
 
       - name: Prune maneuver history
+        env:
+          HISTORY_FILE: data/prediction_logs/maneuver_history.jsonl
         run: |
           # Keep last 90 days of maneuver history (needed for stationkeeping detection)
           # ~537 maneuvers/day × 500 bytes = ~260KB/day; 90 days ≈ 23MB max
-          HISTORY_FILE="data/prediction_logs/maneuver_history.jsonl"
           if [ -f "$HISTORY_FILE" ]; then
             CUTOFF=$(date -u -d '90 days ago' +%Y-%m-%dT 2>/dev/null || date -u -v-90d +%Y-%m-%dT)
-            python3 -c "
-import json, sys
-cutoff = '$CUTOFF'
-kept = 0
-with open('$HISTORY_FILE') as f:
-    lines = f.readlines()
-with open('$HISTORY_FILE', 'w') as f:
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            rec = json.loads(line)
-            if rec.get('detected_at', '') >= cutoff:
-                f.write(line + '\n')
-                kept += 1
-        except json.JSONDecodeError:
-            continue
-print(f'  Maneuver history: kept {kept}/{len(lines)} records (cutoff {cutoff})')
-"
+            export CUTOFF
+            python << 'PYEOF'
+          import json, os
+          hf = os.environ["HISTORY_FILE"]
+          cutoff = os.environ["CUTOFF"]
+          with open(hf) as f:
+              lines = f.readlines()
+          kept = 0
+          with open(hf, "w") as f:
+              for line in lines:
+                  line = line.strip()
+                  if not line:
+                      continue
+                  try:
+                      rec = json.loads(line)
+                      if rec.get("detected_at", "") >= cutoff:
+                          f.write(line + "\n")
+                          kept += 1
+                  except json.JSONDecodeError:
+                      continue
+          print(f"  Maneuver history: kept {kept}/{len(lines)} records (cutoff {cutoff})")
+          PYEOF
           fi
 
       - name: Commit and push prediction logs
