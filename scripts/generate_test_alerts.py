@@ -6,7 +6,7 @@ uses SGP4 propagation.
 
 Two data tiers:
   - trajectory: 20-min steps for full 5-day range (chart + slider)
-  - trail: 1-min steps for ±30 min around TCA (globe orbital path lines)
+  - trail: 15-sec steps for ±30 min around TCA (globe orbital path lines)
 """
 import json
 import math
@@ -135,8 +135,8 @@ def generate_sparse_trajectory(params, hours_forward=120.0, step_minutes=20.0):
     return points
 
 
-def generate_dense_trail(params, tca_hours, half_window_min=30.0, step_minutes=1.0):
-    """Dense trail around TCA for globe orbital path lines: 1-min steps, ±30 min."""
+def generate_dense_trail(params, tca_hours, half_window_min=30.0, step_minutes=0.25):
+    """Dense trail around TCA for globe orbital path lines: 15-sec steps, ±30 min."""
     tca_min = tca_hours * 60.0
     start_min = tca_min - half_window_min
     end_min = tca_min + half_window_min
