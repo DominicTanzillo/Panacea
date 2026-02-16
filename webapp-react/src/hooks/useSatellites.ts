@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { TLERecord, SatellitePosition, ObjectGroup } from '../lib/types';
 import { OBJECT_GROUPS } from '../lib/types';
 import { propagateSatellite } from '../lib/orbital';
 
 interface UseSatellitesResult {
   satellites: SatellitePosition[];
+  allTLEs: TLERecord[];
   loading: boolean;
   error: string | null;
   loadedGroups: string[];
@@ -181,8 +182,15 @@ export function useSatellites(): UseSatellitesResult {
   const loadedGroups = Array.from(tleCache.keys());
   const totalTLEs = Array.from(tleCache.values()).reduce((sum, arr) => sum + arr.length, 0);
 
+  // Expose deduplicated raw TLEs for backend screening
+  const allTLEs = useMemo(() => {
+    const enabledGroups = groups.filter(g => g.enabled);
+    return deduplicateTLEs(enabledGroups, tleCache).map(item => item.tle);
+  }, [groups, tleCache]);
+
   return {
     satellites,
+    allTLEs,
     loading,
     error,
     loadedGroups,

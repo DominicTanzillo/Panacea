@@ -271,3 +271,54 @@ def propagate_counterfactual(
         "closest_norad_id": closest_norad,
         "n_neighbors_checked": n_checked,
     }
+
+
+def compute_forward_tca(
+    tle_1: dict,
+    tle_2: dict,
+    hours_forward: float = 120.0,
+    step_minutes: float = 10.0,
+) -> dict:
+    """Compute forward Time of Closest Approach between two satellites.
+
+    Propagates both satellites forward using SGP4 and finds the minimum
+    separation distance and when it occurs.
+
+    Args:
+        tle_1: CelesTrak GP JSON for satellite 1.
+        tle_2: CelesTrak GP JSON for satellite 2.
+        hours_forward: How far to propagate (default 120h = 5 days).
+        step_minutes: Time step for propagation (minutes).
+
+    Returns:
+        Dict with: tca_hours, tca_min_distance_km, or error.
+    """
+    if not SGP4_AVAILABLE:
+        return {"tca_hours": None, "tca_min_distance_km": None}
+
+    try:
+        sat1 = celestrak_json_to_satrec(tle_1)
+        sat2 = celestrak_json_to_satrec(tle_2)
+    except (ValueError, Exception) as e:
+        return {"tca_hours": None, "tca_min_distance_km": None}
+
+    now = datetime.now(timezone.utc)
+    start_jd = _datetime_to_jd(now)
+
+    pos1 = _propagate_positions(sat1, start_jd, hours_forward, step_minutes)
+    pos2 = _propagate_positions(sat2, start_jd, hours_forward, step_minutes)
+
+    if len(pos1) == 0 or len(pos2) == 0:
+        return {"tca_hours": None, "tca_min_distance_km": None}
+
+    n_common = min(len(pos1), len(pos2))
+    diffs = pos1[:n_common] - pos2[:n_common]
+    distances = np.linalg.norm(diffs, axis=1)
+    min_idx = int(np.argmin(distances))
+    min_dist = float(distances[min_idx])
+    tca_hours = min_idx * step_minutes / 60.0
+
+    return {
+        "tca_hours": round(tca_hours, 1),
+        "tca_min_distance_km": round(min_dist, 1),
+    }
