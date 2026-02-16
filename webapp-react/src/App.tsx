@@ -1,7 +1,7 @@
 import { useState, Suspense, Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
 import { Globe } from './components/Globe';
-import { Header } from './components/Header';
+import { Header, PanaceaLogo } from './components/Header';
 import { InfoPanel } from './components/InfoPanel';
 import { StatusBar } from './components/StatusBar';
 import { SearchFilter } from './components/SearchFilter';
@@ -60,8 +60,8 @@ class SceneErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
 function LoadingScreen() {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--color-bg)]">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-accent)] to-[#8b5cf6] flex items-center justify-center text-xl font-bold mb-4 animate-pulse">
-        P
+      <div className="mb-4 animate-pulse">
+        <PanaceaLogo size={48} />
       </div>
       <p className="text-sm text-[var(--color-text-muted)]">
         Loading orbital data from CelesTrak...
@@ -98,68 +98,22 @@ function App() {
 
   return (
     <div className="w-full h-full relative">
-      <Header />
+      <Header
+        healthy={healthy}
+        showBorders={showBorders}
+        onToggleBorders={() => setShowBorders(!showBorders)}
+        showAlerts={showAlerts}
+        onToggleAlerts={() => { setShowAlerts(!showAlerts); setShowDashboard(false); }}
+        showDashboard={showDashboard}
+        onToggleDashboard={() => { setShowDashboard(!showDashboard); setShowAlerts(false); }}
+        onShowAbout={() => setShowAbout(true)}
+        alertCount={screeningPairs.length}
+      />
 
       <SearchFilter
         satellites={satellites}
         onSelectSatellite={setSelectedSatellite}
       />
-
-      {/* Toggle buttons — spaced for easy tapping on mobile */}
-      <div className="absolute top-3 right-3 z-30 flex flex-wrap items-center justify-end gap-3 max-w-[min(90vw,480px)]">
-        {/* Backend status indicator */}
-        <div
-          className="flex items-center gap-1.5 px-3 py-2 rounded-full text-[11px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md"
-          title={healthy ? 'Backend connected' : 'Backend offline — globe still works'}
-        >
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ background: healthy ? '#4fff8a' : '#ff4f5a' }}
-          />
-          {healthy ? 'API' : 'Offline'}
-        </div>
-
-        <button
-          onClick={() => setShowBorders(!showBorders)}
-          className={`px-4 py-2 rounded-full text-sm font-medium border transition-all backdrop-blur-md min-h-[36px] ${
-            showBorders
-              ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
-              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          }`}
-          title="Toggle country borders"
-        >
-          Borders
-        </button>
-
-        <button
-          onClick={() => { setShowAlerts(!showAlerts); setShowDashboard(false); }}
-          className={`px-4 py-2 rounded-full text-sm font-medium border transition-all backdrop-blur-md min-h-[36px] ${
-            showAlerts
-              ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
-              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          }`}
-        >
-          Alerts{screeningPairs.length > 0 ? ` (${screeningPairs.length})` : ''}
-        </button>
-
-        <button
-          onClick={() => { setShowDashboard(!showDashboard); setShowAlerts(false); }}
-          className={`px-4 py-2 rounded-full text-sm font-medium border transition-all backdrop-blur-md min-h-[36px] ${
-            showDashboard
-              ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
-              : 'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          }`}
-        >
-          Dashboard
-        </button>
-
-        <button
-          onClick={() => setShowAbout(true)}
-          className="px-4 py-2 rounded-full text-sm font-medium border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all min-h-[36px]"
-        >
-          About
-        </button>
-      </div>
 
       <SceneErrorBoundary>
         <Suspense fallback={<LoadingScreen />}>
