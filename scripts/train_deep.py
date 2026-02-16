@@ -53,11 +53,13 @@ def train_one_epoch(model, loader, criterion, optimizer, scaler, device, accum_s
         mask = batch["mask"].to(device)
         risk_target = batch["risk_label"].to(device)
         miss_target = batch["miss_log"].to(device)
+        pc_target = batch["pc_log10"].to(device) if "pc_log10" in batch else None
         dw = batch["domain_weight"].to(device) if "domain_weight" in batch else None
 
         with torch.amp.autocast("cuda", enabled=scaler.is_enabled()):
-            risk_logit, miss_log, _ = model(temporal, static, tca, mask)
+            risk_logit, miss_log, pc_log10, _ = model(temporal, static, tca, mask)
             loss, metrics = criterion(risk_logit, miss_log, risk_target, miss_target,
+                                      pc_pred_log10=pc_log10, pc_target_log10=pc_target,
                                       domain_weight=dw)
             loss = loss / accum_steps  # normalize for accumulation
 
@@ -83,6 +85,8 @@ def evaluate(model, loader, criterion, device):
     all_risk_targets = []
     all_miss_preds = []
     all_miss_targets = []
+    all_pc_preds = []
+    all_pc_targets = []
     total_loss = 0
     n_batches = 0
 
@@ -93,9 +97,11 @@ def evaluate(model, loader, criterion, device):
         mask = batch["mask"].to(device)
         risk_target = batch["risk_label"].to(device)
         miss_target = batch["miss_log"].to(device)
+        pc_target = batch["pc_log10"].to(device) if "pc_log10" in batch else None
 
-        risk_logit, miss_log, _ = model(temporal, static, tca, mask)
-        loss, metrics = criterion(risk_logit, miss_log, risk_target, miss_target)
+        risk_logit, miss_log, pc_log10, _ = model(temporal, static, tca, mask)
+        loss, metrics = criterion(risk_logit, miss_log, risk_target, miss_target,
+                                  pc_pred_log10=pc_log10, pc_target_log10=pc_target)
 
         total_loss += metrics["loss"]
         n_batches += 1
@@ -104,20 +110,32 @@ def evaluate(model, loader, criterion, device):
         all_risk_targets.append(risk_target.cpu().numpy().flatten())
         all_miss_preds.append(miss_log.cpu().numpy().flatten())
         all_miss_targets.append(miss_target.cpu().numpy().flatten())
+        all_pc_preds.append(pc_log10.cpu().numpy().flatten())
+        if pc_target is not None:
+            all_pc_targets.append(pc_target.cpu().numpy().flatten())
 
     risk_probs = np.concatenate(all_risk_probs)
     risk_targets = np.concatenate(all_risk_targets)
     miss_preds = np.concatenate(all_miss_preds)
     miss_targets = np.concatenate(all_miss_targets)
+    pc_preds = np.concatenate(all_pc_preds)
 
     risk_metrics = evaluate_risk(risk_targets, risk_probs)
     miss_metrics = evaluate_miss_distance(miss_targets, miss_preds)
 
-    return {
+    result = {
         "loss": total_loss / max(n_batches, 1),
         **risk_metrics,
         **miss_metrics,
     }
+
+    # Pc regression metrics
+    if all_pc_targets:
+        pc_targets = np.concatenate(all_pc_targets)
+        result["pc_mae_log10"] = float(np.mean(np.abs(pc_preds - pc_targets)))
+        result["pc_rmse_log10"] = float(np.sqrt(np.mean((pc_preds - pc_targets) ** 2)))
+
+    return result
 
 
 @torch.no_grad()
@@ -132,7 +150,7 @@ def collect_logits(model, loader, device):
         tca = batch["time_to_tca"].to(device)
         mask = batch["mask"].to(device)
         risk_target = batch["risk_label"].to(device)
-        risk_logit, _, _ = model(temporal, static, tca, mask)
+        risk_logit, _, _, _ = model(temporal, static, tca, mask)
         all_logits.append(risk_logit.squeeze(-1))
         all_targets.append(risk_target)
     return torch.cat(all_logits), torch.cat(all_targets)
@@ -311,7 +329,7 @@ def main():
     )
     # Discriminative LR: encoder layers get lower LR when fine-tuning from pre-trained
     if args.pretrained:
-        head_names = {"risk_head", "miss_head", "pool_attention"}
+        head_names = {"risk_head", "miss_head", "pc_head", "pool_attention"}
         head_params = []
         encoder_params = []
         for name, param in model.named_parameters():
@@ -491,6 +509,7 @@ def main():
                 "temporal_cols": train_ds.temporal_cols,
                 "static_cols": train_ds.static_cols,
                 "use_density": args.density,
+                "has_pc_head": True,
             }
             torch.save(ckpt_data, model_dir / "transformer.pt")
             print(f"  ** New best val AUC-PR: {best_val_auc_pr:.4f} — saved **")
@@ -564,6 +583,10 @@ def main():
     print(f"  Miss Distance:")
     print(f"    MAE (log): {test_metrics['mae_log']:.4f}")
     print(f"    MAE (km):  {test_metrics['mae_km']:.2f}")
+    if "pc_mae_log10" in test_metrics:
+        print(f"  Collision Probability (Pc):")
+        print(f"    MAE (log10): {test_metrics['pc_mae_log10']:.4f}")
+        print(f"    RMSE (log10): {test_metrics['pc_rmse_log10']:.4f}")
     if args.density:
         print(f"  Density Features: {len(train_ds.static_cols)} static "
               f"(+{len(train_ds.static_cols) - 12} from CRASH Clock density)")

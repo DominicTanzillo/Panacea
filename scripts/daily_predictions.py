@@ -594,30 +594,45 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
         if len(selected) >= top_k:
             break
 
-    # Compute forward TCA via SGP4 for each pair
+    # Compute forward TCA + full trajectory via SGP4 for each pair
     tca_computed = 0
+    traj_computed = 0
     try:
-        from src.data.counterfactual import compute_forward_tca, SGP4_AVAILABLE
+        from src.data.counterfactual import compute_forward_tca, compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
         if SGP4_AVAILABLE:
             for pair in selected:
                 tle1 = tle_by_id.get(pair["sat1_norad"])
                 tle2 = tle_by_id.get(pair["sat2_norad"])
                 if tle1 and tle2:
+                    # TCA summary
                     result = compute_forward_tca(tle1, tle2, hours_forward=120.0, step_minutes=10.0)
                     pair["tca_hours"] = result.get("tca_hours")
                     pair["tca_min_distance_km"] = result.get("tca_min_distance_km")
                     if result.get("tca_hours") is not None:
                         tca_computed += 1
+                    # Full trajectory for webapp visualization
+                    traj = compute_forward_trajectory(tle1, tle2, hours_forward=120.0, step_minutes=20.0)
+                    if traj:
+                        pair["trajectory"] = traj
+                        traj_computed += 1
+                    # Dense trail around TCA for globe orbital paths
+                    if result.get("tca_hours") is not None:
+                        trail = compute_tca_trail(tle1, tle2, result["tca_hours"])
+                        if trail:
+                            pair["trail"] = trail
             print(f"  Forward TCA computed for {tca_computed}/{len(selected)} pairs (5-day window)")
+            print(f"  Full trajectory computed for {traj_computed}/{len(selected)} pairs")
         else:
-            print("  sgp4 not installed — skipping forward TCA")
+            print("  sgp4 not installed — skipping forward TCA + trajectory")
     except Exception as e:
-        print(f"  Forward TCA failed (non-critical): {e}")
+        print(f"  Forward TCA/trajectory failed (non-critical): {e}")
 
     # Convert to webapp alert format
+    # Use composite heuristic (RAAN + inclination + altitude) for per-pair variation.
+    # The baseline model_risk_score is altitude-only and uniform within orbital shells.
     pairs = []
     for cand in selected:
-        risk = cand.get("model_risk_score", cand.get("risk_score", 0))
+        risk = cand.get("risk_score", cand.get("model_risk_score", 0))
         miss = cand.get("model_miss_km", cand.get("miss_estimate_km", 0))
         pair = {
             "name_1": cand["sat1_name"],
@@ -633,6 +648,10 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
             pair["tca_hours"] = cand["tca_hours"]
         if cand.get("tca_min_distance_km") is not None:
             pair["tca_min_distance_km"] = cand["tca_min_distance_km"]
+        if cand.get("trajectory"):
+            pair["trajectory"] = cand["trajectory"]
+        if cand.get("trail"):
+            pair["trail"] = cand["trail"]
         pairs.append(pair)
 
     alerts = {

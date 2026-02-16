@@ -1,4 +1,4 @@
-import { useState, Suspense, Component } from 'react';
+import { useState, useCallback, Suspense, Component } from 'react';
 import type { ReactNode, ErrorInfo } from 'react';
 import { Globe } from './components/Globe';
 import { Header, PanaceaLogo } from './components/Header';
@@ -10,7 +10,7 @@ import { RiskDashboard } from './components/RiskDashboard';
 import { AboutPage } from './components/AboutPage';
 import { useSatellites } from './hooks/useSatellites';
 import { useApi } from './hooks/useApi';
-import type { SatellitePosition } from './lib/types';
+import type { SatellitePosition, ProjectedPair } from './lib/types';
 
 // Error boundary to catch Three.js / WebGL crashes
 interface ErrorBoundaryProps {
@@ -92,10 +92,23 @@ function App() {
   } = useApi(allTLEs);
 
   const [selectedSatellite, setSelectedSatellite] = useState<SatellitePosition | null>(null);
+  const [projectedPair, setProjectedPair] = useState<ProjectedPair | null>(null);
   const [showAlerts, setShowAlerts] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showBorders, setShowBorders] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+
+  // When a conjunction pair projection updates, deselect individual satellites
+  const handleProjection = useCallback((pair: ProjectedPair | null) => {
+    setProjectedPair(pair);
+    if (pair) setSelectedSatellite(null);
+  }, []);
+
+  // When alerts panel closes, clear the projection
+  const handleCloseAlerts = useCallback(() => {
+    setShowAlerts(false);
+    setProjectedPair(null);
+  }, []);
 
   return (
     <div className="w-full h-full relative">
@@ -104,9 +117,9 @@ function App() {
         showBorders={showBorders}
         onToggleBorders={() => setShowBorders(!showBorders)}
         showAlerts={showAlerts}
-        onToggleAlerts={() => { setShowAlerts(!showAlerts); setShowDashboard(false); }}
+        onToggleAlerts={() => { setShowAlerts(!showAlerts); setShowDashboard(false); if (showAlerts) setProjectedPair(null); }}
         showDashboard={showDashboard}
-        onToggleDashboard={() => { setShowDashboard(!showDashboard); setShowAlerts(false); }}
+        onToggleDashboard={() => { setShowDashboard(!showDashboard); setShowAlerts(false); setProjectedPair(null); }}
         onShowAbout={() => setShowAbout(true)}
         alertCount={screeningPairs.length}
       />
@@ -122,20 +135,26 @@ function App() {
             satellites={satellites}
             onSelectSatellite={setSelectedSatellite}
             selectedSatellite={selectedSatellite}
+            projectedPair={projectedPair}
             showBorders={showBorders}
           />
         </Suspense>
       </SceneErrorBoundary>
 
-      <InfoPanel
-        satellite={selectedSatellite}
-        onClose={() => setSelectedSatellite(null)}
-      />
+      {/* Hide individual info panel when pair projection is active */}
+      {!projectedPair && (
+        <InfoPanel
+          satellite={selectedSatellite}
+          onClose={() => setSelectedSatellite(null)}
+        />
+      )}
 
       <ConjunctionAlerts
         pairs={screeningPairs}
+        tles={allTLEs}
         visible={showAlerts}
-        onClose={() => setShowAlerts(false)}
+        onClose={handleCloseAlerts}
+        onProjection={handleProjection}
       />
 
       <RiskDashboard

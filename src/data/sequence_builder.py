@@ -223,6 +223,10 @@ class CDMSequenceDataset(Dataset):
         final_miss = group["miss_distance"].iloc[-1] if "miss_distance" in group.columns else 0.0
         miss_log = np.log1p(max(final_miss, 0.0))
 
+        # Target: log10(Pc) — the Kelvins `risk` column is already log10(Pc).
+        # Clamp to [-20, 0] (Pc ranges from ~1e-20 to ~1)
+        pc_log10 = float(max(min(final_risk, 0.0), -20.0))
+
         # Domain weight: Kelvins events get full weight, Space-Track events
         # get reduced weight since they have sparse features (16 vs 103 columns).
         # This prevents the model from learning shortcuts on zero-padded features.
@@ -236,6 +240,7 @@ class CDMSequenceDataset(Dataset):
             "mask": torch.tensor(mask, dtype=torch.bool),
             "risk_label": torch.tensor(risk_label, dtype=torch.float32),
             "miss_log": torch.tensor(miss_log, dtype=torch.float32),
+            "pc_log10": torch.tensor(pc_log10, dtype=torch.float32),
             "domain_weight": torch.tensor(domain_weight, dtype=torch.float32),
         }
 

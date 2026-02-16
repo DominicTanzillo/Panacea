@@ -93,14 +93,16 @@ def load_models():
             n_heads=config.get("n_heads", 4),
             n_layers=config.get("n_layers", 2),
         ).to(device)
-        model.load_state_dict(checkpoint["model_state"])
+        # strict=False for backward compat: old checkpoints lack pc_head weights
+        model.load_state_dict(checkpoint["model_state"], strict=False)
         model.eval()
 
         models["pitft"] = model
         models["pitft_checkpoint"] = checkpoint
         models["pitft_device"] = device
         temp = checkpoint.get("temperature", 1.0)
-        print(f"  Loaded PI-TFT (epoch {checkpoint['epoch']}, T={temp:.3f})")
+        has_pc = checkpoint.get("has_pc_head", False)
+        print(f"  Loaded PI-TFT (epoch {checkpoint['epoch']}, T={temp:.3f}, pc_head={'yes' if has_pc else 'no'})")
 
 
 @asynccontextmanager
@@ -205,11 +207,13 @@ async def predict_conjunction(features: CDMFeatures):
 
     # PI-TFT prediction
     if "pitft" in models:
-        risk_prob, miss_log = _run_pitft_inference(cdm_seq)
+        risk_prob, miss_log, pc_log10 = _run_pitft_inference(cdm_seq)
         triage = classify_urgency(risk_prob)
         results["pitft"] = {
             "risk_probability": risk_prob,
             "miss_distance_km": float(np.expm1(miss_log)),
+            "collision_probability": float(10 ** pc_log10),
+            "collision_probability_log10": pc_log10,
             "triage": {
                 "tier": triage.tier.value,
                 "color": triage.color,
@@ -389,7 +393,7 @@ def _build_xgboost_features(cdm_sequence: list[dict]) -> np.ndarray:
     return X
 
 
-def _run_pitft_inference(cdm_sequence: list[dict]) -> tuple[float, float]:
+def _run_pitft_inference(cdm_sequence: list[dict]) -> tuple[float, float, float]:
     """Run PI-TFT inference on a single CDM sequence.
 
     Returns: (risk_probability, miss_log)
@@ -468,9 +472,10 @@ def _run_pitft_inference(cdm_sequence: list[dict]) -> tuple[float, float]:
     mask_t = torch.tensor(mask, dtype=torch.bool).unsqueeze(0).to(device)
 
     with torch.no_grad():
-        risk_logit, miss_log, _ = model(temporal_t, static_t, tca_t, mask_t)
+        risk_logit, miss_log, pc_log10, _ = model(temporal_t, static_t, tca_t, mask_t)
 
     risk_prob = float(torch.sigmoid(risk_logit / temperature).cpu().item())
     miss_log_val = float(miss_log.cpu().item())
+    pc_log10_val = float(pc_log10.cpu().item())
 
-    return risk_prob, miss_log_val
+    return risk_prob, miss_log_val, pc_log10_val

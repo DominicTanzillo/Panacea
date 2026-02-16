@@ -134,7 +134,7 @@ class PhysicsInformedTFT(nn.Module):
     Output:
       risk_logit: (B, 1) — raw logit for risk classification (apply sigmoid for probability)
       miss_log:   (B, 1) — predicted log1p(miss_distance_km)
-      attn_weights: (B, H, S, S) — attention weights for interpretability
+      pc_log10:   (B, 1) — predicted log10(Pc) collision probability (when has_pc_head=True)
       feature_weights: (B, S, F_t) — which temporal features mattered
     """
 
@@ -217,6 +217,18 @@ class PhysicsInformedTFT(nn.Module):
             nn.Linear(64, 1),
         )
 
+        # --- Collision probability head ---
+        # Predicts log10(Pc) directly instead of binary risk classification.
+        # Pc ranges from ~1e-20 to ~1e-1, so log10 scale maps to [-20, -1].
+        # The Kelvins `risk` column is already log10(Pc).
+        self.pc_head = nn.Sequential(
+            nn.LayerNorm(d_model),
+            nn.Linear(d_model, 64),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(64, 1),
+        )
+
     def encode_sequence(
         self,
         temporal_features: torch.Tensor,  # (B, S, F_t)
@@ -288,8 +300,9 @@ class PhysicsInformedTFT(nn.Module):
         # 9. Prediction heads
         risk_logit = self.risk_head(x_pooled)    # (B, 1)
         miss_log = self.miss_head(x_pooled)      # (B, 1)
+        pc_log10 = self.pc_head(x_pooled)        # (B, 1) — log10(Pc)
 
-        return risk_logit, miss_log, temporal_weights
+        return risk_logit, miss_log, pc_log10, temporal_weights
 
     def count_parameters(self) -> int:
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -333,12 +346,16 @@ class PhysicsInformedLoss(nn.Module):
     Combined task loss + physics regularization.
 
     Total loss = risk_weight * FocalLoss(risk) + miss_weight * MSE(miss_distance)
-                 + physics_weight * ReLU(MOID - predicted_miss)
+                 + pc_weight * MSE(log10_Pc) + physics_weight * ReLU(MOID - predicted_miss)
 
     The physics term: MOID (Minimum Orbital Intersection Distance) is the
     geometric minimum distance between two orbits. The actual miss distance
     at closest approach CANNOT be less than MOID (without a maneuver).
     If the model predicts miss < MOID, we penalize it.
+
+    The Pc term: direct regression on log10(collision probability). The Kelvins
+    `risk` column is log10(Pc), giving us 162K labeled examples. This lets
+    the model output calibrated collision probabilities, not just binary risk.
 
     For the Kelvins dataset, we approximate MOID from the orbital elements
     in the CDM features. When MOID isn't available, the physics term is 0.
@@ -348,6 +365,7 @@ class PhysicsInformedLoss(nn.Module):
         self,
         risk_weight: float = 1.0,
         miss_weight: float = 0.1,
+        pc_weight: float = 0.3,
         physics_weight: float = 0.2,
         pos_weight: float = 50.0,
         use_focal: bool = False,
@@ -357,6 +375,7 @@ class PhysicsInformedLoss(nn.Module):
         super().__init__()
         self.risk_weight = risk_weight
         self.miss_weight = miss_weight
+        self.pc_weight = pc_weight
         self.physics_weight = physics_weight
         if use_focal:
             self.risk_loss = SigmoidFocalLoss(alpha=focal_alpha, gamma=focal_gamma)
@@ -372,6 +391,8 @@ class PhysicsInformedLoss(nn.Module):
         miss_pred_log: torch.Tensor,    # (B, 1)
         risk_target: torch.Tensor,      # (B,)
         miss_target_log: torch.Tensor,  # (B,)
+        pc_pred_log10: torch.Tensor = None,  # (B, 1) predicted log10(Pc)
+        pc_target_log10: torch.Tensor = None,  # (B,) target log10(Pc)
         moid_log: torch.Tensor = None,  # (B,) optional, log1p(MOID_km)
         domain_weight: torch.Tensor = None,  # (B,) per-sample weight
     ) -> tuple[torch.Tensor, dict]:
@@ -395,6 +416,15 @@ class PhysicsInformedLoss(nn.Module):
         else:
             L_miss = miss_residual.mean()
 
+        # Collision probability regression loss
+        L_pc = torch.tensor(0.0, device=risk_logit.device)
+        if pc_pred_log10 is not None and pc_target_log10 is not None:
+            pc_residual = (pc_pred_log10.squeeze(-1) - pc_target_log10) ** 2
+            if domain_weight is not None:
+                L_pc = (pc_residual * domain_weight).mean()
+            else:
+                L_pc = pc_residual.mean()
+
         # Physics constraint: predicted miss >= MOID
         L_physics = torch.tensor(0.0, device=risk_logit.device)
         if moid_log is not None:
@@ -404,12 +434,14 @@ class PhysicsInformedLoss(nn.Module):
 
         total = (self.risk_weight * L_risk
                  + self.miss_weight * L_miss
+                 + self.pc_weight * L_pc
                  + self.physics_weight * L_physics)
 
         metrics = {
             "loss": total.item(),
             "risk_loss": L_risk.item(),
             "miss_loss": L_miss.item(),
+            "pc_loss": L_pc.item(),
             "physics_loss": L_physics.item(),
         }
 
