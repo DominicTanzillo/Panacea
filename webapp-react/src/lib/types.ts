@@ -65,3 +65,16 @@ export const TYPE_COLORS: Record<ObjectType, string> = {
 };
 
 export const EARTH_RADIUS_KM = 6371;
+
+/** Projected pair positions for conjunction visualization on the globe. */
+export interface ProjectedPair {
+  sat1: { x: number; y: number; z: number; name: string; noradId: number };
+  sat2: { x: number; y: number; z: number; name: string; noradId: number };
+  distanceKm: number;
+  /** Dense orbital path points around TCA for trail rendering on globe */
+  sat1Trail?: [number, number, number][];
+  sat2Trail?: [number, number, number][];
+  /** Positions at TCA for the constant red closest-approach line */
+  sat1AtTCA?: { x: number; y: number; z: number };
+  sat2AtTCA?: { x: number; y: number; z: number };
+}

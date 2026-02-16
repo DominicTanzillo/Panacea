@@ -155,7 +155,7 @@ def evaluate_pitft_at_cutoff(
             tca = batch["time_to_tca"].to(device)
             mask = batch["mask"].to(device)
 
-            risk_logit, _, _ = model(temporal, static, tca, mask)
+            risk_logit, _, _, _ = model(temporal, static, tca, mask)
             probs = torch.sigmoid(risk_logit / temperature).cpu().numpy().flatten()
             all_probs.append(probs)
 
