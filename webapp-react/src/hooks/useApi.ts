@@ -37,31 +37,44 @@ export function useApi(tles?: TLERecord[]): UseApiResult {
     const isHealthy = healthResp?.status === 'healthy';
     setHealthy(isHealthy);
 
-    if (!isHealthy) {
-      setLoading(false);
-      return;
-    }
+    if (isHealthy) {
+      // Fetch from backend API
+      const [comparison, experiment] = await Promise.all([
+        getModelComparison(),
+        getExperimentResults(),
+      ]);
 
-    // Fetch data in parallel
-    const [comparison, experiment] = await Promise.all([
-      getModelComparison(),
-      getExperimentResults(),
-    ]);
-
-    if (comparison) setModelComparison(comparison);
-    if (experiment && !('error' in experiment)) {
-      setExperimentResults(experiment);
+      if (comparison) setModelComparison(comparison);
+      if (experiment && !('error' in experiment)) {
+        setExperimentResults(experiment);
+      }
+    } else {
+      // Fallback: load static result files bundled in public/
+      try {
+        const [compResp, expResp] = await Promise.all([
+          fetch('./model_comparison.json'),
+          fetch('./staleness_experiment.json'),
+        ]);
+        if (compResp.ok) setModelComparison(await compResp.json());
+        if (expResp.ok) setExperimentResults(await expResp.json());
+      } catch {
+        // Static files not available either — dashboard shows empty state
+      }
     }
 
     setLoading(false);
   }, []);
 
-  // Initial fetch + poll health every 30s
+  // Initial fetch + poll health every 30s (refetch data if backend comes online)
   useEffect(() => {
     fetchData();
+    let wasHealthy = false;
     const timer = setInterval(async () => {
       const resp = await apiHealth();
-      setHealthy(resp?.status === 'healthy');
+      const isNowHealthy = resp?.status === 'healthy';
+      setHealthy(isNowHealthy);
+      if (isNowHealthy && !wasHealthy) fetchData();
+      wasHealthy = isNowHealthy;
     }, 30000);
     return () => clearInterval(timer);
   }, [fetchData]);
