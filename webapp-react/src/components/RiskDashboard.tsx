@@ -167,12 +167,12 @@ export function RiskDashboard({
       </div>
 
       <Tabs.Root defaultValue="models" className="flex-1 overflow-hidden flex flex-col">
-        <Tabs.List className="flex border-b border-[var(--color-border)] px-4">
+        <Tabs.List className="flex gap-6 border-b border-[var(--color-border)] px-4">
           {['models', 'experiments', 'density'].map(tab => (
             <Tabs.Trigger
               key={tab}
               value={tab}
-              className="px-3 py-2 text-xs font-medium text-[var(--color-text-muted)] border-b-2 border-transparent data-[state=active]:text-[var(--color-text)] data-[state=active]:border-[var(--color-accent)] transition-colors capitalize"
+              className="px-4 py-2.5 text-sm font-medium text-[var(--color-text-muted)] border-b-2 border-transparent data-[state=active]:text-[var(--color-text)] data-[state=active]:border-[var(--color-accent)] transition-colors capitalize"
             >
               {tab}
             </Tabs.Trigger>
