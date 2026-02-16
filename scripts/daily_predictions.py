@@ -524,6 +524,10 @@ def main():
         print(f"    {i+1:3d}. {pred['sat1_name']:20s} <-> {pred['sat2_name']:20s} | "
               f"risk={risk:.4f} | alt={pred['altitude_km']:.0f}km")
 
+    # Generate webapp alerts with forward TCA
+    print("\nGenerating webapp alerts ...")
+    generate_webapp_alerts(candidates, active_tles, today_str, top_k=20)
+
     # Log predictions
     print(f"\nLogging {top_k} predictions ...")
     logger.log_predictions(today_str, top_predictions)
@@ -555,6 +559,93 @@ def main():
     if validation.get("validated"):
         print(f"  Yesterday's accuracy: {validation.get('accuracy', 0):.1%}")
     print(f"{'='*60}")
+
+
+def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: str, top_k: int = 20):
+    """Generate webapp-react/public/latest_alerts.json with forward TCA.
+
+    Converts the top screening candidates into the alert format consumed by
+    the React frontend, optionally enriching with SGP4 forward propagation
+    to compute Time of Closest Approach over the next 5 days.
+    """
+    ALERTS_PATH = ROOT / "webapp-react" / "public" / "latest_alerts.json"
+
+    if not candidates:
+        print("\n  No candidates for webapp alerts.")
+        return
+
+    # Build TLE lookup by NORAD ID for SGP4 propagation
+    tle_by_id: dict[int, dict] = {}
+    for tle in tles:
+        nid = int(tle.get("NORAD_CAT_ID", 0))
+        if nid > 0:
+            tle_by_id[nid] = tle
+
+    # Deduplicate: limit each satellite to max 2 appearances
+    sat_counts: dict[int, int] = {}
+    selected = []
+    for cand in candidates:
+        n1, n2 = cand["sat1_norad"], cand["sat2_norad"]
+        if sat_counts.get(n1, 0) >= 2 or sat_counts.get(n2, 0) >= 2:
+            continue
+        selected.append(cand)
+        sat_counts[n1] = sat_counts.get(n1, 0) + 1
+        sat_counts[n2] = sat_counts.get(n2, 0) + 1
+        if len(selected) >= top_k:
+            break
+
+    # Compute forward TCA via SGP4 for each pair
+    tca_computed = 0
+    try:
+        from src.data.counterfactual import compute_forward_tca, SGP4_AVAILABLE
+        if SGP4_AVAILABLE:
+            for pair in selected:
+                tle1 = tle_by_id.get(pair["sat1_norad"])
+                tle2 = tle_by_id.get(pair["sat2_norad"])
+                if tle1 and tle2:
+                    result = compute_forward_tca(tle1, tle2, hours_forward=120.0, step_minutes=10.0)
+                    pair["tca_hours"] = result.get("tca_hours")
+                    pair["tca_min_distance_km"] = result.get("tca_min_distance_km")
+                    if result.get("tca_hours") is not None:
+                        tca_computed += 1
+            print(f"  Forward TCA computed for {tca_computed}/{len(selected)} pairs (5-day window)")
+        else:
+            print("  sgp4 not installed — skipping forward TCA")
+    except Exception as e:
+        print(f"  Forward TCA failed (non-critical): {e}")
+
+    # Convert to webapp alert format
+    pairs = []
+    for cand in selected:
+        risk = cand.get("model_risk_score", cand.get("risk_score", 0))
+        miss = cand.get("model_miss_km", cand.get("miss_estimate_km", 0))
+        pair = {
+            "name_1": cand["sat1_name"],
+            "name_2": cand["sat2_name"],
+            "norad_1": cand["sat1_norad"],
+            "norad_2": cand["sat2_norad"],
+            "risk_score": round(float(risk), 4),
+            "altitude_km": round(float(cand["altitude_km"]), 1),
+            "miss_estimate_km": round(float(miss), 1),
+            "prediction_date": today_str,
+        }
+        if cand.get("tca_hours") is not None:
+            pair["tca_hours"] = cand["tca_hours"]
+        if cand.get("tca_min_distance_km") is not None:
+            pair["tca_min_distance_km"] = cand["tca_min_distance_km"]
+        pairs.append(pair)
+
+    alerts = {
+        "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "prediction_date": today_str,
+        "pairs": pairs,
+    }
+
+    ALERTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(ALERTS_PATH, "w") as f:
+        json.dump(alerts, f, indent=2, default=_json_default)
+
+    print(f"  Wrote {len(pairs)} alerts to {ALERTS_PATH}")
 
 
 def archive_to_huggingface(logger: PredictionLogger):
