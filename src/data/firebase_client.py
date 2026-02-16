@@ -13,8 +13,22 @@ Environment variables:
 import os
 import json
 import time
+import numpy as np
 from pathlib import Path
 from datetime import datetime, timezone
+
+
+def _json_default(obj):
+    """Handle numpy types that json.dumps can't serialize."""
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, (np.bool_,)):
+        return bool(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 # Try to import google-cloud-firestore (lightweight)
 try:
@@ -68,7 +82,7 @@ class PredictionLogger:
             for pred in predictions:
                 pred["date"] = date_str
                 pred["logged_at"] = datetime.now(timezone.utc).isoformat()
-                f.write(json.dumps(pred) + "\n")
+                f.write(json.dumps(pred, default=_json_default) + "\n")
         print(f"  Saved {len(predictions)} predictions to {local_file}")
 
         # Firebase upload
@@ -102,7 +116,7 @@ class PredictionLogger:
             for outcome in outcomes:
                 outcome["prediction_date"] = date_str
                 outcome["validated_at"] = datetime.now(timezone.utc).isoformat()
-                f.write(json.dumps(outcome) + "\n")
+                f.write(json.dumps(outcome, default=_json_default) + "\n")
         print(f"  Saved {len(outcomes)} outcomes to {local_file}")
 
         if self.db:
@@ -122,7 +136,7 @@ class PredictionLogger:
         local_file = self.local_dir / "daily_summaries.jsonl"
         summary["date"] = date_str
         with open(local_file, "a") as f:
-            f.write(json.dumps(summary) + "\n")
+            f.write(json.dumps(summary, default=_json_default) + "\n")
 
         if self.db:
             try:

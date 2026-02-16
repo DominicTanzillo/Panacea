@@ -211,12 +211,25 @@ def load_maneuver_history() -> dict[int, list[dict]]:
     return history
 
 
+def _json_default(obj):
+    """Handle numpy types that json.dumps can't serialize."""
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, (np.bool_,)):
+        return bool(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
 def save_maneuver_history(enriched_maneuvers: list[dict]):
     """Append enriched maneuvers to history file."""
     MANEUVER_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(MANEUVER_HISTORY_PATH, "a") as f:
         for m in enriched_maneuvers:
-            f.write(json.dumps(m) + "\n")
+            f.write(json.dumps(m, default=_json_default) + "\n")
 
 
 def enrich_maneuvers(
