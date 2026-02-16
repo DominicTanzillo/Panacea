@@ -74,6 +74,7 @@ export function useSatellites(): UseSatellitesResult {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const propagatingRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
 
   // Fetch TLE data for enabled groups
   const fetchGroups = useCallback(async () => {
@@ -122,10 +123,21 @@ export function useSatellites(): UseSatellitesResult {
     const CHUNK_SIZE = 500;
     const allPositions: SatellitePosition[] = [];
 
+    // Progressive rendering: stream satellites onto globe during initial load
+    const progressive = !initialLoadDoneRef.current && items.length > 0;
+    const PROGRESSIVE_BATCH = 2000;
+    let nextUpdate = PROGRESSIVE_BATCH;
+
     for (let i = 0; i < items.length; i += CHUNK_SIZE) {
       const chunk = items.slice(i, i + CHUNK_SIZE);
       const positions = propagateBatch(chunk, now);
       allPositions.push(...positions);
+
+      // Push partial results so satellites appear incrementally
+      if (progressive && allPositions.length >= nextUpdate) {
+        setSatellites([...allPositions]);
+        nextUpdate += PROGRESSIVE_BATCH;
+      }
 
       // Yield to main thread between chunks so the UI stays responsive
       if (i + CHUNK_SIZE < items.length) {
@@ -134,6 +146,7 @@ export function useSatellites(): UseSatellitesResult {
     }
 
     setSatellites(allPositions);
+    if (items.length > 0) initialLoadDoneRef.current = true;
     propagatingRef.current = false;
   }, [tleCache, groups]);
 
