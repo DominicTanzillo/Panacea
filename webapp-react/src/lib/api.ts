@@ -21,6 +21,8 @@ export interface TriageInfo {
 export interface ModelPrediction {
   risk_probability: number;
   miss_distance_km: number;
+  collision_probability?: number;
+  collision_probability_log10?: number;
   triage: TriageInfo;
 }
 
@@ -58,6 +60,20 @@ export interface StalenessResults {
   pitft: StalenessPoint[];
 }
 
+export interface TrajectoryPoint {
+  h: number;     // hours from start
+  d: number;     // separation distance km
+  s1: number[];  // ECI [x, y, z] km
+  s2: number[];  // ECI [x, y, z] km
+}
+
+export interface TrailPoint {
+  h: number;     // hours from start
+  d: number;     // separation distance km
+  s1: number[];  // ECI [x, y, z] km
+  s2: number[];  // ECI [x, y, z] km
+}
+
 export interface ScreeningPair {
   name_1: string;
   name_2: string;
@@ -69,6 +85,10 @@ export interface ScreeningPair {
   prediction_date?: string;
   tca_hours?: number;
   tca_min_distance_km?: number;
+  /** Sparse trajectory (20-min steps, 5 days) for chart/slider */
+  trajectory?: TrajectoryPoint[];
+  /** Dense trail (1-min steps, ±30 min around TCA) for globe orbital paths */
+  trail?: TrailPoint[];
 }
 
 export interface ScreeningResponse {

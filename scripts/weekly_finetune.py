@@ -152,6 +152,13 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
             risk_label = 1.0
             sample_weight = 0.5
 
+        # Pc target from Space-Track CDM cross-reference (log10 scale)
+        cdm_pc = outcome.get("cdm_pc")
+        pc_log10 = None
+        if cdm_pc is not None and cdm_pc > 0:
+            import math
+            pc_log10 = max(math.log10(cdm_pc), -20.0)
+
         examples.append({
             "risk_label": risk_label,
             "sample_weight": sample_weight,
@@ -160,6 +167,7 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
             "sat2_norad": outcome.get("sat2_norad", 0),
             "sat1_delta_a_m": outcome.get("sat1_delta_a_m", 0.0),
             "sat2_delta_a_m": outcome.get("sat2_delta_a_m", 0.0),
+            "pc_log10": pc_log10,
         })
 
     n_pos = sum(1 for e in examples if e["risk_label"] > 0.5)
@@ -208,9 +216,11 @@ def load_model(device: torch.device):
         n_layers=config.get("n_layers", 2),
     ).to(device)
 
-    model.load_state_dict(checkpoint["model_state"])
+    # strict=False for backward compat: old checkpoints lack pc_head weights
+    model.load_state_dict(checkpoint["model_state"], strict=False)
     temp = checkpoint.get("temperature", 1.0)
-    print(f"  Loaded PI-TFT (epoch {checkpoint['epoch']}, T={temp:.3f})")
+    has_pc = checkpoint.get("has_pc_head", False)
+    print(f"  Loaded PI-TFT (epoch {checkpoint['epoch']}, T={temp:.3f}, pc_head={'yes' if has_pc else 'random init'})")
 
     return model, checkpoint
 
@@ -275,7 +285,10 @@ def finetune_on_outcomes(
             if weights is not None:
                 weights = weights.to(device)
 
-            risk_logit, miss_pred, _ = model(temporal, static, tca, mask)
+            risk_logit, miss_pred, pc_pred, _ = model(temporal, static, tca, mask)
+
+            # Pc target from dataset (log10 scale)
+            pc_target = batch["pc_log10"].to(device) if "pc_log10" in batch else None
 
             # Per-sample focal loss, weighted by enrichment confidence
             risk_loss_raw = loss_fn(risk_logit.squeeze(-1), risk_target)
@@ -284,7 +297,11 @@ def finetune_on_outcomes(
             else:
                 risk_loss = risk_loss_raw.mean() if risk_loss_raw.dim() > 0 else risk_loss_raw
             miss_loss = miss_loss_fn(miss_pred.squeeze(-1), miss_target)
-            loss = risk_loss + 0.1 * miss_loss
+            # Pc regression loss (when targets available)
+            pc_loss = torch.tensor(0.0, device=device)
+            if pc_target is not None:
+                pc_loss = miss_loss_fn(pc_pred.squeeze(-1), pc_target)
+            loss = risk_loss + 0.1 * miss_loss + 0.3 * pc_loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -370,7 +387,7 @@ def evaluate_model(
             tca = batch["time_to_tca"].to(device)
             mask = batch["mask"].to(device)
 
-            risk_logit, _, _ = model(temporal, static, tca, mask)
+            risk_logit, _, _, _ = model(temporal, static, tca, mask)
             probs = torch.sigmoid(risk_logit / temperature).cpu().numpy().flatten()
             labels = batch["risk_label"].numpy().flatten()
 

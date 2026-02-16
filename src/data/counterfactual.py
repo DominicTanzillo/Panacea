@@ -273,6 +273,140 @@ def propagate_counterfactual(
     }
 
 
+def compute_forward_trajectory(
+    tle_1: dict,
+    tle_2: dict,
+    hours_forward: float = 120.0,
+    step_minutes: float = 20.0,
+) -> list[dict] | None:
+    """Compute full trajectory time series for two satellites.
+
+    Returns list of trajectory points with ECI positions and separation
+    distance, suitable for baking into the webapp alerts JSON so the
+    frontend doesn't need to do SGP4 propagation or load TLE data.
+
+    Args:
+        tle_1: CelesTrak GP JSON for satellite 1.
+        tle_2: CelesTrak GP JSON for satellite 2.
+        hours_forward: How far to propagate (default 120h = 5 days).
+        step_minutes: Time step for propagation (minutes).
+
+    Returns:
+        List of dicts with: h (hours from start), d (distance km),
+        s1 [x,y,z] ECI km, s2 [x,y,z] ECI km. None if propagation fails.
+    """
+    if not SGP4_AVAILABLE:
+        return None
+
+    try:
+        sat1 = celestrak_json_to_satrec(tle_1)
+        sat2 = celestrak_json_to_satrec(tle_2)
+    except (ValueError, Exception):
+        return None
+
+    now = datetime.now(timezone.utc)
+    start_jd = _datetime_to_jd(now)
+
+    n_steps = int(hours_forward * 60 / step_minutes) + 1
+    points = []
+
+    for i in range(n_steps):
+        mins = i * step_minutes
+        target_jd = start_jd + mins / 1440.0
+        jd_whole = int(target_jd)
+        jd_frac = target_jd - jd_whole
+
+        e1, r1, _ = sat1.sgp4(jd_whole, jd_frac)
+        e2, r2, _ = sat2.sgp4(jd_whole, jd_frac)
+
+        if e1 != 0 or e2 != 0:
+            continue
+        if not all(math.isfinite(v) for v in r1 + r2):
+            continue
+
+        dx = r1[0] - r2[0]
+        dy = r1[1] - r2[1]
+        dz = r1[2] - r2[2]
+        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+
+        points.append({
+            "h": round(mins / 60.0, 2),
+            "d": round(dist, 1),
+            "s1": [round(r1[0], 1), round(r1[1], 1), round(r1[2], 1)],
+            "s2": [round(r2[0], 1), round(r2[1], 1), round(r2[2], 1)],
+        })
+
+    return points if points else None
+
+
+def compute_tca_trail(
+    tle_1: dict,
+    tle_2: dict,
+    tca_hours: float,
+    half_window_min: float = 30.0,
+    step_minutes: float = 1.0,
+) -> list[dict] | None:
+    """Compute dense trail around TCA for globe orbital path visualization.
+
+    Returns 1-min resolution positions for ±30 min around TCA.
+
+    Args:
+        tle_1: CelesTrak GP JSON for satellite 1.
+        tle_2: CelesTrak GP JSON for satellite 2.
+        tca_hours: Hours from now to TCA (from compute_forward_tca).
+        half_window_min: Half window in minutes around TCA.
+        step_minutes: Time step in minutes.
+
+    Returns:
+        List of dicts with s1 [x,y,z] and s2 [x,y,z] ECI km. None if fails.
+    """
+    if not SGP4_AVAILABLE:
+        return None
+
+    try:
+        sat1 = celestrak_json_to_satrec(tle_1)
+        sat2 = celestrak_json_to_satrec(tle_2)
+    except (ValueError, Exception):
+        return None
+
+    now = datetime.now(timezone.utc)
+    start_jd = _datetime_to_jd(now)
+
+    tca_min = tca_hours * 60.0
+    t_start = tca_min - half_window_min
+    t_end = tca_min + half_window_min
+    n_steps = int((t_end - t_start) / step_minutes) + 1
+
+    trail = []
+    for i in range(n_steps):
+        mins = t_start + i * step_minutes
+        target_jd = start_jd + mins / 1440.0
+        jd_whole = int(target_jd)
+        jd_frac = target_jd - jd_whole
+
+        e1, r1, _ = sat1.sgp4(jd_whole, jd_frac)
+        e2, r2, _ = sat2.sgp4(jd_whole, jd_frac)
+
+        if e1 != 0 or e2 != 0:
+            continue
+        if not all(math.isfinite(v) for v in r1 + r2):
+            continue
+
+        dx = r1[0] - r2[0]
+        dy = r1[1] - r2[1]
+        dz = r1[2] - r2[2]
+        dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+
+        trail.append({
+            "h": round(mins / 60.0, 3),
+            "d": round(dist, 1),
+            "s1": [round(r1[0], 1), round(r1[1], 1), round(r1[2], 1)],
+            "s2": [round(r2[0], 1), round(r2[1], 1), round(r2[2], 1)],
+        })
+
+    return trail if trail else None
+
+
 def compute_forward_tca(
     tle_1: dict,
     tle_2: dict,
