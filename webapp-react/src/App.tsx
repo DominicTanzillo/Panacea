@@ -76,6 +76,7 @@ function LoadingScreen() {
 function App() {
   const {
     satellites,
+    allTLEs,
     loading,
     totalTLEs,
     groups,
@@ -88,7 +89,7 @@ function App() {
     modelComparison,
     experimentResults,
     screeningPairs,
-  } = useApi();
+  } = useApi(allTLEs);
 
   const [selectedSatellite, setSelectedSatellite] = useState<SatellitePosition | null>(null);
   const [showAlerts, setShowAlerts] = useState(false);
