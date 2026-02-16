@@ -344,11 +344,11 @@ def compute_tca_trail(
     tle_2: dict,
     tca_hours: float,
     half_window_min: float = 30.0,
-    step_minutes: float = 1.0,
+    step_minutes: float = 0.25,
 ) -> list[dict] | None:
     """Compute dense trail around TCA for globe orbital path visualization.
 
-    Returns 1-min resolution positions for ±30 min around TCA.
+    Returns 15-sec resolution positions for ±30 min around TCA.
 
     Args:
         tle_1: CelesTrak GP JSON for satellite 1.

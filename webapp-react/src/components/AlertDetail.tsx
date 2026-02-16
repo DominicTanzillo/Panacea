@@ -169,7 +169,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
     return propagateTrajectory(tle1, tle2);
   }, [hasPrecomputed, pair.trajectory, tle1, tle2]);
 
-  // Dense simulation data (1-min steps, ±30 min around TCA) — for the slider
+  // Dense simulation data (15-sec steps, ±30 min around TCA) — for the slider
   const simPoints = useMemo((): ChartPoint[] => {
     if (hasTrail) {
       // Use pre-computed dense trail
@@ -408,7 +408,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
               </ResponsiveContainer>
             </div>
 
-            {/* Time slider — uses dense simulation data (1-min steps around TCA) */}
+            {/* Time slider — uses dense simulation data (15-sec steps around TCA) */}
             <div className="mt-3 space-y-1.5">
               <div className="flex items-center justify-between text-[9px] text-[var(--color-text-muted)] mb-0.5">
                 <span>-30 min</span>
@@ -479,7 +479,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
       {/* Footer */}
       <div className="p-2 border-t border-[var(--color-border)] text-center">
         <span className="text-[10px] text-[var(--color-text-muted)]">
-          {hasPrecomputed ? 'Pre-computed trajectory' : 'SGP4 propagation'} &middot; 1-min resolution &middot; drag slider to simulate approach
+          {hasPrecomputed ? 'Pre-computed trajectory' : 'SGP4 propagation'} &middot; 15-sec resolution &middot; drag slider to simulate approach
         </span>
       </div>
     </div>
