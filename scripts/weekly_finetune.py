@@ -104,12 +104,16 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
     Label strategy based on evidence quality:
 
     v2 outcomes (evidence-gated, enrichment_version >= 2):
+      Thresholds calibrated against TLE/SGP4 accuracy (~3.3 km combined
+      1-sigma after 1-day propagation, Levit & Marshall 2010) and
+      18 SDS screening volumes (0.5 km radial, NASA NTRS 20170007928).
       - CDM-confirmed avoidance:              label=1.0, weight=1.0
-      - Counterfactual < 1 km (collision):    label=1.0, weight=1.0
-      - Counterfactual < 5 km:                label=0.95, weight=0.95
-      - Counterfactual < 10 km:               label=0.85, weight=0.85
-      - Counterfactual < 25 km:               label=0.7, weight=0.7
-      - Maneuver with NO collision evidence:  label=0.0, weight=0.8 (negative example)
+      - Counterfactual < 1 km:                label=1.0, weight=1.0  (orbits overlap at TLE resolution)
+      - Counterfactual 1-5 km:                label=0.85, weight=0.85 (within 1-sigma, genuine conjunction)
+      - Counterfactual 5-10 km:               label=0.5, weight=0.5  (within 3-sigma, uncertain)
+      - Counterfactual 10-25 km:              label=0.2, weight=0.3  (outside 3-sigma, mostly TLE noise)
+      - Large delta-v (> 10 m/s) any dist:    label=0.0, weight=0.8  (orbit transfer, not avoidance)
+      - Maneuver with NO collision evidence:  label=0.0, weight=0.8  (negative example)
       - No maneuver observed:                 label=0.0, weight=1.0
 
     v1 outcomes (legacy heuristic-only):
@@ -158,25 +162,44 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
             has_cdm = outcome.get("has_cdm", False)
             cf_dist = outcome.get("counterfactual_min_distance_km")
 
-            if has_cdm:
+            # Check maneuver type: large delta-v → orbit transfer, NOT avoidance
+            delta_v = max(
+                abs(outcome.get("sat1_delta_v_m_s", 0)),
+                abs(outcome.get("sat2_delta_v_m_s", 0)),
+            )
+
+            if delta_v > 10.0:
+                # Large maneuver (orbit raise/deorbit/transfer) — negative regardless of distance
+                risk_label = 0.0
+                sample_weight = 0.8
+            elif has_cdm:
                 risk_label = 1.0
                 sample_weight = 1.0
             elif cf_dist is not None and cf_dist < 1.0:
+                # Within radial screening threshold — orbits overlap at TLE resolution
                 risk_label = 1.0
                 sample_weight = 1.0
             elif cf_dist is not None and cf_dist < 5.0:
-                risk_label = 0.95
-                sample_weight = 0.95
-            elif cf_dist is not None and cf_dist < 10.0:
+                # Within 1-sigma TLE uncertainty (~3.3 km combined) — genuine conjunction
                 risk_label = 0.85
                 sample_weight = 0.85
+            elif cf_dist is not None and cf_dist < 10.0:
+                # Within 3-sigma (~10 km) — plausible but uncertain
+                risk_label = 0.5
+                sample_weight = 0.5
             elif cf_dist is not None and cf_dist < 25.0:
-                risk_label = 0.7
-                sample_weight = 0.7
+                # Outside 3-sigma — mostly TLE propagation noise
+                risk_label = 0.2
+                sample_weight = 0.3
             else:
                 # Maneuvered but no close approach evidence — treat as weak negative
                 risk_label = 0.0
                 sample_weight = 0.8
+
+            # Boost for micro-burns (classic Starlink CAM pattern: delta-v < 0.5 m/s)
+            if delta_v < 0.5 and 0 < risk_label < 1.0:
+                risk_label = min(1.0, risk_label + 0.05)
+                sample_weight = min(1.0, sample_weight + 0.05)
         elif enrichment_version >= 1:
             # v1: Legacy heuristic-only labels (reduced confidence)
             has_cdm = outcome.get("has_cdm", False)
