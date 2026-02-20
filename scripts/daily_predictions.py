@@ -239,9 +239,20 @@ def enrich_maneuvers(
 ) -> list[dict]:
     """Classify maneuvers, run counterfactuals, and cross-reference CDMs.
 
+    Unlike earlier versions that only ran counterfactual for heuristic-flagged
+    "likely avoidance" maneuvers, we now run counterfactual for ALL maneuvers
+    (capped at 500) and use the result as the PRIMARY avoidance signal.
+
+    This is critical because not every maneuver is avoidance — Starlink does
+    thousands of orbit-raising and phasing burns daily. Only maneuvers with
+    collision evidence (counterfactual close approach or CDM confirmation)
+    should be labeled as avoidance for training.
+
     Returns enriched maneuver list with all Phase A/B/C fields.
     """
-    # Phase A: Classify maneuvers
+    MAX_COUNTERFACTUAL = 2000  # Cap for runtime budget (old pipeline ran ~1600 in <6 min)
+
+    # Phase A: Initial classification (heuristic, refined by Phase B)
     print("  Enriching maneuvers ...")
     history = load_maneuver_history()
 
@@ -252,20 +263,30 @@ def enrich_maneuvers(
         em = classify_maneuver(m, sat_history)
         enriched.append(em)
 
-    n_avoidance = sum(1 for e in enriched if e.get("likely_avoidance"))
+    n_heuristic_avoidance = sum(1 for e in enriched if e.get("likely_avoidance"))
     n_sk = sum(1 for e in enriched if e.get("is_stationkeeping"))
-    print(f"    Classified: {n_avoidance} likely avoidance, {n_sk} stationkeeping, "
-          f"{len(enriched) - n_avoidance - n_sk} other")
+    print(f"    Heuristic classification: {n_heuristic_avoidance} likely avoidance, "
+          f"{n_sk} stationkeeping, {len(enriched) - n_heuristic_avoidance - n_sk} other")
 
-    # Phase B: SGP4 counterfactual for likely-avoidance maneuvers
-    avoidance_maneuvers = [e for e in enriched if e.get("likely_avoidance")]
+    # Phase B: SGP4 counterfactual for ALL maneuvers (not just heuristic-flagged)
+    # Priority order:
+    #   1. Heuristic likely-avoidance (confirm or clear them)
+    #   2. Non-avoidance sorted by delta-v ascending (small burns may be missed avoidance)
+    # The old pipeline ran CF for ~1600 likely-avoidance in <6 min, so we have budget.
+    heuristic_avoidance = [e for e in enriched if e.get("likely_avoidance")]
+    non_avoidance = sorted(
+        [e for e in enriched if not e.get("likely_avoidance")],
+        key=lambda e: abs(e.get("delta_v_m_s", 0)),  # small delta-v first (missed avoidance?)
+    )
+    counterfactual_candidates = (heuristic_avoidance + non_avoidance)[:MAX_COUNTERFACTUAL]
+
     try:
         from src.data.counterfactual import (
             propagate_counterfactual,
             find_nearby_satellites,
             SGP4_AVAILABLE,
         )
-        if SGP4_AVAILABLE and avoidance_maneuvers:
+        if SGP4_AVAILABLE and counterfactual_candidates:
             # Build TLE lookup for pre-maneuver orbits
             prev_by_id = {}
             for tle in prev_tles:
@@ -274,8 +295,9 @@ def enrich_maneuvers(
                     prev_by_id[nid] = tle
 
             n_counterfactual = 0
-            n_collisions = 0
-            for em in avoidance_maneuvers:
+            n_close = 0     # < 25 km
+            n_collisions = 0  # < 1 km
+            for em in counterfactual_candidates:
                 nid = em["norad_id"]
                 pre_tle = prev_by_id.get(nid)
                 if not pre_tle:
@@ -286,21 +308,71 @@ def enrich_maneuvers(
                     continue
 
                 result = propagate_counterfactual(pre_tle, nearby)
-                em["counterfactual_min_distance_km"] = result.get("min_distance_km")
+                min_dist = result.get("min_distance_km")
+                em["counterfactual_min_distance_km"] = min_dist
                 em["would_have_collided"] = result.get("would_have_collided", False)
                 em["counterfactual_closest_norad"] = result.get("closest_norad_id", 0)
                 n_counterfactual += 1
+
+                if min_dist is not None and min_dist < 25.0:
+                    n_close += 1
                 if result.get("would_have_collided"):
                     n_collisions += 1
 
-            print(f"    Counterfactual: {n_counterfactual} propagated, "
-                  f"{n_collisions} would-have-collided")
+            print(f"    Counterfactual: {n_counterfactual}/{len(counterfactual_candidates)} propagated, "
+                  f"{n_close} close (<25km), {n_collisions} would-have-collided (<1km)")
         elif not SGP4_AVAILABLE:
             print("    Counterfactual: sgp4 not installed, skipping")
     except Exception as e:
         print(f"    Counterfactual failed (non-critical): {e}")
 
-    # Phase C: Space-Track CDM cross-reference
+    # Phase B2: Refine avoidance classification using counterfactual evidence
+    # Override heuristic classification with physics-based evidence
+    CLOSE_APPROACH_THRESHOLD_KM = 25.0
+    for em in enriched:
+        cf_dist = em.get("counterfactual_min_distance_km")
+        if cf_dist is not None and cf_dist < CLOSE_APPROACH_THRESHOLD_KM:
+            # Counterfactual shows a close approach — this IS avoidance
+            em["likely_avoidance"] = True
+            em["avoidance_evidence"] = "counterfactual"
+            em["avoidance_confidence"] = _distance_to_confidence(cf_dist)
+        elif em.get("likely_avoidance"):
+            # Heuristic flagged it but no counterfactual evidence
+            # Downgrade confidence — might be orbit-raising, phasing, etc.
+            if cf_dist is not None and cf_dist >= CLOSE_APPROACH_THRESHOLD_KM:
+                # We checked and it's NOT a close approach — unflag
+                em["likely_avoidance"] = False
+                em["avoidance_evidence"] = "counterfactual_cleared"
+                em["avoidance_confidence"] = 0.0
+            else:
+                # Counterfactual didn't run (no prev TLE, no neighbors) — keep heuristic but low confidence
+                em["avoidance_evidence"] = "heuristic_only"
+                em["avoidance_confidence"] = 0.3
+
+    n_confirmed = sum(1 for e in enriched if e.get("avoidance_evidence") == "counterfactual")
+    n_cleared = sum(1 for e in enriched if e.get("avoidance_evidence") == "counterfactual_cleared")
+    n_heuristic_only = sum(1 for e in enriched if e.get("avoidance_evidence") == "heuristic_only")
+    n_avoidance_final = sum(1 for e in enriched if e.get("likely_avoidance"))
+    print(f"    Refined avoidance: {n_avoidance_final} total "
+          f"({n_confirmed} counterfactual-confirmed, {n_cleared} cleared, "
+          f"{n_heuristic_only} heuristic-only)")
+
+    # Starlink pattern tracking — log avoidance threshold distribution
+    starlink_avoidance = [
+        e for e in enriched
+        if e.get("constellation") == "starlink"
+        and e.get("avoidance_evidence") == "counterfactual"
+        and e.get("counterfactual_min_distance_km") is not None
+    ]
+    if starlink_avoidance:
+        sl_dists = [e["counterfactual_min_distance_km"] for e in starlink_avoidance]
+        sl_dvs = [e.get("delta_v_m_s", 0) for e in starlink_avoidance]
+        print(f"    Starlink avoidance insights: {len(starlink_avoidance)} confirmed, "
+              f"counterfactual dist range [{min(sl_dists):.1f}, {max(sl_dists):.1f}] km, "
+              f"delta-v range [{min(sl_dvs):.3f}, {max(sl_dvs):.3f}] m/s")
+
+    # Phase C: Space-Track CDM cross-reference (for all avoidance, not just heuristic)
+    avoidance_maneuvers = [e for e in enriched if e.get("likely_avoidance")]
     try:
         from src.data.spacetrack_crossref import check_cdm_for_norad_ids
         avoidance_ids = [e["norad_id"] for e in avoidance_maneuvers]
@@ -314,6 +386,11 @@ def enrich_maneuvers(
                     em["has_cdm"] = True
                     em["cdm_pc"] = max(c["pc"] for c in cdms)
                     em["cdm_miss_distance_km"] = min(c["miss_distance_km"] for c in cdms)
+                    # CDM confirmation upgrades avoidance regardless of counterfactual
+                    em["likely_avoidance"] = True
+                    if em.get("avoidance_evidence") != "counterfactual":
+                        em["avoidance_evidence"] = "cdm_confirmed"
+                        em["avoidance_confidence"] = 1.0
                     n_with_cdm += 1
                 else:
                     em["has_cdm"] = False
@@ -328,6 +405,22 @@ def enrich_maneuvers(
     save_maneuver_history(enriched)
 
     return enriched
+
+
+def _distance_to_confidence(dist_km: float) -> float:
+    """Convert counterfactual minimum distance to avoidance confidence score.
+
+    Closer approach = higher confidence the maneuver was avoidance.
+    """
+    if dist_km < 1.0:
+        return 1.0    # Would have collided
+    elif dist_km < 5.0:
+        return 0.95   # Very close approach
+    elif dist_km < 10.0:
+        return 0.85   # Close approach
+    elif dist_km < 25.0:
+        return 0.7    # Moderate approach
+    return 0.0
 
 
 def validate_yesterday(
@@ -423,6 +516,8 @@ def validate_yesterday(
             outcome["constellation"] = maneuvered_sat.get("constellation")
             outcome["is_stationkeeping"] = maneuvered_sat.get("is_stationkeeping")
             outcome["likely_avoidance"] = maneuvered_sat.get("likely_avoidance")
+            outcome["avoidance_evidence"] = maneuvered_sat.get("avoidance_evidence")
+            outcome["avoidance_confidence"] = maneuvered_sat.get("avoidance_confidence", 0.0)
             outcome["has_cdm"] = maneuvered_sat.get("has_cdm", False)
             outcome["cdm_pc"] = maneuvered_sat.get("cdm_pc")
             outcome["cdm_miss_distance_km"] = maneuvered_sat.get("cdm_miss_distance_km")
@@ -437,9 +532,116 @@ def validate_yesterday(
             if either_maneuvered:
                 correct += 1
 
-    # Log outcomes
+    # Log outcomes from predicted pairs
     if outcomes:
         logger.log_outcomes(yesterday_str, outcomes)
+
+    # --- Maneuver-derived outcomes ---
+    # Log detected maneuvers as training examples, but ONLY those with
+    # collision evidence. Not every maneuver is avoidance — Starlink alone
+    # does thousands of orbit-raising/phasing burns daily. We need to see
+    # evidence that the pre-maneuver orbit would have led to a close approach.
+    #
+    # Evidence sources (in order of reliability):
+    #   1. CDM confirmed (Space-Track has a conjunction record)
+    #   2. Counterfactual < 25 km (SGP4 propagation shows close approach)
+    #   3. Heuristic-only (no physics evidence — logged at low confidence)
+    #
+    # This lets us infer avoidance architecture — e.g. Starlink's autonomous
+    # system consistently maneuvers when counterfactual distance < X km.
+    MAX_MANEUVER_OUTCOMES = 200
+    predicted_norad_ids = set()
+    for pred in predictions:
+        predicted_norad_ids.add(pred.get("sat1_norad", 0))
+        predicted_norad_ids.add(pred.get("sat2_norad", 0))
+
+    maneuver_outcomes = []
+    # Sort by avoidance confidence (counterfactual-confirmed first, then by distance)
+    sorted_maneuvers = sorted(
+        enriched_maneuvers,
+        key=lambda m: (
+            m.get("avoidance_confidence", 0),
+            -1.0 * (m.get("counterfactual_min_distance_km") or 9999),
+        ),
+        reverse=True,
+    )
+    n_evidence_based = 0
+    n_negative = 0
+    for m in sorted_maneuvers:
+        if len(maneuver_outcomes) >= MAX_MANEUVER_OUTCOMES:
+            break
+        nid = m["norad_id"]
+        # Skip if already covered by a prediction-based outcome
+        if nid in predicted_norad_ids:
+            continue
+
+        cf_dist = m.get("counterfactual_min_distance_km")
+        has_cdm = m.get("has_cdm", False)
+        evidence = m.get("avoidance_evidence", "")
+        confidence = m.get("avoidance_confidence", 0.0)
+
+        # Determine if this has collision evidence
+        has_collision_evidence = (
+            has_cdm
+            or (cf_dist is not None and cf_dist < 25.0)
+        )
+
+        # Also log maneuvers with NO collision evidence as negative examples
+        # (satellite maneuvered but NOT for avoidance — orbit maintenance)
+        # This teaches the model what non-avoidance maneuvers look like
+        is_negative = (
+            cf_dist is not None
+            and cf_dist >= 25.0
+            and not has_cdm
+        )
+
+        if not has_collision_evidence and not is_negative:
+            continue  # No counterfactual data at all — skip
+
+        # The maneuvering satellite is sat1; counterfactual closest is sat2
+        closest_norad = m.get("counterfactual_closest_norad") or 0
+        outcome = {
+            "sat1_norad": nid,
+            "sat2_norad": closest_norad,
+            "sat1_name": m.get("name", ""),
+            "sat2_name": "",
+            "predicted_risk": 0.0,  # our model didn't predict this pair
+            "sat1_maneuvered": True,
+            "sat2_maneuvered": False,
+            "either_maneuvered": has_collision_evidence,  # Only True with evidence
+            "source": "maneuver_detection",
+            "enrichment_version": 2,  # v2 = evidence-gated outcomes
+            "avoidance_evidence": evidence,
+            "avoidance_confidence": confidence,
+            "magnitude_class": m.get("magnitude_class"),
+            "constellation": m.get("constellation"),
+            "is_stationkeeping": m.get("is_stationkeeping"),
+            "likely_avoidance": m.get("likely_avoidance", False),
+            "has_cdm": has_cdm,
+            "cdm_pc": m.get("cdm_pc"),
+            "cdm_miss_distance_km": m.get("cdm_miss_distance_km"),
+            "counterfactual_min_distance_km": cf_dist,
+            "would_have_collided": m.get("would_have_collided", False),
+            "sat1_delta_a_m": m.get("delta_a_m", 0.0),
+            "sat1_delta_v_m_s": m.get("delta_v_m_s", 0.0),
+            "prediction_date": yesterday_str,
+        }
+        # Resolve sat2 name from TLE data
+        if closest_norad:
+            for tle in today_tles:
+                if int(tle.get("NORAD_CAT_ID", 0)) == closest_norad:
+                    outcome["sat2_name"] = tle.get("OBJECT_NAME", "")
+                    break
+        maneuver_outcomes.append(outcome)
+        if has_collision_evidence:
+            n_evidence_based += 1
+        else:
+            n_negative += 1
+
+    if maneuver_outcomes:
+        logger.log_outcomes(yesterday_str, maneuver_outcomes)
+        print(f"  Maneuver-derived outcomes: {len(maneuver_outcomes)} logged "
+              f"({n_evidence_based} with collision evidence, {n_negative} negative examples)")
 
     accuracy = correct / max(total_checked, 1)
     n_avoidance = sum(1 for m in enriched_maneuvers if m.get("likely_avoidance"))
@@ -448,6 +650,7 @@ def validate_yesterday(
         "prediction_date": yesterday_str,
         "n_maneuvers_total": len(enriched_maneuvers),
         "n_likely_avoidance": n_avoidance,
+        "n_maneuver_outcomes_logged": len(maneuver_outcomes),
         "n_predictions": len(predictions),
         "n_high_risk_predictions": total_checked,
         "n_correct": correct,
@@ -465,7 +668,7 @@ def main():
     parser = argparse.ArgumentParser(description="Daily conjunction prediction pipeline")
     parser.add_argument("--quick", action="store_true", help="Quick test with fewer satellites")
     parser.add_argument("--validate-only", action="store_true", help="Only validate yesterday")
-    parser.add_argument("--top-k", type=int, default=100, help="Number of top pairs to log")
+    parser.add_argument("--top-k", type=int, default=500, help="Number of top pairs to log")
     parser.add_argument("--no-firebase", action="store_true", help="Skip Firebase, local only")
     args = parser.parse_args()
 
