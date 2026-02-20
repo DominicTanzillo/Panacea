@@ -335,7 +335,11 @@ def enrich_maneuvers(
             # Counterfactual shows a close approach — this IS avoidance
             em["likely_avoidance"] = True
             em["avoidance_evidence"] = "counterfactual"
-            em["avoidance_confidence"] = _distance_to_confidence(cf_dist)
+            em["avoidance_confidence"] = _distance_to_confidence(
+                cf_dist,
+                delta_v_m_s=abs(em.get("delta_v_m_s", 0)),
+                constellation=em.get("constellation", ""),
+            )
         elif em.get("likely_avoidance"):
             # Heuristic flagged it but no counterfactual evidence
             # Downgrade confidence — might be orbit-raising, phasing, etc.
@@ -407,20 +411,43 @@ def enrich_maneuvers(
     return enriched
 
 
-def _distance_to_confidence(dist_km: float) -> float:
+def _distance_to_confidence(dist_km: float, delta_v_m_s: float = 0.0,
+                            constellation: str = "") -> float:
     """Convert counterfactual minimum distance to avoidance confidence score.
 
-    Closer approach = higher confidence the maneuver was avoidance.
+    Thresholds calibrated against:
+      - TLE/SGP4 accuracy: 0.8 ± 0.3 km instantaneous, ~1.5 km/day growth
+        (Levit & Marshall 2010). After 1-day propagation, combined 1-sigma
+        for two satellites ≈ 3.3 km, 3-sigma ≈ 10 km.
+      - 18 SDS screening volume: 0.5 km radial × 17 km in-track × 20 km
+        cross-track (NASA NTRS 20170007928).
+      - NASA CARA maneuver threshold: Pc > 1e-4 → typically miss dist 1-5 km.
+      - Starlink autonomous avoidance: Pc > 1e-6, ~300K maneuvers/yr in 2025.
+        Median delta-v for < 5 km approaches: 0.116 m/s (micro-burns).
+
+    Maneuver type as additional signal:
+      - Micro delta-v (< 0.5 m/s) + close approach → classic CAM pattern
+      - Large delta-v (> 10 m/s) regardless of distance → orbit transfer, NOT avoidance
     """
+    # Large maneuvers are almost never avoidance — orbit transfers, deorbits, reboosts
+    if delta_v_m_s > 10.0:
+        return 0.1  # Tiny residual confidence even at close range
+
+    base_confidence = 0.0
     if dist_km < 1.0:
-        return 1.0    # Would have collided
+        base_confidence = 1.0    # Within radial screening threshold — orbits overlap
     elif dist_km < 5.0:
-        return 0.95   # Very close approach
+        base_confidence = 0.85   # Within 1-sigma TLE uncertainty — genuine conjunction
     elif dist_km < 10.0:
-        return 0.85   # Close approach
+        base_confidence = 0.5    # Within 3-sigma — plausible but uncertain
     elif dist_km < 25.0:
-        return 0.7    # Moderate approach
-    return 0.0
+        base_confidence = 0.2    # Outside 3-sigma — mostly TLE propagation noise
+
+    # Boost confidence for micro-burns (classic Starlink CAM signature)
+    if delta_v_m_s < 0.5 and base_confidence > 0:
+        base_confidence = min(1.0, base_confidence + 0.1)
+
+    return base_confidence
 
 
 def validate_yesterday(
