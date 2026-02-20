@@ -101,36 +101,84 @@ def load_outcomes_from_local() -> list[dict]:
 def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
     """Convert outcome records into training examples with weighted soft labels.
 
-    Uses enrichment fields (when available) to produce nuanced labels:
-      - CDM-confirmed avoidance: label=1.0, weight=1.0
-      - Counterfactual collision:  label=1.0, weight=0.9
-      - Likely avoidance (no CDM): label=0.8, weight=0.7
-      - Any maneuver (not avoidance): label=0.3, weight=0.3
-      - No maneuver: label=0.0, weight=1.0
+    Label strategy based on evidence quality:
 
-    Falls back to binary labels for outcomes without enrichment_version.
+    v2 outcomes (evidence-gated, enrichment_version >= 2):
+      - CDM-confirmed avoidance:              label=1.0, weight=1.0
+      - Counterfactual < 1 km (collision):    label=1.0, weight=1.0
+      - Counterfactual < 5 km:                label=0.95, weight=0.95
+      - Counterfactual < 10 km:               label=0.85, weight=0.85
+      - Counterfactual < 25 km:               label=0.7, weight=0.7
+      - Maneuver with NO collision evidence:  label=0.0, weight=0.8 (negative example)
+      - No maneuver observed:                 label=0.0, weight=1.0
+
+    v1 outcomes (legacy heuristic-only):
+      - Likely avoidance (heuristic):         label=0.6, weight=0.4
+      - Any other maneuver:                   label=0.2, weight=0.2
+      - No maneuver:                          label=0.0, weight=1.0
+
+    Pre-enrichment outcomes (enrichment_version=0):
+      - Maneuvered:                           label=0.5, weight=0.3
+      - No maneuver:                          label=0.0, weight=1.0
     """
+    import math as _math
+
     examples = []
     seen = set()
 
     for outcome in outcomes:
-        # Deduplicate by sat pair + date
+        # Deduplicate by sat pair + date + source
         key = (
             outcome.get("sat1_norad", 0),
             outcome.get("sat2_norad", 0),
             outcome.get("prediction_date", ""),
+            outcome.get("source", "prediction"),
         )
         if key in seen:
             continue
         seen.add(key)
 
         either_maneuvered = outcome.get("either_maneuvered", False)
-        has_enrichment = outcome.get("enrichment_version", 0) >= 1
+        enrichment_version = outcome.get("enrichment_version", 0)
 
         if not either_maneuvered:
-            risk_label = 0.0
-            sample_weight = 1.0
-        elif has_enrichment:
+            # No maneuver = negative example
+            # v2 maneuver-derived negatives (maneuvered but NOT avoidance) get
+            # slightly lower weight since absence of avoidance != safe
+            source = outcome.get("source", "prediction")
+            if source == "maneuver_detection":
+                risk_label = 0.0
+                sample_weight = 0.8
+            else:
+                risk_label = 0.0
+                sample_weight = 1.0
+        elif enrichment_version >= 2:
+            # v2: Evidence-gated labels using avoidance_confidence
+            confidence = outcome.get("avoidance_confidence", 0.0)
+            has_cdm = outcome.get("has_cdm", False)
+            cf_dist = outcome.get("counterfactual_min_distance_km")
+
+            if has_cdm:
+                risk_label = 1.0
+                sample_weight = 1.0
+            elif cf_dist is not None and cf_dist < 1.0:
+                risk_label = 1.0
+                sample_weight = 1.0
+            elif cf_dist is not None and cf_dist < 5.0:
+                risk_label = 0.95
+                sample_weight = 0.95
+            elif cf_dist is not None and cf_dist < 10.0:
+                risk_label = 0.85
+                sample_weight = 0.85
+            elif cf_dist is not None and cf_dist < 25.0:
+                risk_label = 0.7
+                sample_weight = 0.7
+            else:
+                # Maneuvered but no close approach evidence — treat as weak negative
+                risk_label = 0.0
+                sample_weight = 0.8
+        elif enrichment_version >= 1:
+            # v1: Legacy heuristic-only labels (reduced confidence)
             has_cdm = outcome.get("has_cdm", False)
             likely_avoidance = outcome.get("likely_avoidance", False)
             would_have_collided = outcome.get("would_have_collided", False)
@@ -142,22 +190,21 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
                 risk_label = 1.0
                 sample_weight = 0.9
             elif likely_avoidance:
-                risk_label = 0.8
-                sample_weight = 0.7
+                risk_label = 0.6
+                sample_weight = 0.4
             else:
-                risk_label = 0.3
-                sample_weight = 0.3
+                risk_label = 0.2
+                sample_weight = 0.2
         else:
-            # Legacy outcomes without enrichment: binary fallback
-            risk_label = 1.0
-            sample_weight = 0.5
+            # Pre-enrichment: weak signal
+            risk_label = 0.5
+            sample_weight = 0.3
 
         # Pc target from Space-Track CDM cross-reference (log10 scale)
         cdm_pc = outcome.get("cdm_pc")
         pc_log10 = None
         if cdm_pc is not None and cdm_pc > 0:
-            import math
-            pc_log10 = max(math.log10(cdm_pc), -20.0)
+            pc_log10 = max(_math.log10(cdm_pc), -20.0)
 
         examples.append({
             "risk_label": risk_label,
@@ -168,11 +215,18 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
             "sat1_delta_a_m": outcome.get("sat1_delta_a_m", 0.0),
             "sat2_delta_a_m": outcome.get("sat2_delta_a_m", 0.0),
             "pc_log10": pc_log10,
+            "source": outcome.get("source", "prediction"),
+            "avoidance_evidence": outcome.get("avoidance_evidence"),
+            "constellation": outcome.get("constellation"),
         })
 
     n_pos = sum(1 for e in examples if e["risk_label"] > 0.5)
-    n_soft = sum(1 for e in examples if 0 < e["risk_label"] <= 0.5)
-    print(f"  Training examples: {len(examples)} ({n_pos} positive, {n_soft} soft-positive)")
+    n_soft = sum(1 for e in examples if 0.1 < e["risk_label"] <= 0.5)
+    n_neg = sum(1 for e in examples if e["risk_label"] <= 0.1)
+    n_maneuver = sum(1 for e in examples if e.get("source") == "maneuver_detection")
+    print(f"  Training examples: {len(examples)} "
+          f"({n_pos} positive, {n_soft} soft, {n_neg} negative, "
+          f"{n_maneuver} from maneuver detection)")
     return examples
 
 
@@ -493,8 +547,14 @@ def main():
 
     examples = outcomes_to_training_data(outcomes)
 
-    if len(examples) < MIN_NEW_OUTCOMES:
-        print(f"\n  Only {len(examples)} examples (need {MIN_NEW_OUTCOMES}). "
+    # Count evidence-based examples (positive or maneuver-derived negative)
+    n_informative = sum(
+        1 for e in examples
+        if e["risk_label"] > 0.5 or e.get("source") == "maneuver_detection"
+    )
+    if n_informative < MIN_NEW_OUTCOMES:
+        print(f"\n  Only {n_informative} informative examples (need {MIN_NEW_OUTCOMES}). "
+              f"Total outcomes: {len(examples)} but most lack collision evidence. "
               f"Skipping fine-tuning — accumulate more data.")
         return
 
@@ -512,51 +572,87 @@ def main():
 
     # 3. Build training dataset from Kelvins + new outcomes
     #    We fine-tune on the ORIGINAL training data + new outcomes
-    #    to avoid catastrophic forgetting
+    #    to avoid catastrophic forgetting.
+    #    Data sources (in order of preference):
+    #      a) Local Kelvins data (full 162K CDMs)
+    #      b) HuggingFace finetune_data.zip (compact 35K CDMs: all positives + sampled negatives)
     print("\nBuilding datasets ...")
+    import pandas as pd
     from src.data.cdm_loader import load_dataset
     data_dir = ROOT / "data" / "cdm"
 
+    train_df = None
+    test_df = None
+
+    # Try local data first
     try:
         train_df, test_df = load_dataset(data_dir)
-    except FileNotFoundError:
-        print("  Kelvins data not found on Actions runner — using outcomes only")
-        train_df = None
+        print(f"  Loaded local Kelvins data: {len(train_df)} CDMs")
+    except (FileNotFoundError, Exception):
+        print("  Local Kelvins data not found — downloading from HuggingFace ...")
+
+    # Fall back to HuggingFace compact dataset
+    if train_df is None:
+        try:
+            from huggingface_hub import hf_hub_download, HfApi
+            import zipfile, io
+            hf_token = os.environ.get("HF_TOKEN", "")
+            api = HfApi(token=hf_token)
+            user_info = api.whoami()
+            hf_user = user_info.get("name", user_info.get("fullname", "unknown"))
+            hf_repo = f"{hf_user}/panacea-models"
+
+            zip_path = hf_hub_download(
+                repo_id=hf_repo,
+                filename="finetune_data.zip",
+                token=hf_token or None,
+                local_dir=str(MODEL_DIR),
+            )
+            print(f"  Downloaded finetune_data.zip from {hf_repo}")
+
+            with zipfile.ZipFile(zip_path) as zf:
+                with zf.open("finetune_train.csv") as f:
+                    train_df = pd.read_csv(f)
+                with zf.open("finetune_test.csv") as f:
+                    test_df = pd.read_csv(f)
+            print(f"  Loaded compact dataset: {len(train_df)} train CDMs, "
+                  f"{train_df['event_id'].nunique()} events")
+        except Exception as e:
+            print(f"  HuggingFace data download failed: {e}")
+
+    if train_df is None:
+        print("  No training data available — skipping fine-tuning")
+        return
 
     temporal_cols = checkpoint.get("temporal_cols", TEMPORAL_FEATURES)
     static_cols = checkpoint.get("static_cols", STATIC_FEATURES)
 
-    if train_df is not None:
-        # Pad missing columns
-        for col in temporal_cols + static_cols:
-            if col not in train_df.columns:
-                train_df[col] = 0.0
+    # Pad missing columns
+    for col in temporal_cols + static_cols:
+        if col not in train_df.columns:
+            train_df[col] = 0.0
 
-        # Split training data for fine-tuning
-        n_val = max(int(len(train_df["event_id"].unique()) * VAL_FRACTION), 10)
-        event_ids = train_df["event_id"].unique()
-        np.random.seed(42)
-        np.random.shuffle(event_ids)
-        val_ids = set(event_ids[:n_val])
-        train_ids = set(event_ids[n_val:])
+    # Split training data for fine-tuning
+    n_val = max(int(len(train_df["event_id"].unique()) * VAL_FRACTION), 10)
+    event_ids = train_df["event_id"].unique()
+    np.random.seed(42)
+    np.random.shuffle(event_ids)
+    val_ids = set(event_ids[:n_val])
+    train_ids = set(event_ids[n_val:])
 
-        ft_train_df = train_df[train_df["event_id"].isin(train_ids)]
-        ft_val_df = train_df[train_df["event_id"].isin(val_ids)]
+    ft_train_df = train_df[train_df["event_id"].isin(train_ids)]
+    ft_val_df = train_df[train_df["event_id"].isin(val_ids)]
 
-        train_ds = CDMSequenceDataset(
-            ft_train_df, temporal_cols=temporal_cols, static_cols=static_cols,
-        )
-        val_ds = CDMSequenceDataset(
-            ft_val_df, temporal_cols=temporal_cols, static_cols=static_cols,
-        )
-        val_ds.set_normalization(train_ds)
+    train_ds = CDMSequenceDataset(
+        ft_train_df, temporal_cols=temporal_cols, static_cols=static_cols,
+    )
+    val_ds = CDMSequenceDataset(
+        ft_val_df, temporal_cols=temporal_cols, static_cols=static_cols,
+    )
+    val_ds.set_normalization(train_ds)
 
-        print(f"  Train: {len(train_ds)} events, Val: {len(val_ds)} events")
-        print(f"  New outcomes: {len(examples)} (will improve with more data)")
-    else:
-        print("  No base training data — skipping fine-tuning on Actions")
-        print("  (Kelvins dataset too large for Actions runner)")
-        return
+    print(f"  Train: {len(train_ds)} events, Val: {len(val_ds)} events")
+    print(f"  New informative outcomes: {n_informative}")
 
     # 4. Fine-tune
     print(f"\nFine-tuning (max {args.max_epochs} epochs, LR={FINETUNE_LR}) ...")
