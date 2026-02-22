@@ -1,0 +1,1 @@
+{"pre_auc_pr": 0.38060610830041347, "post_auc_pr": 0.2733593859730199, "best_val_auc_pr": 0.38060610830041347, "epochs_trained": 2, "keep_new_model": false, "elapsed_minutes": 0.4, "date": "2026-02-22T04:23:49.933827+00:00", "n_outcomes": 1200}
