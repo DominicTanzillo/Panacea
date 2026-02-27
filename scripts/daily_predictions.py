@@ -21,6 +21,7 @@ Usage:
 import sys
 import json
 import math
+import time
 import argparse
 import numpy as np
 import requests
@@ -49,6 +50,10 @@ from src.data.spacetrack_crossref import (
     fetch_recent_cdms,
     cdm_pc_to_label,
 )
+# Lazy-imported in load_pairwise_model() / score_with_pairwise_model()
+# to avoid requiring pandas/xgboost in the daily CI environment:
+#   from src.data.pairwise_features import compute_batch_features
+#   from src.model.pairwise import CDMSupervisedRiskModel
 
 CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SNAPSHOT_DIR = ROOT / "data" / "tle_snapshots"
@@ -79,6 +84,113 @@ def fetch_starlink_tles() -> list[dict]:
     tles = resp.json()
     print(f"  Got {len(tles)} Starlink satellites")
     return tles
+
+
+def fetch_supplemental_tles(active_tles: list[dict]) -> list[dict]:
+    """Fetch fresh TLEs for CDM objects not in the active satellite group.
+
+    CelesTrak has TLEs for debris, old payloads, and rocket bodies — they're
+    just not in GROUP=active. This fetches them individually by NORAD ID.
+
+    Unlike active TLEs which come in a single bulk request, supplemental
+    objects must be fetched one-by-one. All known supplemental IDs are
+    re-fetched every run to keep orbital elements current (debris orbits
+    decay, elements change daily). ~163 objects at 0.3s spacing = ~50s.
+
+    The ID list is persisted so new CDM objects are automatically included
+    in future runs even before the next CDM fetch.
+
+    Returns list of supplemental TLE dicts (same format as active TLEs).
+    """
+    CDM_STORE = LOG_DIR / "cdm_store.jsonl"
+    CACHE_PATH = SNAPSHOT_DIR / "supplemental.json"
+    ID_LIST_PATH = SNAPSHOT_DIR / "supplemental_ids.json"
+
+    # Build the cumulative set of NORAD IDs we need to track.
+    # Sources: CDM store + previously saved ID list (prospective)
+    cdm_norad_ids = set()
+
+    # Load previously saved ID list (persists across runs)
+    if ID_LIST_PATH.exists():
+        try:
+            with open(ID_LIST_PATH) as f:
+                saved_ids = json.load(f)
+            cdm_norad_ids.update(saved_ids)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Add any new IDs from CDM store
+    if CDM_STORE.exists():
+        with open(CDM_STORE) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    cdm = json.loads(line)
+                    s1 = cdm.get("sat1_norad", 0)
+                    s2 = cdm.get("sat2_norad", 0)
+                    if s1 > 0:
+                        cdm_norad_ids.add(s1)
+                    if s2 > 0:
+                        cdm_norad_ids.add(s2)
+                except json.JSONDecodeError:
+                    continue
+
+    if not cdm_norad_ids:
+        print("  No supplemental NORAD IDs known — skipping")
+        return []
+
+    # Save cumulative ID list for future runs
+    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    with open(ID_LIST_PATH, "w") as f:
+        json.dump(sorted(cdm_norad_ids), f)
+
+    # Filter to IDs not already in the active TLE set
+    active_ids = {int(t.get("NORAD_CAT_ID", 0)) for t in active_tles}
+    ids_to_fetch = sorted(cdm_norad_ids - active_ids)
+
+    if not ids_to_fetch:
+        print("  All CDM objects found in active TLEs — no supplemental fetch needed")
+        return []
+
+    print(f"  Supplemental TLE fetch: {len(ids_to_fetch)} objects "
+          f"(of {len(cdm_norad_ids)} tracked, {len(cdm_norad_ids) - len(ids_to_fetch)} already in active)")
+
+    # Fetch fresh TLEs from CelesTrak (every run, to keep elements current)
+    fetched_tles: dict[int, dict] = {}
+    n_failed = 0
+    for i, norad_id in enumerate(ids_to_fetch):
+        try:
+            url = f"{CELESTRAK_URL}?CATNR={norad_id}&FORMAT=json"
+            resp = requests.get(url, timeout=30)
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list) and len(data) > 0:
+                    fetched_tles[norad_id] = data[0]
+                    if (i + 1) % 50 == 0:
+                        print(f"    Fetched {i + 1}/{len(ids_to_fetch)}")
+                else:
+                    n_failed += 1
+            else:
+                n_failed += 1
+        except Exception as e:
+            n_failed += 1
+            if n_failed <= 3:
+                print(f"    NORAD {norad_id}: {e}")
+
+        # Rate limit: 0.3s between requests
+        if i < len(ids_to_fetch) - 1:
+            time.sleep(0.3)
+
+    print(f"  Fetched {len(fetched_tles)} fresh supplemental TLEs"
+          + (f" ({n_failed} failed)" if n_failed else ""))
+
+    # Save as supplemental.json (overwritten each run with fresh data)
+    with open(CACHE_PATH, "w") as f:
+        json.dump(list(fetched_tles.values()), f)
+
+    return list(fetched_tles.values())
 
 
 def screen_pairs(tles: list[dict], alt_band_km: float = 50.0, raan_band_deg: float = 30.0) -> list[dict]:
@@ -180,6 +292,72 @@ def load_baseline_model():
     except Exception as e:
         print(f"  Failed to load baseline model: {e}")
         return None
+
+
+def load_pairwise_model():
+    """Load the CDM-supervised pairwise risk model if available."""
+    model_path = ROOT / "models" / "pairwise_risk.json"
+    if not model_path.exists():
+        print("  CSPR pairwise model not found — skipping pairwise scoring")
+        return None
+
+    try:
+        from src.model.pairwise import CDMSupervisedRiskModel
+        model = CDMSupervisedRiskModel.load(model_path)
+        n_train = model.training_meta.get("n_samples", "?")
+        print(f"  Loaded CSPR pairwise model from {model_path} ({n_train} training samples)")
+        return model
+    except Exception as e:
+        print(f"  Failed to load CSPR model: {e}")
+        return None
+
+
+def score_with_pairwise_model(
+    candidates: list[dict],
+    pairwise_model,
+    tles: list[dict],
+) -> list[dict]:
+    """Score candidates with the CDM-supervised pairwise risk model.
+
+    Adds pairwise_risk_score and pairwise_log10_pc to each candidate.
+    """
+    if pairwise_model is None or not candidates:
+        return candidates
+
+    # Build TLE lookup
+    tle_by_norad: dict[int, dict] = {}
+    for tle in tles:
+        nid = int(tle.get("NORAD_CAT_ID", 0))
+        if nid > 0:
+            tle_by_norad[nid] = tle
+
+    # Build (sat1_tle, sat2_tle) pairs for batch feature computation
+    pairs = []
+    valid_indices = []
+    for i, cand in enumerate(candidates):
+        tle1 = tle_by_norad.get(cand["sat1_norad"])
+        tle2 = tle_by_norad.get(cand["sat2_norad"])
+        if tle1 is not None and tle2 is not None:
+            pairs.append((tle1, tle2))
+            valid_indices.append(i)
+
+    if not pairs:
+        return candidates
+
+    # Compute features and predict
+    from src.data.pairwise_features import compute_batch_features
+    X = compute_batch_features(pairs, all_tles=tles)
+    risk_scores = pairwise_model.predict_risk(X)
+    log10_pcs = pairwise_model.predict(X)
+
+    for j, idx in enumerate(valid_indices):
+        candidates[idx]["pairwise_risk_score"] = round(float(risk_scores[j]), 6)
+        candidates[idx]["pairwise_log10_pc"] = round(float(log10_pcs[j]), 2)
+
+    n_high = sum(1 for s in risk_scores if s > 0.5)
+    print(f"  CSPR scored {len(pairs)} pairs: {n_high} high-risk (>0.5)")
+
+    return candidates
 
 
 def score_with_model(candidates: list[dict], model) -> list[dict]:
@@ -781,6 +959,21 @@ def main():
     max_objects = 1000 if args.quick else None
     active_tles = fetch_active_tles(max_objects=max_objects)
 
+    # Fetch supplemental TLEs for CDM objects (debris, old payloads, etc.)
+    if not args.quick:
+        supplemental = fetch_supplemental_tles(active_tles)
+        if supplemental:
+            # Merge: add supplemental TLEs that aren't already in active set
+            active_ids = {int(t.get("NORAD_CAT_ID", 0)) for t in active_tles}
+            n_before = len(active_tles)
+            for tle in supplemental:
+                nid = int(tle.get("NORAD_CAT_ID", 0))
+                if nid > 0 and nid not in active_ids:
+                    active_tles.append(tle)
+                    active_ids.add(nid)
+            print(f"  Merged: {n_before} active + {len(active_tles) - n_before} "
+                  f"supplemental = {len(active_tles)} total")
+
     # Save today's TLE snapshot for tomorrow's comparison
     SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
     snapshot_path = SNAPSHOT_DIR / f"{today_str}.json"
@@ -804,6 +997,10 @@ def main():
     # Score with baseline model
     model = load_baseline_model()
     candidates = score_with_model(candidates, model)
+
+    # Score with CSPR pairwise model (parallel signal, doesn't replace baseline)
+    pairwise_model = load_pairwise_model()
+    candidates = score_with_pairwise_model(candidates, pairwise_model, active_tles)
 
     # Take top-K predictions
     top_k = min(args.top_k, len(candidates))

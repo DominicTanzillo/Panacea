@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: write  # For pushing prediction logs
+  pages: write     # For deploying webapp to GitHub Pages
+  id-token: write  # For Pages deployment token
 
 jobs:
   predict:
@@ -104,3 +106,59 @@ jobs:
           git add -u data/tle_snapshots/ 2>/dev/null || true
           git diff --staged --quiet || git commit -m ":robot: Daily predictions $(date -u +%Y-%m-%d)"
           git push || echo "Push failed (non-critical)"
+
+  # Rebuild and deploy webapp to GitHub Pages with fresh alerts data.
+  # Bot commits from the predict job don't trigger deploy-webapp.yml
+  # (GitHub Actions ignores GITHUB_TOKEN pushes to prevent loops),
+  # so we deploy directly here instead.
+  deploy-webapp:
+    needs: predict
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Pull latest (includes bot commit with fresh alerts)
+        run: git pull origin main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: webapp-react/package-lock.json
+
+      - name: Get API URL from git notes
+        id: api-url
+        run: |
+          git fetch origin "refs/notes/*:refs/notes/*" 2>/dev/null || true
+          FIRST_COMMIT=$(git rev-list --max-parents=0 HEAD)
+          TUNNEL_URL=$(git notes show "$FIRST_COMMIT" 2>/dev/null || echo "")
+          echo "url=$TUNNEL_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Install and build
+        working-directory: webapp-react
+        env:
+          VITE_API_URL: ${{ steps.api-url.outputs.url || 'https://dtanzillo-panacea-api.hf.space' }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: webapp-react/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

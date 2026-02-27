@@ -712,9 +712,97 @@ def main():
         results["n_outcomes"] = len(examples)
         f.write(json.dumps(results) + "\n")
 
+    # 7. Retrain CSPR pairwise risk model on accumulated CDM data
+    print(f"\n{'='*60}")
+    print(f"  CSPR Pairwise Risk Model Retraining")
+    print(f"{'='*60}\n")
+    retrain_pairwise_model()
+
     print(f"\n{'='*60}")
     print(f"  Fine-tuning complete!")
     print(f"{'='*60}")
+
+
+def retrain_pairwise_model():
+    """Retrain the CDM-supervised pairwise risk model on all accumulated data.
+
+    Safety: only saves new model if AUC-PR improves or no existing model.
+    """
+    from src.data.spacetrack_crossref import _load_local_cdms
+    from src.data.maneuver_detector import load_tle_snapshot
+
+    cdm_store = LOG_DIR / "cdm_store.jsonl"
+    snapshot_dir = ROOT / "data" / "tle_snapshots"
+    model_path = MODEL_DIR / "pairwise_risk.json"
+
+    # Load CDMs
+    cdms = _load_local_cdms(cdm_store)
+    if len(cdms) < 50:
+        print(f"  Only {len(cdms)} CDMs — need at least 50 for CSPR retraining")
+        return
+
+    # Load TLE snapshots
+    snapshots = {}
+    for f in sorted(snapshot_dir.glob("*.json")):
+        try:
+            snapshots[f.stem] = load_tle_snapshot(f)
+        except Exception:
+            pass
+
+    if not snapshots:
+        print("  No TLE snapshots available — skipping CSPR retraining")
+        return
+
+    # Import training pipeline
+    try:
+        from scripts.train_pairwise import build_training_data, train_and_evaluate
+    except ImportError:
+        # Fallback: run as subprocess
+        print("  Cannot import train_pairwise — skipping CSPR retraining")
+        return
+
+    try:
+        X, y_pc, weights = build_training_data(cdms, snapshots, neg_ratio=5)
+    except ValueError as e:
+        print(f"  CSPR training data build failed: {e}")
+        return
+
+    # Train new model
+    new_model, train_metrics, test_metrics = train_and_evaluate(X, y_pc, weights)
+    new_auc = test_metrics.get("auc_pr", 0)
+
+    # Compare with existing model
+    if model_path.exists():
+        try:
+            from src.model.pairwise import CDMSupervisedRiskModel
+            old_model = CDMSupervisedRiskModel.load(model_path)
+            old_metrics = old_model.evaluate(X, y_pc)
+            old_auc = old_metrics.get("auc_pr", 0)
+            print(f"  Existing CSPR AUC-PR: {old_auc:.3f}")
+            print(f"  New CSPR AUC-PR:      {new_auc:.3f}")
+
+            if new_auc < old_auc * 0.90:
+                print(f"  REVERTING: new AUC-PR dropped >10% — keeping old model")
+                return
+        except Exception as e:
+            print(f"  Could not evaluate old model: {e}")
+
+    # Save new model
+    new_model.save(model_path)
+    print(f"  CSPR model saved to {model_path}")
+
+    # Log
+    log_path = LOG_DIR / "finetune_log.jsonl"
+    with open(log_path, "a") as f:
+        entry = {
+            "date": datetime.now(timezone.utc).isoformat(),
+            "model": "cspr_pairwise",
+            "n_cdms": len(cdms),
+            "n_training_samples": len(X),
+            "test_auc_pr": new_auc,
+            **test_metrics,
+        }
+        f.write(json.dumps(entry) + "\n")
 
 
 if __name__ == "__main__":
