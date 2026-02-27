@@ -66,12 +66,21 @@ export interface ScreeningPair {
   risk_score: number;
   altitude_km: number;
   miss_estimate_km: number;
+  prediction_date?: string;
+  tca_hours?: number;
+  tca_min_distance_km?: number;
 }
 
 export interface ScreeningResponse {
   pairs: ScreeningPair[];
   n_candidates: number;
   n_total: number;
+}
+
+export interface StaticAlerts {
+  generated_at: string;
+  prediction_date: string;
+  pairs: ScreeningPair[];
 }
 
 // --- API methods ---
