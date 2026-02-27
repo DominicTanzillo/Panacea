@@ -51,23 +51,35 @@ export function useApi(tles?: TLERecord[]): UseApiResult {
     } else {
       // Fallback: load static result files bundled in public/
       try {
-        const [compResp, expResp, alertsResp] = await Promise.all([
+        const [compResp, expResp] = await Promise.all([
           fetch('./model_comparison.json'),
           fetch('./staleness_experiment.json'),
-          fetch('./latest_alerts.json'),
         ]);
         if (compResp.ok) setModelComparison(await compResp.json());
         if (expResp.ok) setExperimentResults(await expResp.json());
-        if (alertsResp.ok) {
-          const data: StaticAlerts = await alertsResp.json();
-          if (data?.pairs) setScreeningPairs(data.pairs);
-        }
       } catch {
         // Static files not available either — dashboard shows empty state
       }
     }
 
     setLoading(false);
+  }, []);
+
+  // Deferred alerts loading — parse 763KB JSON after globe is interactive
+  // to avoid blocking the main thread during initial satellite rendering.
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const alertsResp = await fetch('./latest_alerts.json');
+        if (alertsResp.ok) {
+          const data: StaticAlerts = await alertsResp.json();
+          if (data?.pairs) setScreeningPairs(data.pairs);
+        }
+      } catch {
+        // Static alerts not available
+      }
+    }, 2000); // 2s delay lets globe render first
+    return () => clearTimeout(timer);
   }, []);
 
   // Initial fetch + poll health every 30s (refetch data if backend comes online)
