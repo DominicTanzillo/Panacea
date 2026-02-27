@@ -59,6 +59,16 @@ CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SNAPSHOT_DIR = ROOT / "data" / "tle_snapshots"
 LOG_DIR = ROOT / "data" / "prediction_logs"
 MANEUVER_HISTORY_PATH = LOG_DIR / "maneuver_history.jsonl"
+WEBAPP_TLE_PATH = ROOT / "webapp-react" / "public" / "latest_tles.json"
+
+# CelesTrak groups that the webapp loads (must match webapp-react/src/lib/types.ts)
+WEBAPP_GROUPS = [
+    ("stations", "stations"),
+    ("starlink", "starlink"),
+    ("cosmos-2251-debris", "cosmos-2251-debris"),
+    ("iridium-33-debris", "iridium-33-debris"),
+    ("fengyun-1c-debris", "fengyun-1c-debris"),
+]
 
 
 def fetch_active_tles(max_objects: int = None) -> list[dict]:
@@ -930,6 +940,59 @@ def validate_yesterday(
     return summary
 
 
+def export_webapp_tles(active_tles: list[dict]):
+    """Export TLE snapshot to webapp-react/public/latest_tles.json.
+
+    This provides a static fallback for the webapp when CelesTrak blocks
+    the client IP. Fetches each webapp group separately so the webapp can
+    color-code satellites (stations, starlink, debris, etc.). Active TLEs
+    from the pipeline are tagged with _group='active'.
+
+    TLEs are orbital elements, not positions — the webapp runs SGP4
+    client-side for real-time propagation regardless of TLE source.
+    """
+    all_tles = []
+    seen_ids = set()
+
+    # Fetch group-specific TLEs for the webapp (small groups first)
+    for group_id, celestrak_group in WEBAPP_GROUPS:
+        try:
+            resp = requests.get(
+                f"{CELESTRAK_URL}?GROUP={celestrak_group}&FORMAT=json",
+                timeout=30,
+            )
+            if resp.ok:
+                group_tles = resp.json()
+                for tle in group_tles:
+                    nid = int(tle.get("NORAD_CAT_ID", 0))
+                    if nid > 0 and nid not in seen_ids:
+                        tle["_group"] = group_id
+                        all_tles.append(tle)
+                        seen_ids.add(nid)
+                print(f"  Webapp TLE export: {group_id} = {len(group_tles)}")
+        except Exception as e:
+            print(f"  Webapp TLE export: {group_id} fetch failed: {e}")
+
+    # Add active TLEs (those not already covered by specific groups)
+    n_active_added = 0
+    for tle in active_tles:
+        nid = int(tle.get("NORAD_CAT_ID", 0))
+        if nid > 0 and nid not in seen_ids:
+            tle_copy = dict(tle)
+            tle_copy["_group"] = "active"
+            all_tles.append(tle_copy)
+            seen_ids.add(nid)
+            n_active_added += 1
+
+    print(f"  Webapp TLE export: active (remaining) = {n_active_added}")
+    print(f"  Webapp TLE export: {len(all_tles)} total TLEs")
+
+    WEBAPP_TLE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(WEBAPP_TLE_PATH, "w") as f:
+        json.dump(all_tles, f)
+    print(f"  Saved webapp TLE fallback to {WEBAPP_TLE_PATH}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Daily conjunction prediction pipeline")
     parser.add_argument("--quick", action="store_true", help="Quick test with fewer satellites")
@@ -979,6 +1042,13 @@ def main():
     snapshot_path = SNAPSHOT_DIR / f"{today_str}.json"
     save_tle_snapshot(active_tles, snapshot_path)
     print(f"  Saved TLE snapshot to {snapshot_path}")
+
+    # Export webapp TLE fallback (for when CelesTrak blocks the client)
+    print("\nExporting webapp TLE fallback ...")
+    try:
+        export_webapp_tles(active_tles)
+    except Exception as e:
+        print(f"  Webapp TLE export failed (non-fatal): {e}")
 
     # Validate yesterday's predictions
     validation = validate_yesterday(logger, active_tles, yesterday_str)
@@ -1049,26 +1119,96 @@ def main():
     print(f"{'='*60}")
 
 
-def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: str, top_k: int = 20):
-    """Generate webapp-react/public/latest_alerts.json with forward TCA.
+def _load_cdm_alerts(tle_by_id: dict, today_str: str, forward_days: int = 7, min_pc: float = 1e-7) -> list[dict]:
+    """Load CDM-sourced alerts from local store.
 
-    The screening step produces thousands of co-orbital pairs (same altitude
-    shell + RAAN band). Most of these are thousands of km apart. To find
-    actual close approaches, we:
-      1. Compute SGP4 forward TCA for the top ~200 heuristic candidates
-      2. Rank by ACTUAL minimum separation distance (not heuristic score)
-      3. Keep only pairs with tca_min_distance < 200 km for alerts
-      4. Enrich the best pairs with full trajectory + dense trail
+    CDMs with TCA in the next `forward_days` and Pc >= min_pc are included.
+    Each CDM becomes an alert candidate ranked by Pc (highest risk first).
+    """
+    from src.data.spacetrack_crossref import _load_local_cdms
+
+    all_cdms = _load_local_cdms()
+    if not all_cdms:
+        return []
+
+    now = datetime.utcnow()
+    cutoff_start = now.strftime("%Y-%m-%dT%H:%M:%S")
+    cutoff_end = (now + timedelta(days=forward_days)).strftime("%Y-%m-%dT%H:%M:%S")
+
+    # Filter: future TCA within window, meets Pc threshold
+    cdm_alerts = []
+    seen_pairs = set()
+    for cdm in all_cdms:
+        tca = cdm.get("tca", "")
+        pc = cdm.get("pc", 0)
+        if not tca or pc < min_pc:
+            continue
+        # Keep CDMs with TCA in the future (or very recent past, within 24h)
+        recent_cutoff = (now - timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%S")
+        if tca < recent_cutoff or tca > cutoff_end:
+            continue
+
+        n1, n2 = cdm.get("sat1_norad", 0), cdm.get("sat2_norad", 0)
+        pair_key = (min(n1, n2), max(n1, n2))
+        if pair_key in seen_pairs:
+            continue  # One alert per pair (highest CDM_ID = most recent)
+        seen_pairs.add(pair_key)
+
+        # Compute altitude from TLEs if available
+        altitude_km = 0.0
+        tle1 = tle_by_id.get(n1)
+        tle2 = tle_by_id.get(n2)
+        if tle1:
+            mm = float(tle1.get("MEAN_MOTION", 0))
+            if mm > 0:
+                altitude_km = mean_motion_to_sma(mm) - EARTH_RADIUS_KM
+        elif tle2:
+            mm = float(tle2.get("MEAN_MOTION", 0))
+            if mm > 0:
+                altitude_km = mean_motion_to_sma(mm) - EARTH_RADIUS_KM
+
+        # Hours until TCA
+        try:
+            tca_dt = datetime.fromisoformat(tca.replace("Z", "+00:00").replace("+00:00", ""))
+            tca_hours = (tca_dt - now).total_seconds() / 3600.0
+        except Exception:
+            tca_hours = None
+
+        cdm_alerts.append({
+            "sat1_norad": n1,
+            "sat2_norad": n2,
+            "sat1_name": cdm.get("sat1_name", "UNKNOWN"),
+            "sat2_name": cdm.get("sat2_name", "UNKNOWN"),
+            "cdm_pc": pc,
+            "cdm_miss_distance_km": cdm.get("miss_distance_km", 0),
+            "cdm_tca": tca,
+            "cdm_id": cdm.get("cdm_id", ""),
+            "sat1_type": cdm.get("sat1_type", ""),
+            "sat2_type": cdm.get("sat2_type", ""),
+            "emergency_reportable": cdm.get("emergency_reportable", ""),
+            "altitude_km": altitude_km,
+            "tca_hours": tca_hours,
+            "source": "cdm",
+        })
+
+    # Sort by Pc descending (highest risk first)
+    cdm_alerts.sort(key=lambda c: c.get("cdm_pc", 0), reverse=True)
+    return cdm_alerts
+
+
+def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: str, top_k: int = 20):
+    """Generate webapp-react/public/latest_alerts.json.
+
+    Uses a two-source strategy:
+      1. CDM-sourced alerts (primary): Real Pc from Space-Track CDMs
+      2. TLE-screened alerts (fallback): SGP4 forward TCA for heuristic candidates
+
+    CDM alerts are ranked by Pc and take priority. TLE-screened alerts fill
+    remaining slots for objects not covered by CDMs.
     """
     ALERTS_PATH = ROOT / "webapp-react" / "public" / "latest_alerts.json"
-    # Maximum min-distance to include in alerts (km)
     MAX_ALERT_DISTANCE_KM = 200.0
-    # How many heuristic candidates to run TCA on (more = better coverage)
     TCA_SCAN_COUNT = 200
-
-    if not candidates:
-        print("\n  No candidates for webapp alerts.")
-        return
 
     # Build TLE lookup by NORAD ID for SGP4 propagation
     tle_by_id: dict[int, dict] = {}
@@ -1077,104 +1217,151 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
         if nid > 0:
             tle_by_id[nid] = tle
 
-    # Phase 1: Compute TCA for top heuristic candidates to find real conjunctions
-    tca_results = []
+    # ---- Source 1: CDM-powered alerts (real Pc values) ----
+    cdm_alerts = []
+    try:
+        cdm_alerts = _load_cdm_alerts(tle_by_id, today_str)
+        if cdm_alerts:
+            print(f"  CDM alerts: {len(cdm_alerts)} pairs with future TCA "
+                  f"(max Pc={cdm_alerts[0]['cdm_pc']:.4e})")
+    except Exception as e:
+        print(f"  CDM alert loading failed: {e}")
+
+    # ---- Source 2: TLE-screened alerts (SGP4 forward TCA) ----
+    tle_alerts = []
     try:
         from src.data.counterfactual import compute_forward_tca, compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
-        if not SGP4_AVAILABLE:
-            print("  sgp4 not installed — cannot compute TCA for alerts")
-            return
+        if SGP4_AVAILABLE and candidates:
+            scan_count = min(TCA_SCAN_COUNT, len(candidates))
+            print(f"  Computing TCA for top {scan_count} heuristic candidates ...")
+            tca_results = []
+            for cand in candidates[:scan_count]:
+                tle1 = tle_by_id.get(cand["sat1_norad"])
+                tle2 = tle_by_id.get(cand["sat2_norad"])
+                if not tle1 or not tle2:
+                    continue
+                result = compute_forward_tca(tle1, tle2, hours_forward=120.0, step_minutes=10.0)
+                min_dist = result.get("tca_min_distance_km")
+                if min_dist is not None:
+                    cand["tca_hours"] = result["tca_hours"]
+                    cand["tca_min_distance_km"] = min_dist
+                    cand["source"] = "tle_screening"
+                    tca_results.append(cand)
+
+            print(f"  TCA computed for {len(tca_results)} pairs")
+            tca_results.sort(key=lambda c: c["tca_min_distance_km"])
+            tle_alerts = tca_results
     except ImportError:
-        print("  counterfactual module not available — skipping alerts")
-        return
+        print("  counterfactual module not available — TLE screening skipped")
 
-    scan_count = min(TCA_SCAN_COUNT, len(candidates))
-    print(f"  Computing TCA for top {scan_count} heuristic candidates ...")
-    for cand in candidates[:scan_count]:
-        tle1 = tle_by_id.get(cand["sat1_norad"])
-        tle2 = tle_by_id.get(cand["sat2_norad"])
-        if not tle1 or not tle2:
-            continue
-        result = compute_forward_tca(tle1, tle2, hours_forward=120.0, step_minutes=10.0)
-        min_dist = result.get("tca_min_distance_km")
-        if min_dist is not None:
-            cand["tca_hours"] = result["tca_hours"]
-            cand["tca_min_distance_km"] = min_dist
-            tca_results.append(cand)
-
-    print(f"  TCA computed for {len(tca_results)} pairs")
-
-    # Phase 2: Filter by actual minimum distance and rank
-    close_pairs = [c for c in tca_results if c["tca_min_distance_km"] <= MAX_ALERT_DISTANCE_KM]
-    close_pairs.sort(key=lambda c: c["tca_min_distance_km"])
-    print(f"  Pairs within {MAX_ALERT_DISTANCE_KM} km: {len(close_pairs)}")
-
-    # If we don't have enough real conjunctions, include the closest pairs
-    # regardless of threshold so the alerts page isn't empty
-    if len(close_pairs) < top_k:
-        tca_results.sort(key=lambda c: c["tca_min_distance_km"])
-        close_pairs = tca_results[:top_k]
-        if close_pairs:
-            print(f"  Padded to {len(close_pairs)} (closest: {close_pairs[0]['tca_min_distance_km']:.1f} km)")
+    # ---- Merge: CDM alerts first, then TLE alerts for uncovered pairs ----
+    cdm_pair_set = set()
+    for a in cdm_alerts:
+        n1, n2 = a["sat1_norad"], a["sat2_norad"]
+        cdm_pair_set.add((min(n1, n2), max(n1, n2)))
 
     # Deduplicate: limit each satellite to max 2 appearances
     sat_counts: dict[int, int] = {}
-    selected = []
-    for cand in close_pairs:
-        n1, n2 = cand["sat1_norad"], cand["sat2_norad"]
+    selected_cdm = []
+    for alert in cdm_alerts:
+        n1, n2 = alert["sat1_norad"], alert["sat2_norad"]
         if sat_counts.get(n1, 0) >= 2 or sat_counts.get(n2, 0) >= 2:
             continue
-        selected.append(cand)
+        selected_cdm.append(alert)
         sat_counts[n1] = sat_counts.get(n1, 0) + 1
         sat_counts[n2] = sat_counts.get(n2, 0) + 1
-        if len(selected) >= top_k:
+        if len(selected_cdm) >= top_k:
             break
 
-    # Phase 3: Enrich selected alerts with full trajectory + dense trail
-    traj_computed = 0
-    for pair in selected:
-        tle1 = tle_by_id.get(pair["sat1_norad"])
-        tle2 = tle_by_id.get(pair["sat2_norad"])
-        if not tle1 or not tle2:
-            continue
-        traj = compute_forward_trajectory(tle1, tle2, hours_forward=120.0, step_minutes=20.0)
-        if traj:
-            pair["trajectory"] = traj
-            traj_computed += 1
-        if pair.get("tca_hours") is not None:
-            trail = compute_tca_trail(tle1, tle2, pair["tca_hours"])
-            if trail:
-                pair["trail"] = trail
-    print(f"  Enriched {traj_computed}/{len(selected)} alerts with trajectory + trail")
+    # Fill remaining slots with TLE-screened alerts
+    selected_tle = []
+    remaining = top_k - len(selected_cdm)
+    if remaining > 0:
+        for cand in tle_alerts:
+            n1, n2 = cand["sat1_norad"], cand["sat2_norad"]
+            pair_key = (min(n1, n2), max(n1, n2))
+            if pair_key in cdm_pair_set:
+                continue
+            if sat_counts.get(n1, 0) >= 2 or sat_counts.get(n2, 0) >= 2:
+                continue
+            selected_tle.append(cand)
+            sat_counts[n1] = sat_counts.get(n1, 0) + 1
+            sat_counts[n2] = sat_counts.get(n2, 0) + 1
+            if len(selected_tle) >= remaining:
+                break
 
-    # Phase 4: Convert to webapp alert format
+    print(f"  Selected: {len(selected_cdm)} CDM + {len(selected_tle)} TLE-screened")
+
+    # ---- Enrich with trajectories ----
+    all_selected = selected_cdm + selected_tle
+    traj_computed = 0
+    try:
+        from src.data.counterfactual import compute_forward_tca, compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
+        if SGP4_AVAILABLE:
+            for alert in all_selected:
+                tle1 = tle_by_id.get(alert["sat1_norad"])
+                tle2 = tle_by_id.get(alert["sat2_norad"])
+                if not tle1 or not tle2:
+                    continue
+                # For CDM alerts, compute TCA trajectory from current time
+                traj = compute_forward_trajectory(tle1, tle2, hours_forward=120.0, step_minutes=20.0)
+                if traj:
+                    alert["trajectory"] = traj
+                    traj_computed += 1
+                tca_h = alert.get("tca_hours")
+                if tca_h is not None and tca_h > 0:
+                    trail = compute_tca_trail(tle1, tle2, tca_h)
+                    if trail:
+                        alert["trail"] = trail
+            print(f"  Enriched {traj_computed}/{len(all_selected)} alerts with trajectory + trail")
+    except ImportError:
+        pass
+
+    # ---- Convert to webapp JSON format ----
     pairs = []
-    for cand in selected:
-        risk = cand.get("risk_score", cand.get("model_risk_score", 0))
-        miss = cand.get("model_miss_km", cand.get("miss_estimate_km", 0))
+    for alert in all_selected:
+        source = alert.get("source", "tle_screening")
         pair = {
-            "name_1": cand["sat1_name"],
-            "name_2": cand["sat2_name"],
-            "norad_1": cand["sat1_norad"],
-            "norad_2": cand["sat2_norad"],
-            "risk_score": round(float(risk), 4),
-            "altitude_km": round(float(cand["altitude_km"]), 1),
-            "miss_estimate_km": round(float(miss), 1),
+            "name_1": alert["sat1_name"],
+            "name_2": alert["sat2_name"],
+            "norad_1": alert["sat1_norad"],
+            "norad_2": alert["sat2_norad"],
+            "altitude_km": round(float(alert.get("altitude_km", 0)), 1),
             "prediction_date": today_str,
+            "source": source,
         }
-        if cand.get("tca_hours") is not None:
-            pair["tca_hours"] = cand["tca_hours"]
-        if cand.get("tca_min_distance_km") is not None:
-            pair["tca_min_distance_km"] = cand["tca_min_distance_km"]
-        if cand.get("trajectory"):
-            pair["trajectory"] = cand["trajectory"]
-        if cand.get("trail"):
-            pair["trail"] = cand["trail"]
+
+        if source == "cdm":
+            pair["risk_score"] = round(float(alert.get("cdm_pc", 0)), 10)
+            pair["pc"] = float(alert.get("cdm_pc", 0))
+            pair["miss_distance_km"] = round(float(alert.get("cdm_miss_distance_km", 0)), 1)
+            pair["cdm_tca"] = alert.get("cdm_tca", "")
+            pair["sat1_type"] = alert.get("sat1_type", "")
+            pair["sat2_type"] = alert.get("sat2_type", "")
+            pair["emergency_reportable"] = alert.get("emergency_reportable", "")
+            pair["miss_estimate_km"] = round(float(alert.get("cdm_miss_distance_km", 0)), 1)
+        else:
+            risk = alert.get("risk_score", alert.get("model_risk_score", 0))
+            miss = alert.get("model_miss_km", alert.get("miss_estimate_km", 0))
+            pair["risk_score"] = round(float(risk), 4)
+            pair["miss_estimate_km"] = round(float(miss), 1)
+
+        if alert.get("tca_hours") is not None:
+            pair["tca_hours"] = alert["tca_hours"]
+        if alert.get("tca_min_distance_km") is not None:
+            pair["tca_min_distance_km"] = alert["tca_min_distance_km"]
+        if alert.get("trajectory"):
+            pair["trajectory"] = alert["trajectory"]
+        if alert.get("trail"):
+            pair["trail"] = alert["trail"]
+
         pairs.append(pair)
 
     alerts = {
         "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "prediction_date": today_str,
+        "n_cdm_alerts": len(selected_cdm),
+        "n_tle_alerts": len(selected_tle),
         "pairs": pairs,
     }
 
@@ -1182,9 +1369,12 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
     with open(ALERTS_PATH, "w") as f:
         json.dump(alerts, f, indent=2, default=_json_default)
 
+    cdm_count = len(selected_cdm)
+    tle_count = len(selected_tle)
     if pairs:
-        print(f"  Wrote {len(pairs)} alerts (closest: {pairs[0].get('tca_min_distance_km', '?')} km, "
-              f"farthest: {pairs[-1].get('tca_min_distance_km', '?')} km)")
+        top_pair = pairs[0]
+        top_info = f"Pc={top_pair.get('pc', '?')}" if top_pair.get("source") == "cdm" else f"dist={top_pair.get('tca_min_distance_km', '?')} km"
+        print(f"  Wrote {len(pairs)} alerts ({cdm_count} CDM + {tle_count} TLE, top: {top_info})")
     else:
         print("  Wrote 0 alerts")
 

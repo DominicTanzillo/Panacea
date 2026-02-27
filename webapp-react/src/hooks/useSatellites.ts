@@ -77,31 +77,69 @@ export function useSatellites(): UseSatellitesResult {
   const propagatingRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
 
-  // Fetch TLE data for enabled groups
+  // Fetch TLE data for enabled groups (CelesTrak first, static fallback)
   const fetchGroups = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     const enabledGroups = groups.filter(g => g.enabled);
     const newCache = new Map(tleCache);
-    const promises = enabledGroups
-      .filter(g => !newCache.has(g.id))
-      .map(async (group) => {
-        try {
-          const resp = await fetch(group.url);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const data: TLERecord[] = await resp.json();
-          return { id: group.id, data };
-        } catch (err) {
-          console.error(`Failed to fetch ${group.id}:`, err);
-          return { id: group.id, data: [] as TLERecord[] };
-        }
-      });
+    const toFetch = enabledGroups.filter(g => !newCache.has(g.id));
+
+    // Phase 1: Try CelesTrak (freshest TLEs)
+    let celestrakFailed = 0;
+    const promises = toFetch.map(async (group) => {
+      try {
+        const resp = await fetch(group.url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data: TLERecord[] = await resp.json();
+        return { id: group.id, data };
+      } catch (err) {
+        console.warn(`CelesTrak fetch failed for ${group.id}:`, err);
+        celestrakFailed++;
+        return { id: group.id, data: [] as TLERecord[] };
+      }
+    });
 
     const results = await Promise.all(promises);
     for (const { id, data } of results) {
       newCache.set(id, data);
     }
+
+    // Phase 2: If ALL CelesTrak fetches failed (IP blocked), try static fallback
+    const totalLoaded = results.reduce((sum, r) => sum + r.data.length, 0);
+    if (toFetch.length > 0 && totalLoaded === 0) {
+      console.warn('All CelesTrak fetches failed — trying static TLE fallback');
+      try {
+        const resp = await fetch('./latest_tles.json');
+        if (resp.ok) {
+          const allTles: (TLERecord & { _group?: string })[] = await resp.json();
+          // Distribute TLEs into groups by _group tag
+          for (const group of toFetch) {
+            const groupTles = allTles.filter(t => t._group === group.id);
+            if (groupTles.length > 0) {
+              newCache.set(group.id, groupTles);
+            }
+          }
+          // Any TLEs without a matching group go into 'active'
+          const assigned = new Set(toFetch.map(g => g.id));
+          const unmatched = allTles.filter(t => !t._group || !assigned.has(t._group));
+          if (unmatched.length > 0 && newCache.has('active')) {
+            const existing = newCache.get('active') || [];
+            const existingIds = new Set(existing.map(t => t.NORAD_CAT_ID));
+            const merged = [...existing, ...unmatched.filter(t => !existingIds.has(t.NORAD_CAT_ID))];
+            newCache.set('active', merged);
+          } else if (unmatched.length > 0) {
+            newCache.set('active', unmatched);
+          }
+          console.log(`Static fallback loaded ${allTles.length} TLEs`);
+        }
+      } catch (fallbackErr) {
+        console.error('Static TLE fallback also failed:', fallbackErr);
+        setError('Unable to load satellite data (CelesTrak blocked, no static fallback)');
+      }
+    }
+
     setTleCache(newCache);
     setLoading(false);
     setLastUpdate(new Date());
