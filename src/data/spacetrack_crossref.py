@@ -59,8 +59,10 @@ def _get_session() -> tuple[requests.Session, bool]:
             "password": passwd,
         }, timeout=30)
         resp.raise_for_status()
-        if resp.text and "Login Failed" in resp.text:
-            print(f"  Space-Track login failed: {resp.text[:200]}")
+        login_text = resp.text or ""
+        print(f"  Space-Track login: status={resp.status_code}, "
+              f"response={login_text[:100] if login_text else '(empty = success)'}")
+        if login_text and "Login Failed" in login_text:
             return session, False
         return session, True
     except Exception as e:
@@ -255,9 +257,14 @@ def fetch_and_store_cdms(
             )
             print(f"  Space-Track CDM: initial fetch (TCA > {lookback_str}) ...")
 
+        print(f"  Space-Track CDM query URL: {query_url}")
         resp = session.get(query_url, timeout=120)
         resp.raise_for_status()
-        raw_cdms = resp.json() if resp.text else []
+        raw_text = resp.text or ""
+        # Diagnostic: show first 300 chars of response
+        print(f"  Space-Track CDM response: status={resp.status_code}, "
+              f"length={len(raw_text)}, preview={raw_text[:300]}")
+        raw_cdms = resp.json() if raw_text and raw_text.strip().startswith("[") else []
     except Exception as e:
         print(f"  Space-Track CDM query failed: {e}")
         _logout(session)
