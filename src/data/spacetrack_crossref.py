@@ -232,13 +232,14 @@ def fetch_and_store_cdms(
 
     try:
         # Delta download: use CDM_ID bookmark if available
+        # NOTE: COLLISION_PROBABILITY is a response field, NOT a query predicate.
+        # We fetch all CDMs and filter by Pc client-side.
         last_cdm_id = _get_last_cdm_id()
         if last_cdm_id:
             # Only fetch CDMs with ID higher than our bookmark
             query_url = (
                 f"{CDM_QUERY_URL}"
                 f"/CDM_ID/>{last_cdm_id}"
-                f"/COLLISION_PROBABILITY/>{min_pc}"
                 f"/orderby/CDM_ID asc"
                 f"/format/json"
             )
@@ -249,11 +250,10 @@ def fetch_and_store_cdms(
             query_url = (
                 f"{CDM_QUERY_URL}"
                 f"/TCA/>{lookback_str}"
-                f"/COLLISION_PROBABILITY/>{min_pc}"
                 f"/orderby/CDM_ID asc"
                 f"/format/json"
             )
-            print(f"  Space-Track CDM: initial fetch (TCA > {lookback_str}, Pc > {min_pc:.0e}) ...")
+            print(f"  Space-Track CDM: initial fetch (TCA > {lookback_str}) ...")
 
         resp = session.get(query_url, timeout=120)
         resp.raise_for_status()
