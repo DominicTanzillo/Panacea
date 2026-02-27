@@ -116,7 +116,18 @@ def _logout(session: requests.Session):
 
 
 def _parse_cdm(cdm: dict) -> dict:
-    """Extract key fields from a raw CDM_PUBLIC record."""
+    """Extract key fields from a raw CDM_PUBLIC record.
+
+    Actual field names from Space-Track cdm_public (confirmed from API):
+      - CDM_ID, CREATED, TCA
+      - PC (not COLLISION_PROBABILITY)
+      - MIN_RNG (minimum range in km, not MISS_DISTANCE in meters)
+      - SAT_1_ID / SAT_2_ID (not SAT1_OBJECT_DESIGNATOR)
+      - SAT_1_NAME / SAT_2_NAME
+      - SAT1_OBJECT_TYPE / SAT2_OBJECT_TYPE (note: no underscore in SAT1)
+      - SAT1_RCS / SAT2_RCS
+      - EMERGENCY_REPORTABLE
+    """
     def _float(val, default=0.0):
         try:
             return float(val) if val else default
@@ -129,27 +140,28 @@ def _parse_cdm(cdm: dict) -> dict:
         except (ValueError, TypeError):
             return default
 
-    pc = _float(cdm.get("COLLISION_PROBABILITY"))
-    miss_m = _float(cdm.get("MISS_DISTANCE"))
+    pc = _float(cdm.get("PC"))
+    # MIN_RNG is in km (not meters like the full CDM MISS_DISTANCE field)
+    min_rng_km = _float(cdm.get("MIN_RNG"))
 
     return {
         "cdm_id": cdm.get("CDM_ID", ""),
         "tca": cdm.get("TCA", ""),
-        "creation_date": cdm.get("CREATION_DATE", ""),
+        "creation_date": cdm.get("CREATED", ""),
         "pc": pc,
-        "miss_distance_m": miss_m,
-        "miss_distance_km": miss_m / 1000.0,
-        "relative_speed_m_s": _float(cdm.get("RELATIVE_SPEED")),
-        "miss_r_m": _float(cdm.get("RELATIVE_POSITION_R")),
-        "miss_t_m": _float(cdm.get("RELATIVE_POSITION_T")),
-        "miss_n_m": _float(cdm.get("RELATIVE_POSITION_N")),
-        "sat1_norad": _int(cdm.get("SAT1_OBJECT_DESIGNATOR")),
-        "sat1_name": cdm.get("SAT1_OBJECT_NAME", ""),
+        "miss_distance_km": min_rng_km,
+        "miss_distance_m": min_rng_km * 1000.0,
+        "emergency_reportable": cdm.get("EMERGENCY_REPORTABLE", ""),
+        "sat1_norad": _int(cdm.get("SAT_1_ID")),
+        "sat1_name": cdm.get("SAT_1_NAME", ""),
         "sat1_type": cdm.get("SAT1_OBJECT_TYPE", ""),
-        "sat2_norad": _int(cdm.get("SAT2_OBJECT_DESIGNATOR")),
-        "sat2_name": cdm.get("SAT2_OBJECT_NAME", ""),
+        "sat1_rcs": cdm.get("SAT1_RCS", ""),
+        "sat2_norad": _int(cdm.get("SAT_2_ID")),
+        "sat2_name": cdm.get("SAT_2_NAME", ""),
         "sat2_type": cdm.get("SAT2_OBJECT_TYPE", ""),
-        "collision_probability_method": cdm.get("COLLISION_PROBABILITY_METHOD", ""),
+        "sat2_rcs": cdm.get("SAT2_RCS", ""),
+        "sat1_excl_vol": _float(cdm.get("SAT_1_EXCL_VOL")),
+        "sat2_excl_vol": _float(cdm.get("SAT_2_EXCL_VOL")),
         "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -264,7 +276,7 @@ def fetch_and_store_cdms(
         # Diagnostic: show first 300 chars of response
         print(f"  Space-Track CDM response: status={resp.status_code}, "
               f"length={len(raw_text)}, preview={raw_text[:300]}")
-        raw_cdms = resp.json() if raw_text and raw_text.strip().startswith("[") else []
+        raw_cdms = resp.json() if raw_text.strip() else []
     except Exception as e:
         print(f"  Space-Track CDM query failed: {e}")
         _logout(session)
