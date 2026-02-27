@@ -21,8 +21,10 @@ sys.path.insert(0, str(ROOT))
 from src.model.baseline import OrbitalShellBaseline
 from src.model.classical import XGBoostConjunctionModel
 from src.model.deep import PhysicsInformedTFT
+from src.model.pairwise import CDMSupervisedRiskModel
 from src.model.triage import classify_urgency
 from src.data.sequence_builder import TEMPORAL_FEATURES, STATIC_FEATURES, MAX_SEQ_LEN
+from src.data.pairwise_features import compute_pairwise_features, PAIRWISE_FEATURE_COLS
 
 HF_REPO_ID = "DTanzillo/panacea-models"
 
@@ -104,6 +106,15 @@ def load_models():
         has_pc = checkpoint.get("has_pc_head", False)
         print(f"  Loaded PI-TFT (epoch {checkpoint['epoch']}, T={temp:.3f}, pc_head={'yes' if has_pc else 'no'})")
 
+    pairwise_path = model_dir / "pairwise_risk.json"
+    if pairwise_path.exists():
+        try:
+            models["pairwise"] = CDMSupervisedRiskModel.load(pairwise_path)
+            n_train = models["pairwise"].training_meta.get("n_samples", "?")
+            print(f"  Loaded CSPR pairwise model ({n_train} training samples)")
+        except Exception as e:
+            print(f"  CSPR pairwise model load failed: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -155,6 +166,8 @@ async def health():
         loaded.append("xgboost")
     if "pitft" in models:
         loaded.append("pitft")
+    if "pairwise" in models:
+        loaded.append("pairwise")
 
     device = str(models.get("pitft_device", "cpu"))
     return {
@@ -221,6 +234,49 @@ async def predict_conjunction(features: CDMFeatures):
             },
         }
 
+    # CSPR pairwise prediction (requires two satellite TLE dicts in CDM sequence)
+    if "pairwise" in models and len(cdm_seq) >= 1:
+        last = cdm_seq[-1]
+        # Build minimal TLE-like dicts from CDM fields for pairwise features
+        sat1_tle = {
+            "NORAD_CAT_ID": last.get("t_norad", last.get("norad_1", 0)),
+            "OBJECT_NAME": last.get("t_name", "SAT1"),
+            "MEAN_MOTION": last.get("t_mean_motion", 15.0),
+            "ECCENTRICITY": last.get("t_eccentricity", last.get("c_eccentricity", 0.0)),
+            "INCLINATION": last.get("t_inclination", last.get("c_inclination", 0.0)),
+            "RA_OF_ASC_NODE": last.get("t_raan", last.get("c_raan", 0.0)),
+            "ARG_OF_PERICENTER": last.get("t_arg_pericenter", 0.0),
+        }
+        sat2_tle = {
+            "NORAD_CAT_ID": last.get("c_norad", last.get("norad_2", 0)),
+            "OBJECT_NAME": last.get("c_name", "SAT2"),
+            "MEAN_MOTION": last.get("c_mean_motion", 15.0),
+            "ECCENTRICITY": last.get("c_eccentricity", last.get("t_eccentricity", 0.0)),
+            "INCLINATION": last.get("c_inclination", last.get("t_inclination", 0.0)),
+            "RA_OF_ASC_NODE": last.get("c_raan", last.get("t_raan", 0.0)),
+            "ARG_OF_PERICENTER": last.get("c_arg_pericenter", 0.0),
+        }
+        try:
+            import pandas as _pd
+            feats = compute_pairwise_features(sat1_tle, sat2_tle)
+            X_pw = _pd.DataFrame([feats], columns=PAIRWISE_FEATURE_COLS).fillna(0.0)
+            risk_score = float(models["pairwise"].predict_risk(X_pw)[0])
+            log10_pc = float(models["pairwise"].predict(X_pw)[0])
+            triage = classify_urgency(risk_score)
+            results["pairwise"] = {
+                "risk_probability": risk_score,
+                "collision_probability_log10": log10_pc,
+                "collision_probability": float(10 ** log10_pc),
+                "triage": {
+                    "tier": triage.tier.value,
+                    "color": triage.color,
+                    "recommendation": triage.recommendation,
+                },
+                "model_info": "CDM-supervised, TLE-only inference",
+            }
+        except Exception:
+            pass  # Graceful degradation if features can't be computed
+
     return results
 
 
@@ -244,7 +300,23 @@ async def model_comparison():
         }
         results.append(pitft_entry)
 
-    return results
+    pairwise_imp_path = ROOT / "results" / "pairwise_feature_importance.json"
+    if pairwise_imp_path.exists():
+        with open(pairwise_imp_path) as f:
+            pw_data = json.load(f)
+        pw_metrics = pw_data.get("metrics", {})
+        results.append({
+            "model": "CSPR Pairwise (TLE-only, CDM-supervised)",
+            **pw_metrics,
+        })
+
+    pairwise_curve_path = ROOT / "results" / "pairwise_learning_curve.json"
+    learning_curve = None
+    if pairwise_curve_path.exists():
+        with open(pairwise_curve_path) as f:
+            learning_curve = json.load(f)
+
+    return {"models": results, "pairwise_learning_curve": learning_curve}
 
 
 @app.get("/api/experiment-results")
