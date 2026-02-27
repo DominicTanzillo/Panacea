@@ -24,9 +24,24 @@ const SCALE = 1 / EARTH_RADIUS_KM;
 // Trail: 60 seconds behind (no forward prediction)
 const TRAIL_SECONDS = 60;
 
+// Pre-allocated temp vectors for isOnNearSide (avoids GC on every hit)
+const _dir = new THREE.Vector3();
+const _oc = new THREE.Vector3();
+const _diff = new THREE.Vector3();
+
+// Pre-created shared geometry + material for selection ring (avoids shader compile on first click)
+const RING_GEO = new THREE.RingGeometry(0.02, 0.025, 32);
+const RING_MAT = new THREE.MeshBasicMaterial({
+  color: '#4f8aff',
+  side: THREE.DoubleSide,
+  transparent: true,
+  opacity: 0.8,
+});
+
 export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLayerProps) {
   const pointsRef = useRef<THREE.Points>(null);
   const trailRef = useRef<THREE.LineSegments>(null);
+  const frameCount = useRef(0);
   const { raycaster, pointer, camera } = useThree();
 
   // Store base position + velocity data for interpolation
@@ -161,22 +176,29 @@ export function SatelliteLayer({ satellites, onSelect, selected }: SatelliteLaye
     colAttr.needsUpdate = true;
     tPosAttr.needsUpdate = true;
     tColAttr.needsUpdate = true;
+
+    // Recompute bounding sphere ~once per second so the raycaster
+    // doesn't have to build it lazily on first click (14K-point stall).
+    if (++frameCount.current % 60 === 1) {
+      animatedGeo.computeBoundingSphere();
+    }
   });
 
   // Check if a point is on the camera-facing side of the globe
   // (not occluded by Earth). Uses ray-sphere intersection.
+  // Uses pre-allocated vectors to avoid GC pressure on every hit.
   const isOnNearSide = useCallback((point: THREE.Vector3, cam: THREE.Camera) => {
-    const dir = point.clone().sub(cam.position).normalize();
+    _dir.copy(point).sub(cam.position).normalize();
     // Ray-sphere intersection: sphere at origin, radius 1 (Earth)
-    const oc = cam.position.clone();
-    const a = dir.dot(dir);
-    const b = 2.0 * oc.dot(dir);
-    const c = oc.dot(oc) - 1.0; // radius^2 = 1
+    _oc.copy(cam.position);
+    const a = _dir.dot(_dir);
+    const b = 2.0 * _oc.dot(_dir);
+    const c = _oc.dot(_oc) - 1.0; // radius^2 = 1
     const discriminant = b * b - 4 * a * c;
     if (discriminant < 0) return true; // ray misses Earth entirely
     // Check if Earth intersection is closer than the satellite
     const t_earth = (-b - Math.sqrt(discriminant)) / (2 * a);
-    const t_sat = point.clone().sub(cam.position).length();
+    const t_sat = _diff.copy(point).sub(cam.position).length();
     return t_earth < 0 || t_sat < t_earth;
   }, []);
 
@@ -261,10 +283,7 @@ export function SelectionRing({ satellite }: { satellite: SatellitePosition }) {
 
   return (
     <group ref={groupRef}>
-      <mesh ref={innerRef}>
-        <ringGeometry args={[0.02, 0.025, 32]} />
-        <meshBasicMaterial color="#4f8aff" side={THREE.DoubleSide} transparent opacity={0.8} />
-      </mesh>
+      <mesh ref={innerRef} geometry={RING_GEO} material={RING_MAT} />
     </group>
   );
 }
