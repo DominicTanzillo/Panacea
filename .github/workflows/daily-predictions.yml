@@ -29,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests numpy scipy sgp4
+          pip install requests numpy scipy sgp4 spacetrack
           pip install google-cloud-firestore google-auth || echo "Firebase SDK install failed (optional)"
           pip install huggingface-hub || echo "HF Hub install failed (optional)"
           pip install scikit-learn xgboost || true
@@ -50,7 +50,7 @@ jobs:
           SPACETRACK_USER: ${{ secrets.SPACETRACK_USER }}
           SPACETRACK_PASS: ${{ secrets.SPACETRACK_PASS }}
         run: |
-          python scripts/daily_predictions.py --top-k 100
+          python scripts/daily_predictions.py --top-k 500
 
       - name: Prune old TLE snapshots
         run: |
