@@ -43,6 +43,12 @@ from src.data.maneuver_detector import (
 )
 from src.data.maneuver_classifier import classify_maneuver
 from src.data.firebase_client import PredictionLogger
+from src.data.spacetrack_crossref import (
+    check_cdm_for_norad_ids,
+    fetch_and_store_cdms,
+    fetch_recent_cdms,
+    cdm_pc_to_label,
+)
 
 CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SNAPSHOT_DIR = ROOT / "data" / "tle_snapshots"
@@ -375,33 +381,39 @@ def enrich_maneuvers(
               f"counterfactual dist range [{min(sl_dists):.1f}, {max(sl_dists):.1f}] km, "
               f"delta-v range [{min(sl_dvs):.3f}, {max(sl_dvs):.3f}] m/s")
 
-    # Phase C: Space-Track CDM cross-reference (for all avoidance, not just heuristic)
-    avoidance_maneuvers = [e for e in enriched if e.get("likely_avoidance")]
+    # Phase C: Space-Track CDM cross-reference — PRIMARY label source
+    # CDM Pc values are ground truth (SP ephemerides + covariance).
+    # When available, CDM evidence overrides both heuristic AND counterfactual.
+    all_norad_ids = [e["norad_id"] for e in enriched]
     try:
-        from src.data.spacetrack_crossref import check_cdm_for_norad_ids
-        avoidance_ids = [e["norad_id"] for e in avoidance_maneuvers]
-        if avoidance_ids:
-            cdm_results = check_cdm_for_norad_ids(avoidance_ids, cache_dir=LOG_DIR)
-            n_with_cdm = 0
-            for em in enriched:
-                nid = em["norad_id"]
-                cdms = cdm_results.get(nid, [])
-                if cdms:
-                    em["has_cdm"] = True
-                    em["cdm_pc"] = max(c["pc"] for c in cdms)
-                    em["cdm_miss_distance_km"] = min(c["miss_distance_km"] for c in cdms)
-                    # CDM confirmation upgrades avoidance regardless of counterfactual
+        cdm_results = check_cdm_for_norad_ids(all_norad_ids, cache_dir=LOG_DIR)
+        n_with_cdm = 0
+        for em in enriched:
+            nid = em["norad_id"]
+            cdms = cdm_results.get(nid, [])
+            if cdms:
+                max_pc = max(c["pc"] for c in cdms)
+                min_miss = min(c["miss_distance_km"] for c in cdms)
+                em["has_cdm"] = True
+                em["cdm_pc"] = max_pc
+                em["cdm_miss_distance_km"] = min_miss
+                em["cdm_count"] = len(cdms)
+                # CDM-derived label (ground truth)
+                label, weight = cdm_pc_to_label(max_pc)
+                em["cdm_risk_label"] = label
+                em["cdm_sample_weight"] = weight
+                # CDM with Pc > 1e-6 confirms avoidance (Starlink threshold)
+                if max_pc >= 1e-6:
                     em["likely_avoidance"] = True
-                    if em.get("avoidance_evidence") != "counterfactual":
-                        em["avoidance_evidence"] = "cdm_confirmed"
-                        em["avoidance_confidence"] = 1.0
-                    n_with_cdm += 1
-                else:
-                    em["has_cdm"] = False
-            if n_with_cdm:
-                print(f"    CDM cross-ref: {n_with_cdm} maneuvers confirmed by CDM")
+                    em["avoidance_evidence"] = "cdm_confirmed"
+                    em["avoidance_confidence"] = min(1.0, label)
+                n_with_cdm += 1
+            else:
+                em["has_cdm"] = False
+        if n_with_cdm:
+            print(f"    CDM cross-ref: {n_with_cdm}/{len(enriched)} maneuvers have CDM data")
         else:
-            print("    CDM cross-ref: no avoidance maneuvers to check")
+            print("    CDM cross-ref: no CDMs found (credentials may not be set)")
     except Exception as e:
         print(f"    CDM cross-ref skipped: {e}")
 
@@ -461,6 +473,14 @@ def validate_yesterday(
     counterfactual propagation, and cross-references CDMs.
     """
     print(f"\nValidating predictions from {yesterday_str} ...")
+
+    # Fetch CDMs from Space-Track (ONE query, uses 1 of 3 daily quota)
+    # This populates the local CDM store BEFORE enrichment reads it.
+    # Respects 8-hour rate limit internally — safe to call every run.
+    try:
+        fetch_and_store_cdms(lookback_days=3, min_pc=1e-7, store_path=LOG_DIR / "cdm_store.jsonl")
+    except Exception as e:
+        print(f"  Space-Track CDM fetch skipped: {e}")
 
     # Load yesterday's TLE snapshot
     yesterday_snapshot = SNAPSHOT_DIR / f"{yesterday_str}.json"
@@ -637,7 +657,7 @@ def validate_yesterday(
             "sat2_maneuvered": False,
             "either_maneuvered": has_collision_evidence,  # Only True with evidence
             "source": "maneuver_detection",
-            "enrichment_version": 2,  # v2 = evidence-gated outcomes
+            "enrichment_version": 3,  # v3 = CDM-primary + counterfactual fallback
             "avoidance_evidence": evidence,
             "avoidance_confidence": confidence,
             "magnitude_class": m.get("magnitude_class"),
@@ -647,6 +667,8 @@ def validate_yesterday(
             "has_cdm": has_cdm,
             "cdm_pc": m.get("cdm_pc"),
             "cdm_miss_distance_km": m.get("cdm_miss_distance_km"),
+            "cdm_risk_label": m.get("cdm_risk_label"),
+            "cdm_sample_weight": m.get("cdm_sample_weight"),
             "counterfactual_min_distance_km": cf_dist,
             "would_have_collided": m.get("would_have_collided", False),
             "sat1_delta_a_m": m.get("delta_a_m", 0.0),
@@ -684,6 +706,45 @@ def validate_yesterday(
         "accuracy": round(accuracy, 4),
         "top_maneuvers": enriched_maneuvers[:10],
     }
+
+    # --- CDM-sourced training data (independent of maneuver detection) ---
+    # Pull ALL recent high-Pc CDMs from Space-Track as training examples.
+    # These are real conjunctions with ground-truth Pc values — no TLE noise.
+    try:
+        recent_cdms = fetch_recent_cdms(lookback_days=3, min_pc=1e-5)
+        if recent_cdms:
+            cdm_outcomes = []
+            for cdm in recent_cdms[:200]:  # Cap to control storage
+                label, weight = cdm_pc_to_label(cdm["pc"])
+                cdm_outcome = {
+                    "sat1_norad": cdm["sat1_norad"],
+                    "sat2_norad": cdm["sat2_norad"],
+                    "sat1_name": cdm["sat1_name"],
+                    "sat2_name": cdm["sat2_name"],
+                    "predicted_risk": 0.0,
+                    "sat1_maneuvered": False,
+                    "sat2_maneuvered": False,
+                    "either_maneuvered": label > 0.5,
+                    "source": "cdm_direct",
+                    "enrichment_version": 3,
+                    "has_cdm": True,
+                    "cdm_pc": cdm["pc"],
+                    "cdm_miss_distance_km": cdm["miss_distance_km"],
+                    "cdm_risk_label": label,
+                    "cdm_sample_weight": weight,
+                    "avoidance_evidence": "cdm_direct",
+                    "avoidance_confidence": label,
+                    "prediction_date": yesterday_str,
+                }
+                cdm_outcomes.append(cdm_outcome)
+            if cdm_outcomes:
+                logger.log_outcomes(yesterday_str, cdm_outcomes)
+                n_high = sum(1 for c in cdm_outcomes if c["cdm_risk_label"] > 0.5)
+                print(f"  CDM-sourced outcomes: {len(cdm_outcomes)} logged "
+                      f"({n_high} high-Pc, {len(cdm_outcomes) - n_high} low-Pc)")
+                summary["n_cdm_outcomes"] = len(cdm_outcomes)
+    except Exception as e:
+        print(f"  CDM-sourced outcomes skipped: {e}")
 
     print(f"  Predictions: {len(predictions)}, High-risk checked: {total_checked}, "
           f"Correct: {correct}, Accuracy: {accuracy:.1%}")
