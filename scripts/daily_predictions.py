@@ -1052,11 +1052,19 @@ def main():
 def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: str, top_k: int = 20):
     """Generate webapp-react/public/latest_alerts.json with forward TCA.
 
-    Converts the top screening candidates into the alert format consumed by
-    the React frontend, optionally enriching with SGP4 forward propagation
-    to compute Time of Closest Approach over the next 5 days.
+    The screening step produces thousands of co-orbital pairs (same altitude
+    shell + RAAN band). Most of these are thousands of km apart. To find
+    actual close approaches, we:
+      1. Compute SGP4 forward TCA for the top ~200 heuristic candidates
+      2. Rank by ACTUAL minimum separation distance (not heuristic score)
+      3. Keep only pairs with tca_min_distance < 200 km for alerts
+      4. Enrich the best pairs with full trajectory + dense trail
     """
     ALERTS_PATH = ROOT / "webapp-react" / "public" / "latest_alerts.json"
+    # Maximum min-distance to include in alerts (km)
+    MAX_ALERT_DISTANCE_KM = 200.0
+    # How many heuristic candidates to run TCA on (more = better coverage)
+    TCA_SCAN_COUNT = 200
 
     if not candidates:
         print("\n  No candidates for webapp alerts.")
@@ -1069,10 +1077,50 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
         if nid > 0:
             tle_by_id[nid] = tle
 
+    # Phase 1: Compute TCA for top heuristic candidates to find real conjunctions
+    tca_results = []
+    try:
+        from src.data.counterfactual import compute_forward_tca, compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
+        if not SGP4_AVAILABLE:
+            print("  sgp4 not installed — cannot compute TCA for alerts")
+            return
+    except ImportError:
+        print("  counterfactual module not available — skipping alerts")
+        return
+
+    scan_count = min(TCA_SCAN_COUNT, len(candidates))
+    print(f"  Computing TCA for top {scan_count} heuristic candidates ...")
+    for cand in candidates[:scan_count]:
+        tle1 = tle_by_id.get(cand["sat1_norad"])
+        tle2 = tle_by_id.get(cand["sat2_norad"])
+        if not tle1 or not tle2:
+            continue
+        result = compute_forward_tca(tle1, tle2, hours_forward=120.0, step_minutes=10.0)
+        min_dist = result.get("tca_min_distance_km")
+        if min_dist is not None:
+            cand["tca_hours"] = result["tca_hours"]
+            cand["tca_min_distance_km"] = min_dist
+            tca_results.append(cand)
+
+    print(f"  TCA computed for {len(tca_results)} pairs")
+
+    # Phase 2: Filter by actual minimum distance and rank
+    close_pairs = [c for c in tca_results if c["tca_min_distance_km"] <= MAX_ALERT_DISTANCE_KM]
+    close_pairs.sort(key=lambda c: c["tca_min_distance_km"])
+    print(f"  Pairs within {MAX_ALERT_DISTANCE_KM} km: {len(close_pairs)}")
+
+    # If we don't have enough real conjunctions, include the closest pairs
+    # regardless of threshold so the alerts page isn't empty
+    if len(close_pairs) < top_k:
+        tca_results.sort(key=lambda c: c["tca_min_distance_km"])
+        close_pairs = tca_results[:top_k]
+        if close_pairs:
+            print(f"  Padded to {len(close_pairs)} (closest: {close_pairs[0]['tca_min_distance_km']:.1f} km)")
+
     # Deduplicate: limit each satellite to max 2 appearances
     sat_counts: dict[int, int] = {}
     selected = []
-    for cand in candidates:
+    for cand in close_pairs:
         n1, n2 = cand["sat1_norad"], cand["sat2_norad"]
         if sat_counts.get(n1, 0) >= 2 or sat_counts.get(n2, 0) >= 2:
             continue
@@ -1082,42 +1130,24 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
         if len(selected) >= top_k:
             break
 
-    # Compute forward TCA + full trajectory via SGP4 for each pair
-    tca_computed = 0
+    # Phase 3: Enrich selected alerts with full trajectory + dense trail
     traj_computed = 0
-    try:
-        from src.data.counterfactual import compute_forward_tca, compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
-        if SGP4_AVAILABLE:
-            for pair in selected:
-                tle1 = tle_by_id.get(pair["sat1_norad"])
-                tle2 = tle_by_id.get(pair["sat2_norad"])
-                if tle1 and tle2:
-                    # TCA summary
-                    result = compute_forward_tca(tle1, tle2, hours_forward=120.0, step_minutes=10.0)
-                    pair["tca_hours"] = result.get("tca_hours")
-                    pair["tca_min_distance_km"] = result.get("tca_min_distance_km")
-                    if result.get("tca_hours") is not None:
-                        tca_computed += 1
-                    # Full trajectory for webapp visualization
-                    traj = compute_forward_trajectory(tle1, tle2, hours_forward=120.0, step_minutes=20.0)
-                    if traj:
-                        pair["trajectory"] = traj
-                        traj_computed += 1
-                    # Dense trail around TCA for globe orbital paths
-                    if result.get("tca_hours") is not None:
-                        trail = compute_tca_trail(tle1, tle2, result["tca_hours"])
-                        if trail:
-                            pair["trail"] = trail
-            print(f"  Forward TCA computed for {tca_computed}/{len(selected)} pairs (5-day window)")
-            print(f"  Full trajectory computed for {traj_computed}/{len(selected)} pairs")
-        else:
-            print("  sgp4 not installed — skipping forward TCA + trajectory")
-    except Exception as e:
-        print(f"  Forward TCA/trajectory failed (non-critical): {e}")
+    for pair in selected:
+        tle1 = tle_by_id.get(pair["sat1_norad"])
+        tle2 = tle_by_id.get(pair["sat2_norad"])
+        if not tle1 or not tle2:
+            continue
+        traj = compute_forward_trajectory(tle1, tle2, hours_forward=120.0, step_minutes=20.0)
+        if traj:
+            pair["trajectory"] = traj
+            traj_computed += 1
+        if pair.get("tca_hours") is not None:
+            trail = compute_tca_trail(tle1, tle2, pair["tca_hours"])
+            if trail:
+                pair["trail"] = trail
+    print(f"  Enriched {traj_computed}/{len(selected)} alerts with trajectory + trail")
 
-    # Convert to webapp alert format
-    # Use composite heuristic (RAAN + inclination + altitude) for per-pair variation.
-    # The baseline model_risk_score is altitude-only and uniform within orbital shells.
+    # Phase 4: Convert to webapp alert format
     pairs = []
     for cand in selected:
         risk = cand.get("risk_score", cand.get("model_risk_score", 0))
@@ -1152,7 +1182,11 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
     with open(ALERTS_PATH, "w") as f:
         json.dump(alerts, f, indent=2, default=_json_default)
 
-    print(f"  Wrote {len(pairs)} alerts to {ALERTS_PATH}")
+    if pairs:
+        print(f"  Wrote {len(pairs)} alerts (closest: {pairs[0].get('tca_min_distance_km', '?')} km, "
+              f"farthest: {pairs[-1].get('tca_min_distance_km', '?')} km)")
+    else:
+        print("  Wrote 0 alerts")
 
 
 def archive_to_huggingface(logger: PredictionLogger):
