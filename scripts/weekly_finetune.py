@@ -101,29 +101,28 @@ def load_outcomes_from_local() -> list[dict]:
 def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
     """Convert outcome records into training examples with weighted soft labels.
 
-    Label strategy based on evidence quality:
+    Label hierarchy (highest quality first):
 
-    v2 outcomes (evidence-gated, enrichment_version >= 2):
-      Thresholds calibrated against TLE/SGP4 accuracy (~3.3 km combined
-      1-sigma after 1-day propagation, Levit & Marshall 2010) and
-      18 SDS screening volumes (0.5 km radial, NASA NTRS 20170007928).
-      - CDM-confirmed avoidance:              label=1.0, weight=1.0
-      - Counterfactual < 1 km:                label=1.0, weight=1.0  (orbits overlap at TLE resolution)
-      - Counterfactual 1-5 km:                label=0.85, weight=0.85 (within 1-sigma, genuine conjunction)
-      - Counterfactual 5-10 km:               label=0.5, weight=0.5  (within 3-sigma, uncertain)
-      - Counterfactual 10-25 km:              label=0.2, weight=0.3  (outside 3-sigma, mostly TLE noise)
-      - Large delta-v (> 10 m/s) any dist:    label=0.0, weight=0.8  (orbit transfer, not avoidance)
-      - Maneuver with NO collision evidence:  label=0.0, weight=0.8  (negative example)
-      - No maneuver observed:                 label=0.0, weight=1.0
+    1. CDM-sourced (source="cdm_direct" or has cdm_risk_label):
+       Ground truth — Pc computed with SP ephemerides + covariance.
+       Labels from cdm_pc_to_label():
+         Pc >= 1e-4:  label=1.0, weight=1.0  (NASA CARA maneuver threshold)
+         Pc >= 1e-5:  label=0.9, weight=0.95 (Kelvins risk threshold)
+         Pc >= 1e-6:  label=0.7, weight=0.8  (Starlink autonomous threshold)
+         Pc >= 1e-7:  label=0.3, weight=0.5  (screening threshold)
 
-    v1 outcomes (legacy heuristic-only):
-      - Likely avoidance (heuristic):         label=0.6, weight=0.4
-      - Any other maneuver:                   label=0.2, weight=0.2
-      - No maneuver:                          label=0.0, weight=1.0
+    2. Counterfactual-based (enrichment_version >= 2, no CDM):
+       Noisy — TLE/SGP4 accuracy limits reliability below ~10 km
+       (see writeup/paper.md Section 6.4).
+         CF < 1 km:   label=1.0, weight=1.0  (within radial screening threshold)
+         CF 1-5 km:   label=0.85, weight=0.85 (within 1-sigma, but noisy)
+         CF 5-10 km:  label=0.5, weight=0.5  (within 3-sigma, uncertain)
+         CF 10-25 km: label=0.2, weight=0.3  (outside 3-sigma, mostly noise)
+         delta-v > 10 m/s: label=0.0, weight=0.8 (orbit transfer)
+         No evidence: label=0.0, weight=0.8
 
-    Pre-enrichment outcomes (enrichment_version=0):
-      - Maneuvered:                           label=0.5, weight=0.3
-      - No maneuver:                          label=0.0, weight=1.0
+    3. Legacy heuristic (enrichment_version 1): low-confidence labels
+    4. Pre-enrichment (enrichment_version 0): very low confidence
     """
     import math as _math
 
@@ -145,11 +144,18 @@ def outcomes_to_training_data(outcomes: list[dict]) -> list[dict]:
         either_maneuvered = outcome.get("either_maneuvered", False)
         enrichment_version = outcome.get("enrichment_version", 0)
 
-        if not either_maneuvered:
+        # Priority 1: CDM-derived labels (ground truth)
+        cdm_label = outcome.get("cdm_risk_label")
+        cdm_weight = outcome.get("cdm_sample_weight")
+        source = outcome.get("source", "prediction")
+
+        if cdm_label is not None and cdm_weight is not None:
+            # CDM Pc values are computed with SP ephemerides + covariance.
+            # These are the highest-quality labels we can get.
+            risk_label = cdm_label
+            sample_weight = cdm_weight
+        elif not either_maneuvered:
             # No maneuver = negative example
-            # v2 maneuver-derived negatives (maneuvered but NOT avoidance) get
-            # slightly lower weight since absence of avoidance != safe
-            source = outcome.get("source", "prediction")
             if source == "maneuver_detection":
                 risk_label = 0.0
                 sample_weight = 0.8
