@@ -50,8 +50,10 @@ from src.data.spacetrack_crossref import (
     fetch_recent_cdms,
     cdm_pc_to_label,
 )
-from src.data.pairwise_features import compute_batch_features
-from src.model.pairwise import CDMSupervisedRiskModel
+# Lazy-imported in load_pairwise_model() / score_with_pairwise_model()
+# to avoid requiring pandas/xgboost in the daily CI environment:
+#   from src.data.pairwise_features import compute_batch_features
+#   from src.model.pairwise import CDMSupervisedRiskModel
 
 CELESTRAK_URL = "https://celestrak.org/NORAD/elements/gp.php"
 SNAPSHOT_DIR = ROOT / "data" / "tle_snapshots"
@@ -300,6 +302,7 @@ def load_pairwise_model():
         return None
 
     try:
+        from src.model.pairwise import CDMSupervisedRiskModel
         model = CDMSupervisedRiskModel.load(model_path)
         n_train = model.training_meta.get("n_samples", "?")
         print(f"  Loaded CSPR pairwise model from {model_path} ({n_train} training samples)")
@@ -311,7 +314,7 @@ def load_pairwise_model():
 
 def score_with_pairwise_model(
     candidates: list[dict],
-    pairwise_model: CDMSupervisedRiskModel,
+    pairwise_model,
     tles: list[dict],
 ) -> list[dict]:
     """Score candidates with the CDM-supervised pairwise risk model.
@@ -342,6 +345,7 @@ def score_with_pairwise_model(
         return candidates
 
     # Compute features and predict
+    from src.data.pairwise_features import compute_batch_features
     X = compute_batch_features(pairs, all_tles=tles)
     risk_scores = pairwise_model.predict_risk(X)
     log10_pcs = pairwise_model.predict(X)
