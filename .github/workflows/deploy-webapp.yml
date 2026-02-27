@@ -54,7 +54,8 @@ jobs:
       - name: Build
         working-directory: webapp-react
         env:
-          VITE_API_URL: ${{ steps.api-url.outputs.url }}
+          # Prefer tunnel URL from git notes; fall back to HuggingFace Spaces API
+          VITE_API_URL: ${{ steps.api-url.outputs.url || 'https://dtanzillo-panacea-api.hf.space' }}
         run: npm run build
 
       - name: Setup Pages
