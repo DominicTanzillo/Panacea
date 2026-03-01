@@ -741,9 +741,12 @@ def retrain_pairwise_model():
         print(f"  Only {len(cdms)} CDMs — need at least 50 for CSPR retraining")
         return
 
-    # Load TLE snapshots
+    # Load TLE snapshots (only date-stamped files, not supplemental_ids.json etc.)
+    import re
     snapshots = {}
     for f in sorted(snapshot_dir.glob("*.json")):
+        if not re.match(r"\d{4}-\d{2}-\d{2}$", f.stem):
+            continue
         try:
             snapshots[f.stem] = load_tle_snapshot(f)
         except Exception:

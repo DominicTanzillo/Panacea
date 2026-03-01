@@ -51,8 +51,11 @@ RESULTS_DIR = ROOT / "results"
 
 def load_tle_snapshots() -> dict[str, list[dict]]:
     """Load all available TLE snapshots, keyed by date string."""
+    import re
     snapshots = {}
     for f in sorted(SNAPSHOT_DIR.glob("*.json")):
+        if not re.match(r"\d{4}-\d{2}-\d{2}$", f.stem):
+            continue  # skip supplemental_ids.json, supplemental.json, etc.
         date_str = f.stem  # e.g., "2026-02-27"
         try:
             tles = load_tle_snapshot(f)
