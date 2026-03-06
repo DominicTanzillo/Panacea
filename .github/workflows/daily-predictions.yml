@@ -109,6 +109,8 @@ jobs:
           # Stage webapp alerts and TLE fallback (consumed by frontend)
           git add -f webapp-react/public/latest_alerts.json 2>/dev/null || true
           git add -f webapp-react/public/latest_tles.json 2>/dev/null || true
+          git add -f webapp-react/public/pipeline_stats.json 2>/dev/null || true
+          git add -f webapp-react/public/cdm_forecast.json 2>/dev/null || true
           # Also stage deletions of pruned snapshots
           git add -u data/tle_snapshots/ 2>/dev/null || true
           git diff --staged --quiet || git commit -m ":robot: Daily predictions $(date -u +%Y-%m-%d)"

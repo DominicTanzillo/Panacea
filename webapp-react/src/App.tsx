@@ -7,6 +7,7 @@ import { StatusBar } from './components/StatusBar';
 import { SearchFilter } from './components/SearchFilter';
 import { ConjunctionAlerts } from './components/ConjunctionAlerts';
 import { RiskDashboard } from './components/RiskDashboard';
+import { CDMForecast } from './components/CDMForecast';
 import { AboutPage } from './components/AboutPage';
 import { useSatellites } from './hooks/useSatellites';
 import { useApi } from './hooks/useApi';
@@ -89,6 +90,7 @@ function App() {
     modelComparison,
     experimentResults,
     screeningPairs,
+    alertsMeta,
   } = useApi(allTLEs);
 
   const [selectedSatellite, setSelectedSatellite] = useState<SatellitePosition | null>(null);
@@ -97,6 +99,7 @@ function App() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [showBorders, setShowBorders] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showForecast, setShowForecast] = useState(false);
 
   // When a conjunction pair projection updates, deselect individual satellites
   const handleProjection = useCallback((pair: ProjectedPair | null) => {
@@ -119,9 +122,13 @@ function App() {
         showAlerts={showAlerts}
         onToggleAlerts={() => { setShowAlerts(!showAlerts); setShowDashboard(false); if (showAlerts) setProjectedPair(null); }}
         showDashboard={showDashboard}
-        onToggleDashboard={() => { setShowDashboard(!showDashboard); setShowAlerts(false); setProjectedPair(null); }}
+        onToggleDashboard={() => { setShowDashboard(!showDashboard); setShowAlerts(false); setShowForecast(false); setProjectedPair(null); }}
+        showForecast={showForecast}
+        onToggleForecast={() => { setShowForecast(!showForecast); setShowDashboard(false); setShowAlerts(false); setProjectedPair(null); }}
         onShowAbout={() => setShowAbout(true)}
         alertCount={screeningPairs.length}
+        cdmAlertCount={alertsMeta.cdmCount}
+        dataDate={alertsMeta.dataDate}
       />
 
       <SearchFilter
@@ -163,6 +170,11 @@ function App() {
         satellites={satellites}
         visible={showDashboard}
         onClose={() => setShowDashboard(false)}
+      />
+
+      <CDMForecast
+        visible={showForecast}
+        onClose={() => setShowForecast(false)}
       />
 
       <StatusBar

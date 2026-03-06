@@ -1,0 +1,47 @@
+{
+  "generated_at": "2026-03-05T19:00:00Z",
+  "cdm_stats": {
+    "total_cdms": 954,
+    "last_fetch": "",
+    "fetch_count": 0,
+    "pc_high": 212,
+    "pc_moderate": 742,
+    "emergency_count": 954
+  },
+  "forecast_model": {
+    "n_pairs_total": 169,
+    "n_labeled": 169,
+    "n_positive": 32,
+    "n_negative": 137,
+    "positive_rate": 0.1893,
+    "n_train": 118,
+    "n_test": 51,
+    "mode": "logistic_regression",
+    "train": {
+      "n": 118,
+      "accuracy": 0.9492,
+      "precision": 0.8519,
+      "recall": 0.92,
+      "f1": 0.8846,
+      "auc_pr": 0.7455,
+      "tp": 23,
+      "fp": 4,
+      "fn": 2,
+      "tn": 89
+    },
+    "test": {
+      "n": 51,
+      "accuracy": 0.9216,
+      "precision": 0.7143,
+      "recall": 0.7143,
+      "f1": 0.7143,
+      "auc_pr": 0.5753,
+      "tp": 5,
+      "fp": 2,
+      "fn": 2,
+      "tn": 42
+    }
+  },
+  "finetune_history": [],
+  "daily_history": []
+}
