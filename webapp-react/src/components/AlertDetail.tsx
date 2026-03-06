@@ -133,24 +133,20 @@ function propagateTrajectory(tle1: TLERecord, tle2: TLERecord): ChartPoint[] {
   }));
 }
 
+import { riskTier } from './ConjunctionAlerts';
+
 const TIER_COLORS: Record<string, string> = {
   HIGH: '#ff4f5a',
   MODERATE: '#ffb84f',
   LOW: '#4fff8a',
 };
 
-function riskTier(pair: ScreeningPair): string {
-  // Miss-distance-only thresholds (honest without covariance data)
-  if (pair.tca_min_distance_km != null) {
-    if (pair.tca_min_distance_km < 1) return 'HIGH';
-    if (pair.tca_min_distance_km < 5) return 'MODERATE';
-    return 'LOW';
-  }
-  // Fallback when no TCA distance available
-  if (pair.risk_score > 0.40) return 'HIGH';
-  if (pair.risk_score > 0.10) return 'MODERATE';
-  return 'LOW';
-}
+const OBJ_TYPE_LABELS: Record<string, string> = {
+  PAYLOAD: 'Payload',
+  ROCKET_BODY: 'Rocket Body',
+  DEBRIS: 'Debris',
+  UNKNOWN: 'Unknown',
+};
 
 export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailProps) {
   // Use pre-computed trajectory if available, fall back to TLE propagation
@@ -303,19 +299,65 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
           </div>
         </div>
 
-        {/* Key metrics */}
+        {/* CDM metadata panel */}
+        {pair.source === 'cdm' && (
+          <div className="mt-2 rounded-lg bg-[#8b5cf6]/8 border border-[#8b5cf6]/20 p-2 text-xs">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#8b5cf6]/15 text-[#8b5cf6]">
+                CDM
+              </span>
+              <span className="text-[var(--color-text-muted)]">Space-Track Conjunction Data Message</span>
+              {pair.emergency_reportable === 'Y' && (
+                <span className="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#ff4f5a]/15 text-[#ff4f5a]">
+                  EMERGENCY
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[var(--color-text-muted)]">
+              {pair.pc != null && (
+                <div>Pc: <span className="font-mono font-semibold" style={{ color }}>{pair.pc.toExponential(2)}</span></div>
+              )}
+              {pair.miss_distance_km != null && (
+                <div>Miss dist: <span className="text-[var(--color-text)]">{pair.miss_distance_km.toFixed(1)} km</span></div>
+              )}
+              {pair.sat1_type && (
+                <div>Obj 1: <span className="text-[var(--color-text)]">{OBJ_TYPE_LABELS[pair.sat1_type.toUpperCase()] || pair.sat1_type}</span></div>
+              )}
+              {pair.sat2_type && (
+                <div>Obj 2: <span className="text-[var(--color-text)]">{OBJ_TYPE_LABELS[pair.sat2_type.toUpperCase()] || pair.sat2_type}</span></div>
+              )}
+              {pair.cdm_tca && (
+                <div className="col-span-2">CDM TCA: <span className="text-[var(--color-text)] font-mono">{new Date(pair.cdm_tca).toISOString().slice(0, 19).replace('T', ' ')} UTC</span></div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Key metrics — CDM miss distance is authoritative; SGP4 is approximate */}
         <div className="flex justify-between mt-2 text-xs text-[var(--color-text-muted)]">
           <span>Alt: <span className="text-[var(--color-text)]">{pair.altitude_km.toFixed(0)} km</span></span>
-          {tcaPoint && (
+          {pair.source === 'cdm' && pair.miss_distance_km != null ? (
+            <span>CDM miss: <span className="text-[var(--color-text)] font-semibold">{pair.miss_distance_km.toFixed(1)} km</span></span>
+          ) : tcaPoint ? (
             <span>Min sep: <span className="text-[var(--color-text)]">{tcaPoint.distance.toFixed(1)} km</span></span>
-          )}
-          {tcaPoint && (
+          ) : null}
+          {pair.source === 'cdm' && pair.cdm_tca ? (
+            <span>TCA: <span className="text-[var(--color-text)]">
+              {(() => {
+                const h = (new Date(pair.cdm_tca).getTime() - Date.now()) / 3600000;
+                if (h < -24) return `${Math.abs(h / 24).toFixed(0)}d ago`;
+                if (h < 0) return `${Math.abs(h).toFixed(0)}h ago`;
+                if (h < 24) return `in ${h.toFixed(1)}h`;
+                return `in ${(h / 24).toFixed(1)}d`;
+              })()}
+            </span></span>
+          ) : tcaPoint ? (
             <span>TCA: <span className="text-[var(--color-text)]">
               {tcaPoint.hourAbs < 24
                 ? `${tcaPoint.hourAbs.toFixed(1)}h`
                 : `${(tcaPoint.hourAbs / 24).toFixed(1)}d`}
             </span></span>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -324,7 +366,9 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
         {hasData ? (
           <>
             <div className="text-[10px] text-[var(--color-text-muted)] mb-1.5">
-              Separation distance — centered on closest approach
+              {pair.source === 'cdm'
+                ? 'SGP4 approximate trajectory (CDM miss distance is authoritative)'
+                : 'Separation distance — centered on closest approach'}
             </div>
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
@@ -441,8 +485,26 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
               )}
             </div>
 
-            {/* TCA summary */}
-            {tcaPoint && (
+            {/* TCA summary — use CDM data when available */}
+            {pair.source === 'cdm' && pair.miss_distance_km != null ? (
+              <div className="mt-2 rounded-lg bg-[var(--color-surface-2)] p-2 text-xs">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#ff4f5a]" />
+                  <span className="font-medium">Closest Approach (CDM)</span>
+                </div>
+                <div className="flex justify-between text-[var(--color-text-muted)]">
+                  <span>
+                    {pair.cdm_tca ? new Date(pair.cdm_tca).toISOString().slice(5, 16).replace('T', ' ') + ' UTC' : ''}
+                  </span>
+                  <span className="font-mono font-semibold">{pair.miss_distance_km.toFixed(1)} km</span>
+                </div>
+                {tcaPoint && Math.abs(tcaPoint.distance - pair.miss_distance_km) > 10 && (
+                  <div className="mt-1 text-[10px] text-[var(--color-text-muted)] italic">
+                    SGP4 shows {tcaPoint.distance.toFixed(1)} km — TLE-based propagation is less accurate for debris
+                  </div>
+                )}
+              </div>
+            ) : tcaPoint ? (
               <div className="mt-2 rounded-lg bg-[var(--color-surface-2)] p-2 text-xs">
                 <div className="flex items-center gap-1.5 mb-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#ff4f5a]" />
@@ -457,7 +519,51 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
                   <span className="font-mono">{tcaPoint.distance.toFixed(1)} km</span>
                 </div>
               </div>
-            )}
+            ) : null}
+
+            {/* Maneuver recommendation */}
+            {tier !== 'LOW' && (() => {
+              const isCDM = pair.source === 'cdm';
+              const tcaDate = pair.cdm_tca ? new Date(pair.cdm_tca) : null;
+              const hoursToTCA = tcaDate ? (tcaDate.getTime() - Date.now()) / 3600000 : tcaPoint?.hourAbs ?? null;
+              const isPast = hoursToTCA != null && hoursToTCA < -1;
+
+              return (
+                <div className="mt-2 rounded-lg border p-2 text-xs" style={{ borderColor: color + '44', background: color + '08' }}>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="font-semibold" style={{ color }}>
+                      {isPast ? 'Post-Event Analysis' : 'Recommendation'}
+                    </span>
+                  </div>
+                  {isPast ? (
+                    <div className="space-y-1 text-[var(--color-text-muted)]">
+                      <p>TCA has passed. {isCDM && pair.miss_distance_km != null
+                        ? `Objects passed within ${pair.miss_distance_km.toFixed(1)} km.`
+                        : 'Event is no longer actionable.'}</p>
+                      <p>{tier === 'HIGH'
+                        ? 'This was a high-risk event. Check for debris generation or orbit changes in follow-up TLEs.'
+                        : 'Monitor for updated CDMs on this pair in subsequent screening cycles.'}</p>
+                    </div>
+                  ) : tier === 'HIGH' ? (
+                    <div className="space-y-1 text-[var(--color-text-muted)]">
+                      <p><span className="font-semibold text-[var(--color-text)]">Collision avoidance maneuver recommended.</span></p>
+                      <p>Pc of {pair.pc != null ? pair.pc.toExponential(1) : '>1e-4'} exceeds the 1e-4 operational threshold
+                        {isCDM ? ' per USSPACECOM conjunction assessment.' : '.'}</p>
+                      {hoursToTCA != null && hoursToTCA > 0 && (
+                        <p>Time to TCA: <span className="font-semibold text-[var(--color-text)]">
+                          {hoursToTCA < 24 ? `${hoursToTCA.toFixed(1)} hours` : `${(hoursToTCA / 24).toFixed(1)} days`}
+                        </span> &mdash; {hoursToTCA < 12 ? 'execute maneuver urgently' : 'plan maneuver within next screening cycle'}.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-1 text-[var(--color-text-muted)]">
+                      <p>Monitor conjunction. {isCDM ? 'Request updated CDM to refine Pc estimate.' : 'Refine with higher-fidelity orbit determination.'}</p>
+                      <p>Pre-plan avoidance maneuver as contingency if Pc increases above 1e-4.</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </>
         ) : (
           <div className="h-48 flex flex-col items-center justify-center text-xs text-[var(--color-text-muted)] gap-2">
@@ -479,7 +585,9 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
       {/* Footer */}
       <div className="p-2 border-t border-[var(--color-border)] text-center">
         <span className="text-[10px] text-[var(--color-text-muted)]">
-          {hasPrecomputed ? 'Pre-computed trajectory' : 'SGP4 propagation'} &middot; 15-sec resolution &middot; drag slider to simulate approach
+          {hasPrecomputed ? 'Pre-computed trajectory' : 'SGP4 propagation'}
+          {pair.source === 'cdm' ? ' (approx.)' : ''}
+          &middot; drag slider to simulate approach
         </span>
       </div>
     </div>
