@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
 
@@ -20,6 +20,7 @@ interface ForecastPair {
   tca: string;
   current_pc: number;
   forecast_pc: number;
+  exceedance_probability?: number;
   current_miss_km: number;
   forecast_miss_km: number;
   risk_direction: 'escalating' | 'stable' | 'de-escalating' | 'unknown';
@@ -30,12 +31,27 @@ interface ForecastPair {
   time_series: CDMUpdate[];
 }
 
+interface ModelMetrics {
+  mode: string;
+  n_training_pairs: number;
+  n_test_pairs: number;
+  n_total_pairs: number;
+  positive_rate: number;
+  test_accuracy: number;
+  test_precision: number;
+  test_recall: number;
+  test_f1: number;
+  test_auc_pr: number;
+}
+
 interface ForecastData {
   generated_at: string;
   model: string;
+  prediction_task: string;
   n_pairs: number;
   n_actionable: number;
   n_escalating: number;
+  model_metrics?: ModelMetrics;
   pairs: ForecastPair[];
 }
 
@@ -47,15 +63,67 @@ const DIRECTION_COLORS: Record<string, string> = {
 };
 
 const DIRECTION_ICONS: Record<string, string> = {
-  escalating: '\u2191',    // up arrow
-  stable: '\u2192',        // right arrow
-  'de-escalating': '\u2193', // down arrow
+  escalating: '\u2191',
+  stable: '\u2192',
+  'de-escalating': '\u2193',
   unknown: '?',
 };
 
 function formatPc(pc: number): string {
   if (pc >= 0.01) return `${(pc * 100).toFixed(1)}%`;
   return pc.toExponential(1);
+}
+
+function formatPct(v: number): string {
+  return `${(v * 100).toFixed(1)}%`;
+}
+
+function ModelMetricsBanner({ metrics, task }: { metrics: ModelMetrics; task: string }) {
+  const hasTest = metrics.test_accuracy > 0;
+
+  return (
+    <div className="px-4 py-3 border-b border-[var(--color-border)] space-y-2">
+      <div className="text-[11px] text-[var(--color-text-muted)] leading-snug">
+        <span className="font-semibold text-[var(--color-text)]">Prediction Task:</span>{' '}
+        {task || 'Predict whether Pc will exceed 1e-4 before TCA'}
+      </div>
+
+      {hasTest ? (
+        <div className="grid grid-cols-5 gap-2">
+          <div className="text-center">
+            <div className="text-sm font-bold text-[#4fff8a]">{formatPct(metrics.test_accuracy)}</div>
+            <div className="text-[9px] text-[var(--color-text-muted)]">Accuracy</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-[#4f8aff]">{metrics.test_f1.toFixed(3)}</div>
+            <div className="text-[9px] text-[var(--color-text-muted)]">F1 Score</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-[#8b5cf6]">{metrics.test_auc_pr.toFixed(3)}</div>
+            <div className="text-[9px] text-[var(--color-text-muted)]">AUC-PR</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-[var(--color-text)]">{metrics.n_training_pairs}</div>
+            <div className="text-[9px] text-[var(--color-text-muted)]">Train Pairs</div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-[var(--color-text)]">{metrics.n_test_pairs}</div>
+            <div className="text-[9px] text-[var(--color-text-muted)]">Test Pairs</div>
+          </div>
+        </div>
+      ) : (
+        <div className="text-[10px] text-[var(--color-text-muted)]">
+          Mode: {metrics.mode} &middot; {metrics.n_total_pairs} pairs tracked &middot;
+          Accuracy improves as more CDM data accumulates daily
+        </div>
+      )}
+
+      <div className="text-[9px] text-[var(--color-text-muted)]">
+        Validated on temporal test split (train on older pairs, test on recent resolved pairs)
+        &middot; {formatPct(metrics.positive_rate)} of pairs exceed action threshold
+      </div>
+    </div>
+  );
 }
 
 function PairTimeSeries({ pair }: { pair: ForecastPair }) {
@@ -69,7 +137,8 @@ function PairTimeSeries({ pair }: { pair: ForecastPair }) {
   }, [pair.time_series]);
 
   const dirColor = DIRECTION_COLORS[pair.risk_direction];
-  const thresholdLog = -4; // log10(1e-4)
+  const thresholdLog = -3.3; // log10(5e-4) maneuver planning threshold
+  const excProb = pair.exceedance_probability;
 
   return (
     <div className="rounded-lg bg-[var(--color-surface-2)] p-3 space-y-2">
@@ -94,17 +163,25 @@ function PairTimeSeries({ pair }: { pair: ForecastPair }) {
       </div>
 
       {/* Metrics row */}
-      <div className="grid grid-cols-4 gap-2 text-[10px]">
+      <div className="grid grid-cols-5 gap-2 text-[10px]">
         <div>
           <div className="text-[var(--color-text-muted)]">Current Pc</div>
           <div className="font-mono font-semibold">{formatPc(pair.current_pc)}</div>
         </div>
         <div>
           <div className="text-[var(--color-text-muted)]">Forecast Pc</div>
-          <div className="font-mono font-semibold" style={{ color: pair.forecast_pc >= 1e-4 ? '#ff4f5a' : '#4fff8a' }}>
+          <div className="font-mono font-semibold" style={{ color: pair.forecast_pc >= 5e-4 ? '#ff4f5a' : '#4fff8a' }}>
             {formatPc(pair.forecast_pc)}
           </div>
         </div>
+        {excProb != null && (
+          <div>
+            <div className="text-[var(--color-text-muted)]">P(Exceed)</div>
+            <div className="font-mono font-semibold" style={{ color: excProb >= 0.5 ? '#ff4f5a' : '#4fff8a' }}>
+              {formatPct(excProb)}
+            </div>
+          </div>
+        )}
         <div>
           <div className="text-[var(--color-text-muted)]">Trend</div>
           <div className="font-semibold capitalize" style={{ color: dirColor }}>
@@ -141,9 +218,9 @@ function PairTimeSeries({ pair }: { pair: ForecastPair }) {
               />
               <Tooltip
                 contentStyle={{ background: '#1a1a2e', border: '1px solid #333', borderRadius: 8, fontSize: 11, padding: '6px 10px' }}
-                formatter={(v: unknown, name: string) => {
+                formatter={(v: unknown, name?: string) => {
                   if (name === 'log10(Pc)') return [`${Number(v).toFixed(2)}`, name];
-                  return [`${v}`, name];
+                  return [`${v}`, name ?? ''];
                 }}
               />
               <ReferenceLine
@@ -151,7 +228,7 @@ function PairTimeSeries({ pair }: { pair: ForecastPair }) {
                 stroke="#ff4f5a"
                 strokeDasharray="4 4"
                 strokeWidth={1}
-                label={{ value: 'Action threshold (1e-4)', position: 'right', fontSize: 8, fill: '#ff4f5a' }}
+                label={{ value: 'Maneuver threshold (5e-4)', position: 'right', fontSize: 8, fill: '#ff4f5a' }}
               />
               <Area
                 type="monotone"
@@ -204,9 +281,9 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
     <div className="absolute bottom-12 left-4 right-4 max-h-[60vh] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col">
       <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)]">
         <div className="flex items-center gap-3">
-          <h3 className="font-semibold text-sm">CDM Forecast</h3>
+          <h3 className="font-semibold text-sm">Pc Escalation Forecast</h3>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#8b5cf6]/15 text-[#8b5cf6] font-medium">
-            Time Series Predictions
+            Will Pc exceed 5e-4?
           </span>
         </div>
         <button
@@ -223,6 +300,14 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
         </div>
       ) : (
         <>
+          {/* Model metrics banner */}
+          {data.model_metrics && (
+            <ModelMetricsBanner
+              metrics={data.model_metrics}
+              task={data.prediction_task}
+            />
+          )}
+
           {/* Summary stats */}
           <div className="grid grid-cols-4 gap-2 px-4 py-2 border-b border-[var(--color-border)]">
             <div className="text-center">
@@ -283,8 +368,9 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
           {/* Footer */}
           <div className="px-4 py-2 border-t border-[var(--color-border)] text-center">
             <span className="text-[10px] text-[var(--color-text-muted)]">
-              CDM time series analysis &middot; Pc trend forecasting via linear extrapolation on log10(Pc)
-              &middot; Source: Space-Track 18th SDS
+              Logistic regression on CDM time series features &middot;
+              Continuously retrained daily on resolved pairs &middot;
+              Source: Space-Track 18th SDS CDMs
             </span>
           </div>
         </>

@@ -655,10 +655,13 @@ def validate_yesterday(
     today_tles: list[dict],
     yesterday_str: str,
 ) -> dict:
-    """Validate yesterday's predictions against today's TLE data.
+    """Validate predictions using CDM Pc escalation as ground truth.
 
-    Detects maneuvers with dual-threshold, classifies them, runs
-    counterfactual propagation, and cross-references CDMs.
+    Primary validation: For resolved CDM pairs (TCA in past), did the
+    CDM forecast model correctly predict whether Pc exceeded 1e-4?
+
+    Secondary: Maneuver detection continues for training data enrichment
+    but is NOT used for accuracy reporting (maneuver != avoidance).
     """
     print(f"\nValidating predictions from {yesterday_str} ...")
 
@@ -761,9 +764,7 @@ def validate_yesterday(
 
         outcomes.append(outcome)
 
-        # For accuracy: did we predict high risk and a maneuver happened?
-        # CSPR scores are 0-1 risk probabilities; baseline gives ~0.07 constant.
-        # Use 0.1 threshold to catch any non-trivial CSPR prediction.
+        # Legacy maneuver-based tracking (for training data, NOT accuracy)
         if risk > 0.1:
             total_checked += 1
             if either_maneuvered:
@@ -882,8 +883,46 @@ def validate_yesterday(
         print(f"  Maneuver-derived outcomes: {len(maneuver_outcomes)} logged "
               f"({n_evidence_based} with collision evidence, {n_negative} negative examples)")
 
-    accuracy = correct / max(total_checked, 1)
     n_avoidance = sum(1 for m in enriched_maneuvers if m.get("likely_avoidance"))
+
+    # --- Primary accuracy: CDM Pc escalation forecast ---
+    # Train the CDM forecast model on accumulated data and report real metrics.
+    cdm_accuracy = {}
+    try:
+        from src.model.cdm_forecast import CDMForecastModel
+        cdm_store = LOG_DIR / "cdm_store.jsonl"
+        if cdm_store.exists():
+            forecast_model = CDMForecastModel()
+            cdm_metrics = forecast_model.train(str(cdm_store))
+            test_metrics = cdm_metrics.get("test", {})
+            if test_metrics:
+                cdm_accuracy = {
+                    "task": "Predict Pc > 1e-4 (action threshold exceedance)",
+                    "accuracy": test_metrics.get("accuracy", 0),
+                    "precision": test_metrics.get("precision", 0),
+                    "recall": test_metrics.get("recall", 0),
+                    "f1": test_metrics.get("f1", 0),
+                    "auc_pr": test_metrics.get("auc_pr", 0),
+                    "n_test": test_metrics.get("n", 0),
+                    "n_train": cdm_metrics.get("n_train", 0),
+                    "n_positive": cdm_metrics.get("n_positive", 0),
+                    "positive_rate": cdm_metrics.get("positive_rate", 0),
+                    "mode": cdm_metrics.get("mode", "unknown"),
+                }
+                print(f"  CDM Forecast Validation (temporal test split):")
+                print(f"    Task: Predict Pc > 5e-4 (maneuver planning threshold) before TCA")
+                print(f"    Test accuracy: {test_metrics.get('accuracy', 0):.1%} "
+                      f"(n={test_metrics.get('n', 0)})")
+                print(f"    Precision: {test_metrics.get('precision', 0):.3f}, "
+                      f"Recall: {test_metrics.get('recall', 0):.3f}, "
+                      f"F1: {test_metrics.get('f1', 0):.3f}")
+                print(f"    AUC-PR: {test_metrics.get('auc_pr', 0):.3f}")
+            else:
+                print(f"  CDM Forecast: {cdm_metrics.get('mode', 'heuristic')} mode "
+                      f"({cdm_metrics.get('n_labeled', 0)} labeled pairs)")
+    except Exception as e:
+        print(f"  CDM forecast validation skipped: {e}")
+
     summary = {
         "validated": True,
         "prediction_date": yesterday_str,
@@ -891,20 +930,16 @@ def validate_yesterday(
         "n_likely_avoidance": n_avoidance,
         "n_maneuver_outcomes_logged": len(maneuver_outcomes),
         "n_predictions": len(predictions),
-        "n_high_risk_predictions": total_checked,
-        "n_correct": correct,
-        "accuracy": round(accuracy, 4),
+        "cdm_forecast_accuracy": cdm_accuracy,
         "top_maneuvers": enriched_maneuvers[:10],
     }
 
-    # --- CDM-sourced training data (independent of maneuver detection) ---
-    # Pull ALL recent high-Pc CDMs from Space-Track as training examples.
-    # These are real conjunctions with ground-truth Pc values — no TLE noise.
+    # --- CDM-sourced training data ---
     try:
         recent_cdms = fetch_recent_cdms(lookback_days=3, min_pc=1e-5)
         if recent_cdms:
             cdm_outcomes = []
-            for cdm in recent_cdms[:200]:  # Cap to control storage
+            for cdm in recent_cdms[:200]:
                 label, weight = cdm_pc_to_label(cdm["pc"])
                 cdm_outcome = {
                     "sat1_norad": cdm["sat1_norad"],
@@ -936,8 +971,8 @@ def validate_yesterday(
     except Exception as e:
         print(f"  CDM-sourced outcomes skipped: {e}")
 
-    print(f"  Predictions: {len(predictions)}, High-risk checked: {total_checked}, "
-          f"Correct: {correct}, Accuracy: {accuracy:.1%}")
+    print(f"  Maneuvers detected: {len(enriched_maneuvers)} "
+          f"({n_avoidance} likely avoidance)")
 
     return summary
 
@@ -1138,8 +1173,8 @@ def main():
     except Exception as e:
         print(f"  Pipeline stats export failed (non-fatal): {e}")
 
-    # Run CDM forecast model and export predictions
-    print("\nRunning CDM time series forecast ...")
+    # Run CDM forecast model — train, evaluate, predict, export
+    print("\nRunning CDM Pc escalation forecast ...")
     try:
         from src.model.cdm_forecast import CDMForecastModel
         cdm_store = LOG_DIR / "cdm_store.jsonl"
@@ -1147,15 +1182,29 @@ def main():
             forecast_model = CDMForecastModel()
             fmetrics = forecast_model.train(str(cdm_store))
             predictions = forecast_model.predict_all_pairs(str(cdm_store))
-            # Save model
+            # Save model checkpoint
             forecast_model.save(ROOT / "models" / "cdm_forecast.json")
-            # Export webapp JSON
+            # Export webapp JSON with model metrics
+            test_metrics = fmetrics.get("test", {})
             forecast_data = {
                 "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "model": "CDMForecastModel",
+                "prediction_task": "Predict whether Pc will exceed 1e-4 (action threshold) before TCA",
                 "n_pairs": len(predictions),
                 "n_actionable": sum(1 for p in predictions if p["action_recommended"]),
                 "n_escalating": sum(1 for p in predictions if p["risk_direction"] == "escalating"),
+                "model_metrics": {
+                    "mode": fmetrics.get("mode", "heuristic"),
+                    "n_training_pairs": fmetrics.get("n_train", 0),
+                    "n_test_pairs": fmetrics.get("n_test", 0),
+                    "n_total_pairs": fmetrics.get("n_pairs_total", 0),
+                    "positive_rate": fmetrics.get("positive_rate", 0),
+                    "test_accuracy": test_metrics.get("accuracy", 0),
+                    "test_precision": test_metrics.get("precision", 0),
+                    "test_recall": test_metrics.get("recall", 0),
+                    "test_f1": test_metrics.get("f1", 0),
+                    "test_auc_pr": test_metrics.get("auc_pr", 0),
+                },
                 "pairs": [],
             }
             for p in predictions[:30]:
@@ -1167,6 +1216,7 @@ def main():
                     "tca": p["tca"],
                     "current_pc": p["current_pc"],
                     "forecast_pc": min(p["forecast_pc"], 1.0),
+                    "exceedance_probability": p.get("exceedance_probability", 0),
                     "current_miss_km": p["current_miss_km"],
                     "forecast_miss_km": max(p["forecast_miss_km"], 0),
                     "risk_direction": p["risk_direction"],
@@ -1179,9 +1229,13 @@ def main():
             forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
             with open(forecast_path, "w") as f:
                 json.dump(forecast_data, f, indent=2, default=_json_default)
-            print(f"  CDM forecast: {fmetrics['n_pairs']} pairs, "
-                  f"{fmetrics['n_escalated']} escalating, "
+            mode = fmetrics.get("mode", "heuristic")
+            print(f"  CDM forecast ({mode}): {fmetrics.get('n_pairs_total', 0)} pairs, "
                   f"{sum(1 for p in predictions if p['action_recommended'])} actionable")
+            if test_metrics:
+                print(f"  Model accuracy: {test_metrics.get('accuracy', 0):.1%}, "
+                      f"F1: {test_metrics.get('f1', 0):.3f}, "
+                      f"AUC-PR: {test_metrics.get('auc_pr', 0):.3f}")
         else:
             print("  No CDM store found — skipping forecast")
     except Exception as e:
@@ -1191,8 +1245,10 @@ def main():
     print(f"  Daily pipeline complete!")
     print(f"  Pairs screened: {len(candidates)}")
     print(f"  Predictions logged: {top_k}")
-    if validation.get("validated"):
-        print(f"  Yesterday's accuracy: {validation.get('accuracy', 0):.1%}")
+    cdm_acc = validation.get("cdm_forecast_accuracy", {})
+    if cdm_acc.get("accuracy"):
+        print(f"  CDM forecast accuracy: {cdm_acc['accuracy']:.1%} "
+              f"(F1={cdm_acc.get('f1', 0):.3f}, n_test={cdm_acc.get('n_test', 0)})")
     print(f"{'='*60}")
 
 
@@ -1546,6 +1602,15 @@ def export_pipeline_stats():
         except Exception:
             pass
     stats["cdm_stats"] = cdm_stats
+
+    # CDM forecast model metrics (if model checkpoint exists)
+    model_path = ROOT / "models" / "cdm_forecast.json"
+    if model_path.exists():
+        try:
+            model_data = json.loads(model_path.read_text())
+            stats["forecast_model"] = model_data.get("metrics", {})
+        except Exception:
+            pass
 
     webapp_path.parent.mkdir(parents=True, exist_ok=True)
     webapp_path.write_text(json.dumps(stats, indent=2))

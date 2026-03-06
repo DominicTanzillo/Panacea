@@ -179,8 +179,48 @@ function PipelineTab() {
     maneuvers: d.n_maneuvers ?? 0,
   }));
 
+  const fm = stats.forecast_model;
+  const testMetrics = fm?.test;
+
   return (
     <div className="p-3 space-y-4">
+      {/* Forecast model accuracy */}
+      {fm && (
+        <div className="rounded-lg bg-[var(--color-surface-2)] p-3 space-y-2">
+          <div className="text-xs font-semibold text-[var(--color-text)]">
+            Pc Escalation Forecast Model
+          </div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">
+            Task: Predict whether Pc will exceed 5e-4 (maneuver threshold) before TCA
+          </div>
+          {testMetrics ? (
+            <div className="grid grid-cols-4 gap-2 mt-1">
+              <div className="text-center">
+                <div className="text-sm font-bold text-[#4fff8a]">{(testMetrics.accuracy * 100).toFixed(1)}%</div>
+                <div className="text-[9px] text-[var(--color-text-muted)]">Accuracy</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-bold text-[#4f8aff]">{testMetrics.f1.toFixed(3)}</div>
+                <div className="text-[9px] text-[var(--color-text-muted)]">F1</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-bold text-[#8b5cf6]">{testMetrics.auc_pr.toFixed(3)}</div>
+                <div className="text-[9px] text-[var(--color-text-muted)]">AUC-PR</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-bold text-[var(--color-text)]">{fm.n_test ?? 0}</div>
+                <div className="text-[9px] text-[var(--color-text-muted)]">Test Pairs</div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[10px] text-[var(--color-text-muted)]">
+              Mode: {fm.mode} &middot; {fm.n_pairs_total ?? 0} pairs &middot;
+              Metrics available when more CDM data accumulates
+            </div>
+          )}
+        </div>
+      )}
+
       {/* CDM overview */}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">

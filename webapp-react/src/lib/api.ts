@@ -99,6 +99,18 @@ export interface ScreeningPair {
   emergency_reportable?: string;
 }
 
+export interface ForecastModelMetrics {
+  mode: string;
+  n_pairs_total?: number;
+  n_labeled?: number;
+  n_positive?: number;
+  positive_rate?: number;
+  n_train?: number;
+  n_test?: number;
+  train?: { accuracy: number; precision: number; recall: number; f1: number; auc_pr: number };
+  test?: { accuracy: number; precision: number; recall: number; f1: number; auc_pr: number };
+}
+
 export interface PipelineStats {
   generated_at: string;
   finetune_history: {
@@ -124,6 +136,7 @@ export interface PipelineStats {
     pc_moderate: number;
     emergency_count: number;
   };
+  forecast_model?: ForecastModelMetrics;
 }
 
 export interface ScreeningResponse {
