@@ -1,0 +1,186 @@
+{
+  "generated_at": "2026-03-06T01:05:54.163629Z",
+  "finetune_history": [
+    {
+      "date": "2026-02-22",
+      "pre_auc_pr": 0.38060610830041347,
+      "post_auc_pr": 0.2733593859730199,
+      "keep_new_model": false,
+      "n_outcomes": 1200,
+      "epochs_trained": 2
+    },
+    {
+      "date": "2026-03-01",
+      "pre_auc_pr": 0.38060610830041347,
+      "post_auc_pr": 0.4553056222466285,
+      "keep_new_model": true,
+      "n_outcomes": 3110,
+      "epochs_trained": 3
+    }
+  ],
+  "daily_history": [
+    {
+      "date": "2026-02-14",
+      "n_satellites_screened": 14392,
+      "n_candidate_pairs": 5131867,
+      "n_predictions_logged": 100
+    },
+    {
+      "date": "2026-02-15",
+      "n_satellites_screened": 14392,
+      "n_candidate_pairs": 5130534,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 537
+    },
+    {
+      "date": "2026-02-16",
+      "n_satellites_screened": 14383,
+      "n_candidate_pairs": 5132867,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2727
+    },
+    {
+      "date": "2026-02-17",
+      "n_satellites_screened": 14381,
+      "n_candidate_pairs": 5154393,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 1810
+    },
+    {
+      "date": "2026-02-18",
+      "n_satellites_screened": 14376,
+      "n_candidate_pairs": 5149912,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2314
+    },
+    {
+      "date": "2026-02-19",
+      "n_satellites_screened": 14373,
+      "n_candidate_pairs": 5155236,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2208
+    },
+    {
+      "date": "2026-02-20",
+      "n_satellites_screened": 14368,
+      "n_candidate_pairs": 5167749,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 1924
+    },
+    {
+      "date": "2026-02-21",
+      "n_satellites_screened": 14398,
+      "n_candidate_pairs": 5215390,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2244
+    },
+    {
+      "date": "2026-02-22",
+      "n_satellites_screened": 14408,
+      "n_candidate_pairs": 5239217,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2279
+    },
+    {
+      "date": "2026-02-23",
+      "n_satellites_screened": 14408,
+      "n_candidate_pairs": 5237351,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2253
+    },
+    {
+      "date": "2026-02-24",
+      "n_satellites_screened": 14471,
+      "n_candidate_pairs": 5290354,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2566
+    },
+    {
+      "date": "2026-02-25",
+      "n_satellites_screened": 14462,
+      "n_candidate_pairs": 5293561,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2411
+    },
+    {
+      "date": "2026-02-26",
+      "n_satellites_screened": 14542,
+      "n_candidate_pairs": 5331357,
+      "n_predictions_logged": 100,
+      "n_maneuvers": 2359
+    },
+    {
+      "date": "2026-02-27",
+      "n_satellites_screened": 14541,
+      "n_candidate_pairs": 5346648,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-27",
+      "n_satellites_screened": 14541,
+      "n_candidate_pairs": 5346648,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-27",
+      "n_satellites_screened": 14541,
+      "n_candidate_pairs": 5346648,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-27",
+      "n_satellites_screened": 14541,
+      "n_candidate_pairs": 5346648,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-27",
+      "n_satellites_screened": 14704,
+      "n_candidate_pairs": 5354368,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-28",
+      "n_satellites_screened": 14709,
+      "n_candidate_pairs": 5384649,
+      "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-01",
+      "n_satellites_screened": 14731,
+      "n_candidate_pairs": 5383072,
+      "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-02",
+      "n_satellites_screened": 14765,
+      "n_candidate_pairs": 5380728,
+      "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-04",
+      "n_satellites_screened": 14775,
+      "n_candidate_pairs": 5382049,
+      "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-05",
+      "n_satellites_screened": 14911,
+      "n_candidate_pairs": 5372656,
+      "n_predictions_logged": 500
+    }
+  ],
+  "cdm_stats": {
+    "total_cdms": 954,
+    "last_fetch": "2026-03-05T01:30:51.265785+00:00",
+    "fetch_count": 6,
+    "pc_high": 954,
+    "pc_moderate": 0,
+    "emergency_count": 954
+  }
+}

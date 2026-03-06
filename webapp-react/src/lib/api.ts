@@ -89,6 +89,41 @@ export interface ScreeningPair {
   trajectory?: TrajectoryPoint[];
   /** Dense trail (1-min steps, ±30 min around TCA) for globe orbital paths */
   trail?: TrailPoint[];
+  /** CDM fields — present when source is Space-Track CDM */
+  source?: 'cdm' | 'tle_screening';
+  pc?: number;
+  miss_distance_km?: number;
+  cdm_tca?: string;
+  sat1_type?: string;
+  sat2_type?: string;
+  emergency_reportable?: string;
+}
+
+export interface PipelineStats {
+  generated_at: string;
+  finetune_history: {
+    date: string;
+    pre_auc_pr: number;
+    post_auc_pr: number;
+    keep_new_model: boolean;
+    n_outcomes: number;
+    epochs_trained: number;
+  }[];
+  daily_history: {
+    date: string;
+    n_satellites_screened: number;
+    n_candidate_pairs: number;
+    n_predictions_logged: number;
+    n_maneuvers?: number;
+  }[];
+  cdm_stats: {
+    total_cdms: number;
+    last_fetch: string;
+    fetch_count: number;
+    pc_high: number;
+    pc_moderate: number;
+    emergency_count: number;
+  };
 }
 
 export interface ScreeningResponse {
@@ -100,6 +135,8 @@ export interface ScreeningResponse {
 export interface StaticAlerts {
   generated_at: string;
   prediction_date: string;
+  n_cdm_alerts?: number;
+  n_tle_alerts?: number;
   pairs: ScreeningPair[];
 }
 

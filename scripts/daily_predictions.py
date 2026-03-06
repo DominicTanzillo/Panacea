@@ -761,8 +761,10 @@ def validate_yesterday(
 
         outcomes.append(outcome)
 
-        # For accuracy: did we predict risk > 0.3 and a maneuver happened?
-        if risk > 0.3:
+        # For accuracy: did we predict high risk and a maneuver happened?
+        # CSPR scores are 0-1 risk probabilities; baseline gives ~0.07 constant.
+        # Use 0.1 threshold to catch any non-trivial CSPR prediction.
+        if risk > 0.1:
             total_checked += 1
             if either_maneuvered:
                 correct += 1
@@ -1068,9 +1070,24 @@ def main():
     model = load_baseline_model()
     candidates = score_with_model(candidates, model)
 
-    # Score with CSPR pairwise model (parallel signal, doesn't replace baseline)
+    # Score with CSPR pairwise model (CDM-supervised XGBoost)
     pairwise_model = load_pairwise_model()
     candidates = score_with_pairwise_model(candidates, pairwise_model, active_tles)
+
+    # Re-rank: use CSPR pairwise score when available (CDM-supervised, much better
+    # than altitude-only baseline). Fall back to baseline for pairs CSPR couldn't score.
+    n_cspr = sum(1 for c in candidates if "pairwise_risk_score" in c)
+    if n_cspr > 0:
+        candidates.sort(
+            key=lambda c: c.get("pairwise_risk_score", c.get("model_risk_score", 0)),
+            reverse=True,
+        )
+        # Promote pairwise score to model_risk_score for downstream consumers
+        for cand in candidates:
+            if "pairwise_risk_score" in cand:
+                cand["model_risk_score"] = cand["pairwise_risk_score"]
+                cand["model_used"] = "CSPR-XGBoost"
+        print(f"  Re-ranked by CSPR pairwise model ({n_cspr}/{len(candidates)} scored)")
 
     # Take top-K predictions
     top_k = min(args.top_k, len(candidates))
@@ -1079,8 +1096,12 @@ def main():
     print(f"\n  Top {top_k} highest-risk pairs:")
     for i, pred in enumerate(top_predictions[:10]):
         risk = pred.get("model_risk_score", pred.get("risk_score", 0))
+        model = pred.get("model_used", "?")
+        pc_str = ""
+        if "pairwise_log10_pc" in pred:
+            pc_str = f" | log10Pc={pred['pairwise_log10_pc']:.1f}"
         print(f"    {i+1:3d}. {pred['sat1_name']:20s} <-> {pred['sat2_name']:20s} | "
-              f"risk={risk:.4f} | alt={pred['altitude_km']:.0f}km")
+              f"risk={risk:.4f} | alt={pred['altitude_km']:.0f}km | {model}{pc_str}")
 
     # Generate webapp alerts with forward TCA
     print("\nGenerating webapp alerts ...")
@@ -1109,6 +1130,62 @@ def main():
             archive_to_huggingface(logger)
         except Exception as e:
             print(f"  HuggingFace archival failed: {e}")
+
+    # Export pipeline stats for webapp dashboard
+    print("\nExporting pipeline stats ...")
+    try:
+        export_pipeline_stats()
+    except Exception as e:
+        print(f"  Pipeline stats export failed (non-fatal): {e}")
+
+    # Run CDM forecast model and export predictions
+    print("\nRunning CDM time series forecast ...")
+    try:
+        from src.model.cdm_forecast import CDMForecastModel
+        cdm_store = LOG_DIR / "cdm_store.jsonl"
+        if cdm_store.exists():
+            forecast_model = CDMForecastModel()
+            fmetrics = forecast_model.train(str(cdm_store))
+            predictions = forecast_model.predict_all_pairs(str(cdm_store))
+            # Save model
+            forecast_model.save(ROOT / "models" / "cdm_forecast.json")
+            # Export webapp JSON
+            forecast_data = {
+                "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "model": "CDMForecastModel",
+                "n_pairs": len(predictions),
+                "n_actionable": sum(1 for p in predictions if p["action_recommended"]),
+                "n_escalating": sum(1 for p in predictions if p["risk_direction"] == "escalating"),
+                "pairs": [],
+            }
+            for p in predictions[:30]:
+                forecast_data["pairs"].append({
+                    "sat1_name": p["sat1_name"],
+                    "sat2_name": p["sat2_name"],
+                    "sat1_norad": p["sat1_norad"],
+                    "sat2_norad": p["sat2_norad"],
+                    "tca": p["tca"],
+                    "current_pc": p["current_pc"],
+                    "forecast_pc": min(p["forecast_pc"], 1.0),
+                    "current_miss_km": p["current_miss_km"],
+                    "forecast_miss_km": max(p["forecast_miss_km"], 0),
+                    "risk_direction": p["risk_direction"],
+                    "pc_trend": p["pc_trend"],
+                    "confidence": p["confidence"],
+                    "action_recommended": p["action_recommended"],
+                    "n_updates": p["n_updates"],
+                    "time_series": p["time_series"],
+                })
+            forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
+            with open(forecast_path, "w") as f:
+                json.dump(forecast_data, f, indent=2, default=_json_default)
+            print(f"  CDM forecast: {fmetrics['n_pairs']} pairs, "
+                  f"{fmetrics['n_escalated']} escalating, "
+                  f"{sum(1 for p in predictions if p['action_recommended'])} actionable")
+        else:
+            print("  No CDM store found — skipping forecast")
+    except Exception as e:
+        print(f"  CDM forecast failed (non-fatal): {e}")
 
     print(f"\n{'='*60}")
     print(f"  Daily pipeline complete!")
@@ -1377,6 +1454,102 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
         print(f"  Wrote {len(pairs)} alerts ({cdm_count} CDM + {tle_count} TLE, top: {top_info})")
     else:
         print("  Wrote 0 alerts")
+
+
+def export_pipeline_stats():
+    """Generate pipeline_stats.json for the webapp Pipeline dashboard tab."""
+    import json
+    from pathlib import Path
+
+    webapp_path = Path("webapp-react/public/pipeline_stats.json")
+    stats: dict = {"generated_at": datetime.utcnow().isoformat() + "Z"}
+
+    # Fine-tune history
+    ft_log = LOG_DIR / "finetune_log.jsonl"
+    ft_history = []
+    if ft_log.exists():
+        for line in ft_log.read_text().strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+                ft_history.append({
+                    "date": rec.get("date", "")[:10],
+                    "pre_auc_pr": rec.get("pre_auc_pr", 0),
+                    "post_auc_pr": rec.get("post_auc_pr", 0),
+                    "keep_new_model": rec.get("keep_new_model", False),
+                    "n_outcomes": rec.get("n_outcomes", 0),
+                    "epochs_trained": rec.get("epochs_trained", 0),
+                })
+            except json.JSONDecodeError:
+                continue
+    stats["finetune_history"] = ft_history
+
+    # Daily summaries
+    ds_log = LOG_DIR / "daily_summaries.jsonl"
+    daily_history = []
+    if ds_log.exists():
+        for line in ds_log.read_text().strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+                entry = {
+                    "date": rec.get("date", ""),
+                    "n_satellites_screened": rec.get("n_satellites_screened", 0),
+                    "n_candidate_pairs": rec.get("n_candidate_pairs", 0),
+                    "n_predictions_logged": rec.get("n_predictions_logged", 0),
+                }
+                val = rec.get("validation", {})
+                if isinstance(val, dict) and val.get("n_maneuvers_total"):
+                    entry["n_maneuvers"] = val["n_maneuvers_total"]
+                daily_history.append(entry)
+            except json.JSONDecodeError:
+                continue
+    stats["daily_history"] = daily_history
+
+    # CDM stats
+    cdm_store = LOG_DIR / "cdm_store.jsonl"
+    cdm_stats = {"total_cdms": 0, "last_fetch": "", "fetch_count": 0,
+                 "pc_high": 0, "pc_moderate": 0, "emergency_count": 0}
+    if cdm_store.exists():
+        total = 0
+        pc_high = 0
+        pc_mod = 0
+        emrg = 0
+        for line in cdm_store.read_text().strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+                total += 1
+                pc = rec.get("pc", 0) or 0
+                if pc >= 1e-4:
+                    pc_high += 1
+                elif pc >= 1e-7:
+                    pc_mod += 1
+                if rec.get("emergency_reportable") == "Y":
+                    emrg += 1
+            except json.JSONDecodeError:
+                continue
+        cdm_stats["total_cdms"] = total
+        cdm_stats["pc_high"] = pc_high
+        cdm_stats["pc_moderate"] = pc_mod
+        cdm_stats["emergency_count"] = emrg
+
+    fetch_log = LOG_DIR / "cdm_fetch_log.json"
+    if fetch_log.exists():
+        try:
+            fl = json.loads(fetch_log.read_text())
+            cdm_stats["last_fetch"] = fl.get("last_cdm_fetch", "")
+            cdm_stats["fetch_count"] = fl.get("fetch_count", 0)
+        except Exception:
+            pass
+    stats["cdm_stats"] = cdm_stats
+
+    webapp_path.parent.mkdir(parents=True, exist_ok=True)
+    webapp_path.write_text(json.dumps(stats, indent=2))
+    print(f"  Pipeline stats exported to {webapp_path}")
 
 
 def archive_to_huggingface(logger: PredictionLogger):
