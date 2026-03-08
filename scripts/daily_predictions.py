@@ -1462,8 +1462,43 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
 
     print(f"  Selected: {len(selected_cdm)} CDM + {len(selected_tle)} TLE-screened")
 
-    # ---- Enrich with trajectories ----
+    # ---- Fetch missing TLEs from Space-Track for CDM objects ----
     all_selected = selected_cdm + selected_tle
+    missing_norads = set()
+    for alert in all_selected:
+        for nid in (alert["sat1_norad"], alert["sat2_norad"]):
+            if nid and nid not in tle_by_id:
+                missing_norads.add(nid)
+
+    if missing_norads:
+        print(f"  Fetching TLEs for {len(missing_norads)} CDM objects not in catalog...")
+        try:
+            from src.data.spacetrack_crossref import _get_session
+            session = _get_session()
+            if session:
+                # Batch fetch TLEs from Space-Track GP catalog
+                norad_list = ",".join(str(n) for n in sorted(missing_norads))
+                url = (f"https://www.space-track.org/basicspacedata/query"
+                       f"/class/gp/NORAD_CAT_ID/{norad_list}"
+                       f"/orderby/NORAD_CAT_ID/format/json")
+                resp = session.get(url, timeout=60)
+                if resp.status_code == 200:
+                    extra_tles = resp.json()
+                    # Deduplicate — keep latest epoch per NORAD
+                    for tle in extra_tles:
+                        nid = int(tle.get("NORAD_CAT_ID", 0))
+                        if nid > 0:
+                            existing = tle_by_id.get(nid)
+                            if not existing or tle.get("EPOCH", "") > existing.get("EPOCH", ""):
+                                tle_by_id[nid] = tle
+                    fetched = len(set(int(t.get("NORAD_CAT_ID", 0)) for t in extra_tles))
+                    print(f"  Got TLEs for {fetched}/{len(missing_norads)} missing objects")
+                else:
+                    print(f"  Space-Track GP query failed: HTTP {resp.status_code}")
+        except Exception as e:
+            print(f"  Space-Track TLE fetch failed: {e}")
+
+    # ---- Enrich with trajectories ----
     traj_computed = 0
     try:
         from src.data.counterfactual import compute_forward_tca, compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
@@ -1473,7 +1508,10 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
                 tle2 = tle_by_id.get(alert["sat2_norad"])
                 if not tle1 or not tle2:
                     continue
-                # For CDM alerts, compute TCA trajectory from current time
+                # Store TLEs in alert so frontend can do client-side propagation
+                alert["tle1"] = tle1
+                alert["tle2"] = tle2
+                # Pre-compute trajectory (5-day sparse) and trail (±30min dense)
                 traj = compute_forward_trajectory(tle1, tle2, hours_forward=120.0, step_minutes=20.0)
                 if traj:
                     alert["trajectory"] = traj
@@ -1524,6 +1562,15 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
             pair["trajectory"] = alert["trajectory"]
         if alert.get("trail"):
             pair["trail"] = alert["trail"]
+        # Include TLE data for client-side fallback propagation
+        if alert.get("tle1"):
+            pair["tle1"] = {k: alert["tle1"][k] for k in
+                           ("OBJECT_NAME", "NORAD_CAT_ID", "EPOCH", "MEAN_MOTION",
+                            "ECCENTRICITY", "INCLINATION", "RA_OF_ASC_NODE",
+                            "ARG_OF_PERICENTER", "MEAN_ANOMALY", "BSTAR",
+                            "MEAN_MOTION_DOT", "MEAN_MOTION_DDOT", "EPHEMERIS_TYPE",
+                            "ELEMENT_SET_NO", "REV_AT_EPOCH", "CLASSIFICATION_TYPE")
+                           if k in alert["tle1"]}
 
         pairs.append(pair)
 
