@@ -132,7 +132,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
       .slice()
       .sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours) // most distant first
       .map(u => ({
-        hoursToTCA: Math.round(u.time_to_tca_hours),
+        hoursToTCA: -Math.round(u.time_to_tca_hours),
         'log10(Pc)': u.log10_pc,
         pc: u.pc,
         miss_km: u.miss_distance_km,
@@ -233,7 +233,6 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                   <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                   <XAxis
                     dataKey="hoursToTCA"
-                    reversed
                     tick={{ fontSize: 9, fill: '#888' }}
                     label={{ value: 'Hours to TCA \u2192', position: 'insideBottomRight', offset: -2, fill: '#666', fontSize: 9 }}
                   />
@@ -244,7 +243,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                   />
                   <Tooltip
                     contentStyle={{ background: '#1a1a2e', border: '1px solid #444', borderRadius: 8, fontSize: 11, padding: '6px 10px' }}
-                    labelFormatter={(v) => `${v}h to TCA`}
+                    labelFormatter={(v) => `T${v}h`}
                     formatter={(v: unknown, name?: string) => {
                       if (name === 'log10(Pc)') return [`${Number(v).toFixed(2)}`, 'log\u2081\u2080(Pc)'];
                       return [`${v}`, name ?? ''];
