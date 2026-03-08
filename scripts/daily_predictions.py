@@ -1241,6 +1241,43 @@ def main():
     except Exception as e:
         print(f"  CDM forecast failed (non-fatal): {e}")
 
+    # Run LSTM transfer learning model (Kelvins → Space-Track)
+    print("\nRunning LSTM transfer learning forecast ...")
+    try:
+        from src.model.cdm_lstm import CDMLSTMModel
+        cdm_store = LOG_DIR / "cdm_store.jsonl"
+        kelvins_csv = ROOT / "data" / "cdm" / "Collision Avoidance Challenge - Dataset" / "kelvins_competition_data" / "train_data.csv"
+        emergency_csv = ROOT / "data" / "cdm_spacetrack" / "cdm_spacetrack_emergency.csv"
+        lstm_ckpt = ROOT / "models" / "cdm_lstm.pt"
+
+        if cdm_store.exists() and kelvins_csv.exists():
+            # Load existing or train fresh
+            if lstm_ckpt.exists():
+                lstm_model = CDMLSTMModel.load(str(lstm_ckpt))
+                # Re-finetune on latest data
+                ft_metrics = lstm_model.finetune_spacetrack(
+                    str(cdm_store),
+                    str(emergency_csv) if emergency_csv.exists() else None,
+                )
+            else:
+                lstm_model = CDMLSTMModel()
+                lstm_model.pretrain_kelvins(str(kelvins_csv))
+                ft_metrics = lstm_model.finetune_spacetrack(
+                    str(cdm_store),
+                    str(emergency_csv) if emergency_csv.exists() else None,
+                )
+            lstm_model.save(str(lstm_ckpt))
+
+            ft_test = ft_metrics.get("test", {})
+            print(f"  LSTM fine-tune: acc={ft_test.get('accuracy', 0):.1%}, "
+                  f"F1={ft_test.get('f1', 0):.3f}, "
+                  f"prec={ft_test.get('precision', 0):.3f}, "
+                  f"rec={ft_test.get('recall', 0):.3f}")
+        else:
+            print("  Skipping LSTM — missing Kelvins or CDM data")
+    except Exception as e:
+        print(f"  LSTM forecast failed (non-fatal): {e}")
+
     print(f"\n{'='*60}")
     print(f"  Daily pipeline complete!")
     print(f"  Pairs screened: {len(candidates)}")
