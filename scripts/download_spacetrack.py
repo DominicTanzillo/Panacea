@@ -93,7 +93,7 @@ def download_cdms_by_date_range(
     start_date: str,
     end_date: str,
     output_dir: Path,
-    batch_days: int = 30,
+    batch_days: int = 7,
     min_pc: float = 0.0,
 ):
     """
@@ -123,10 +123,8 @@ def download_cdms_by_date_range(
         date_range = f"{current.strftime('%Y-%m-%d')}--{batch_end.strftime('%Y-%m-%d')}"
         batch_num += 1
 
-        # Build query URL
-        url = f"{CDM_URL}/CREATION_DATE/{date_range}/orderby/TCA asc/format/json"
-        if min_pc > 0:
-            url = f"{CDM_URL}/CREATION_DATE/{date_range}/PC/%3E{min_pc}/orderby/TCA asc/format/json"
+        # Build query URL — use TCA (not CREATION_DATE) for reliable results
+        url = f"{CDM_URL}/TCA/{date_range}/orderby/TCA asc/format/json"
 
         print(f"\nBatch {batch_num}: {date_range} ...", end=" ", flush=True)
 
@@ -191,29 +189,36 @@ def download_cdms_by_date_range(
 
 def download_high_risk_cdms(session, output_dir: Path):
     """
-    Download CDMs with elevated collision probability (Pc > 1e-5).
-    These are the most valuable for training — the positive examples we need.
+    Download CDMs with elevated collision probability.
+    Uses TCA date range instead of CREATION_DATE, and no PC filter
+    (cdm_public may not support arbitrary filters — let's just get all data).
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    print("\n=== Downloading HIGH-RISK CDMs (Pc > 1e-5) ===")
+    print("\n=== Downloading recent CDMs by TCA ===")
 
-    # Query for high-probability conjunctions across all time
-    # Space-Track may limit results, so we batch by year
     all_rows = []
     fieldnames = None
 
-    for year in range(2018, 2027):
-        date_range = f"{year}-01-01--{year}-12-31"
-        url = (f"{CDM_URL}/CREATION_DATE/{date_range}"
-               f"/PC/%3E1e-5/orderby/TCA asc/format/json/limit/100000")
+    # cdm_public has a rolling ~60-day window; query in 7-day TCA chunks
+    end = datetime.utcnow()
+    start = end - timedelta(days=60)
+    current = start
 
-        print(f"  {year}: ", end="", flush=True)
+    batch = 0
+    while current < end:
+        batch_end = min(current + timedelta(days=7), end)
+        date_range = f"{current.strftime('%Y-%m-%d')}--{batch_end.strftime('%Y-%m-%d')}"
+        batch += 1
+
+        url = f"{CDM_URL}/TCA/{date_range}/orderby/TCA asc/format/json"
+        print(f"  Batch {batch} (TCA {date_range}): ", end="", flush=True)
         time.sleep(3)
 
         try:
             resp = session.get(url, timeout=180)
         except Exception as e:
             print(f"ERROR: {e}")
+            current = batch_end
             continue
 
         if resp.status_code == 429:
@@ -223,30 +228,34 @@ def download_high_risk_cdms(session, output_dir: Path):
 
         if resp.status_code != 200:
             print(f"HTTP {resp.status_code}")
+            current = batch_end
             continue
 
         try:
             data = resp.json()
         except json.JSONDecodeError:
             print(f"Invalid JSON")
+            current = batch_end
             continue
 
         if not data:
             print("0 CDMs")
+            current = batch_end
             continue
 
         if fieldnames is None:
             fieldnames = list(data[0].keys())
 
         all_rows.extend(data)
-        print(f"{len(data)} CDMs")
+        print(f"{len(data)} CDMs (total: {len(all_rows)})")
+        current = batch_end
 
     if all_rows and fieldnames:
-        output_file = output_dir / "cdm_high_risk.csv"
+        output_file = output_dir / "cdm_recent.csv"
         _save_csv(all_rows, fieldnames, output_file)
-        print(f"\nSaved {len(all_rows)} high-risk CDMs to {output_file}")
+        print(f"\nSaved {len(all_rows)} CDMs to {output_file}")
     else:
-        print("\nNo high-risk CDMs found.")
+        print("\nNo CDMs found.")
 
     return len(all_rows)
 
@@ -343,15 +352,10 @@ def main():
     if args.high_risk_only:
         n = download_high_risk_cdms(session, DATA_DIR)
     else:
-        # Always download high-risk first (most valuable)
-        n_hr = download_high_risk_cdms(session, DATA_DIR)
-
-        # Then download everything
-        n_all = download_all_cdms(session, DATA_DIR,
-                                   start_year=int(args.start[:4]),
-                                   end_year=int(args.end[:4]))
-
-        n = n_hr + n_all
+        # Download all CDMs in date-range batches
+        n = download_all_cdms(session, DATA_DIR,
+                              start_year=int(args.start[:4]),
+                              end_year=int(args.end[:4]))
 
     print(f"\n{'='*60}")
     print(f"  Download complete: {n} total CDMs")

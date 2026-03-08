@@ -1278,6 +1278,83 @@ def main():
     except Exception as e:
         print(f"  LSTM forecast failed (non-fatal): {e}")
 
+    # Run CDMSequenceModel (multi-task regression: max Pc, min miss, escalation)
+    print("\nRunning CDM Sequence regression model ...")
+    seq_predictions = {}  # keyed by (sat1_norad, sat2_norad) for merging into forecast JSON
+    seq_regression_metrics = {}
+    try:
+        import torch as _torch_check  # verify torch available
+        from src.model.cdm_sequence_model import CDMSequenceModel
+        cdm_store = LOG_DIR / "cdm_store.jsonl"
+        kelvins_csv = ROOT / "data" / "cdm" / "Collision Avoidance Challenge - Dataset" / "kelvins_competition_data" / "train_data.csv"
+        seq_ckpt = ROOT / "models" / "cdm_sequence_model.pt"
+
+        if cdm_store.exists():
+            if seq_ckpt.exists():
+                print("  Loading existing CDMSequenceModel checkpoint ...")
+                seq_model = CDMSequenceModel.load(str(seq_ckpt))
+                ft = seq_model.finetune_spacetrack(str(cdm_store))
+                seq_regression_metrics = ft.get("test", {})
+            else:
+                seq_model = CDMSequenceModel()
+                if kelvins_csv.exists():
+                    seq_model.pretrain_kelvins(str(kelvins_csv))
+                ft = seq_model.finetune_spacetrack(str(cdm_store))
+                seq_regression_metrics = ft.get("test", {})
+
+            seq_model.save(str(seq_ckpt))
+
+            # Run predictions on all pairs
+            if seq_model.trained:
+                pair_map = seq_model._load_spacetrack_pairs(str(cdm_store))
+                for pair_key, cdms in pair_map.items():
+                    pred = seq_model.predict(cdms)
+                    if "error" not in pred:
+                        n1, n2, _tca = pair_key
+                        seq_predictions[(n1, n2)] = pred
+                print(f"  CDMSequenceModel: {len(seq_predictions)} pair predictions")
+                if seq_regression_metrics:
+                    print(f"  Regression MAE(log10_pc)={seq_regression_metrics.get('mae_log10_pc', 0):.3f}, "
+                          f"corr={seq_regression_metrics.get('correlation_pc', 0):.3f}")
+        else:
+            print("  No CDM store found — skipping sequence model")
+    except ImportError:
+        print("  CDMSequenceModel skipped (torch not available)")
+    except Exception as e:
+        print(f"  CDMSequenceModel failed (non-fatal): {e}")
+
+    # Merge sequence model predictions into cdm_forecast.json if it exists
+    if seq_predictions:
+        try:
+            forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
+            if forecast_path.exists():
+                with open(forecast_path) as f:
+                    forecast_data = json.load(f)
+                for pair_entry in forecast_data.get("pairs", []):
+                    key = (min(pair_entry["sat1_norad"], pair_entry["sat2_norad"]),
+                           max(pair_entry["sat1_norad"], pair_entry["sat2_norad"]))
+                    sp = seq_predictions.get(key, {})
+                    pair_entry["predicted_max_pc"] = sp.get("predicted_max_pc")
+                    pair_entry["predicted_max_log10_pc"] = sp.get("predicted_max_log10_pc")
+                    pair_entry["predicted_min_miss_km"] = sp.get("predicted_min_miss_km")
+                    pair_entry["lstm_escalation_prob"] = sp.get("escalation_probability")
+                    pair_entry["attention_weights"] = sp.get("attention_weights")
+                # Add regression metrics
+                if seq_regression_metrics:
+                    forecast_data["regression_metrics"] = {
+                        "mae_log10_pc": seq_regression_metrics.get("mae_log10_pc", 0),
+                        "rmse_log10_pc": seq_regression_metrics.get("rmse_log10_pc", 0),
+                        "mae_log10_miss": seq_regression_metrics.get("mae_log10_miss", 0),
+                        "correlation_pc": seq_regression_metrics.get("correlation_pc", 0),
+                        "esc_f1": seq_regression_metrics.get("esc_f1", 0),
+                        "n": seq_regression_metrics.get("n", 0),
+                    }
+                with open(forecast_path, "w") as f:
+                    json.dump(forecast_data, f, indent=2, default=_json_default)
+                print(f"  Merged {len(seq_predictions)} regression predictions into cdm_forecast.json")
+        except Exception as e:
+            print(f"  Merge into cdm_forecast.json failed (non-fatal): {e}")
+
     print(f"\n{'='*60}")
     print(f"  Daily pipeline complete!")
     print(f"  Pairs screened: {len(candidates)}")
