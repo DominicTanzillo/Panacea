@@ -153,8 +153,19 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
   const hasPrecomputed = !!(pair.trajectory && pair.trajectory.length > 0);
   const hasTrail = !!(pair.trail && pair.trail.length > 0);
 
-  const tle1 = useMemo(() => hasPrecomputed ? null : tles.find(t => t.NORAD_CAT_ID === pair.norad_1), [tles, pair.norad_1, hasPrecomputed]);
-  const tle2 = useMemo(() => hasPrecomputed ? null : tles.find(t => t.NORAD_CAT_ID === pair.norad_2), [tles, pair.norad_2, hasPrecomputed]);
+  // Look up TLEs: first from global catalog, then from per-pair embedded data
+  const tle1 = useMemo(() => {
+    if (hasPrecomputed) return null;
+    return tles.find(t => t.NORAD_CAT_ID === pair.norad_1)
+      || (pair.tle1 as TLERecord | undefined)
+      || null;
+  }, [tles, pair, hasPrecomputed]);
+  const tle2 = useMemo(() => {
+    if (hasPrecomputed) return null;
+    return tles.find(t => t.NORAD_CAT_ID === pair.norad_2)
+      || (pair.tle2 as TLERecord | undefined)
+      || null;
+  }, [tles, pair, hasPrecomputed]);
 
   // Sparse chart data (20-min steps, full 5-day window) — for the distance chart
   const chartPoints = useMemo(() => {

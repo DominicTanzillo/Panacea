@@ -97,6 +97,9 @@ export interface ScreeningPair {
   sat1_type?: string;
   sat2_type?: string;
   emergency_reportable?: string;
+  /** Embedded TLE data for objects not in CelesTrak catalog */
+  tle1?: Record<string, unknown>;
+  tle2?: Record<string, unknown>;
 }
 
 export interface ForecastModelMetrics {
