@@ -291,6 +291,13 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
       .catch(() => setData(null));
   }, [visible]);
 
+  // Filter out expired events (TCA in the past)
+  const activePairs = useMemo(() => {
+    if (!data) return [];
+    const now = new Date().toISOString();
+    return data.pairs.filter(p => !p.tca || p.tca > now);
+  }, [data]);
+
   const counts = useMemo(() => {
     return {
       critical: activePairs.filter(p => riskLevel(p) === 'critical').length,
@@ -298,13 +305,6 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
       moderate: activePairs.filter(p => riskLevel(p) === 'moderate').length,
     };
   }, [activePairs]);
-
-  // Filter out expired events (TCA in the past)
-  const activePairs = useMemo(() => {
-    if (!data) return [];
-    const now = new Date().toISOString();
-    return data.pairs.filter(p => !p.tca || p.tca > now);
-  }, [data]);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return activePairs;
