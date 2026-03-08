@@ -292,19 +292,24 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
   }, [visible]);
 
   const counts = useMemo(() => {
-    if (!data) return { critical: 0, high: 0, moderate: 0 };
     return {
-      critical: data.pairs.filter(p => riskLevel(p) === 'critical').length,
-      high: data.pairs.filter(p => riskLevel(p) === 'high').length,
-      moderate: data.pairs.filter(p => riskLevel(p) === 'moderate').length,
+      critical: activePairs.filter(p => riskLevel(p) === 'critical').length,
+      high: activePairs.filter(p => riskLevel(p) === 'high').length,
+      moderate: activePairs.filter(p => riskLevel(p) === 'moderate').length,
     };
+  }, [activePairs]);
+
+  // Filter out expired events (TCA in the past)
+  const activePairs = useMemo(() => {
+    if (!data) return [];
+    const now = new Date().toISOString();
+    return data.pairs.filter(p => !p.tca || p.tca > now);
   }, [data]);
 
   const filtered = useMemo(() => {
-    if (!data) return [];
-    if (filter === 'all') return data.pairs;
-    return data.pairs.filter(p => riskLevel(p) === filter);
-  }, [data, filter]);
+    if (filter === 'all') return activePairs;
+    return activePairs.filter(p => riskLevel(p) === filter);
+  }, [activePairs, filter]);
 
   if (!visible) return null;
 
@@ -342,7 +347,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
           {/* Risk breakdown + filter */}
           <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-border)]">
             {(['all', 'critical', 'high', 'moderate'] as const).map(f => {
-              const count = f === 'all' ? data.pairs.length : counts[f];
+              const count = f === 'all' ? activePairs.length : counts[f];
               const isActive = filter === f;
               const fColor = f === 'all' ? 'var(--color-text)' : RISK_COLORS[f];
               return (

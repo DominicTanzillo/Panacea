@@ -172,11 +172,18 @@ function PipelineTab() {
     kept: ft.keep_new_model,
   }));
 
-  // Daily pipeline chart (last 14 days)
-  const dailyData = stats.daily_history.slice(-14).map(d => ({
+  // Daily pipeline chart (last 14 days) — deduplicate by date, keep last entry per day
+  const deduped = Object.values(
+    stats.daily_history.reduce<Record<string, typeof stats.daily_history[0]>>((acc, d) => {
+      acc[d.date] = d;
+      return acc;
+    }, {})
+  ).sort((a, b) => a.date.localeCompare(b.date));
+
+  const dailyData = deduped.slice(-14).map(d => ({
     date: d.date.slice(5, 10),
-    screened: d.n_satellites_screened,
-    maneuvers: d.n_maneuvers ?? 0,
+    screened: Math.round((d.n_satellites_screened ?? 0) / 1000),
+    predictions: d.n_predictions_logged ?? 0,
   }));
 
   const fm = stats.forecast_model;
@@ -241,7 +248,7 @@ function PipelineTab() {
       {finetuneData.length > 0 && (
         <>
           <div className="text-xs text-[var(--color-text-muted)]">
-            PI-TFT Fine-Tuning Progress (AUC-PR)
+            Model Fine-Tuning Progress (AUC-PR)
           </div>
           <ResponsiveContainer width="100%" height={140}>
             <BarChart data={finetuneData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -278,7 +285,8 @@ function PipelineTab() {
                 contentStyle={{ background: '#1a1a2e', border: '1px solid #333', borderRadius: 8 }}
                 labelStyle={{ color: '#fff' }}
               />
-              <Bar dataKey="maneuvers" fill="#ff8c42" radius={[2, 2, 0, 0]} name="Maneuvers Detected" />
+              <Bar dataKey="screened" fill="#4f8aff" radius={[2, 2, 0, 0]} name="Satellites (×1000)" />
+              <Bar dataKey="predictions" fill="#4fff8a" radius={[2, 2, 0, 0]} name="Predictions Logged" />
             </BarChart>
           </ResponsiveContainer>
         </>
