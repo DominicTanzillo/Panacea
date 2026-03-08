@@ -35,6 +35,7 @@ jobs:
           pip install google-cloud-firestore google-auth || echo "Firebase SDK install failed (optional)"
           pip install huggingface-hub || echo "HF Hub install failed (optional)"
           pip install scikit-learn xgboost || true
+          pip install torch --index-url https://download.pytorch.org/whl/cpu || true
 
       - name: Verify baseline model
         run: |
@@ -112,6 +113,7 @@ jobs:
           git add -f webapp-react/public/pipeline_stats.json 2>/dev/null || true
           git add -f webapp-react/public/cdm_forecast.json 2>/dev/null || true
           git add -f models/cdm_lstm.pt 2>/dev/null || true
+          git add -f models/cdm_sequence_model.pt 2>/dev/null || true
           git add -f models/cdm_forecast.json 2>/dev/null || true
           # Also stage deletions of pruned snapshots
           git add -u data/tle_snapshots/ 2>/dev/null || true
