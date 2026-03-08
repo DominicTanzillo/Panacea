@@ -29,6 +29,12 @@ interface ForecastPair {
   action_recommended: boolean;
   n_updates: number;
   time_series: CDMUpdate[];
+  // CDMSequenceModel regression fields
+  predicted_max_pc?: number | null;
+  predicted_max_log10_pc?: number | null;
+  predicted_min_miss_km?: number | null;
+  lstm_escalation_prob?: number | null;
+  attention_weights?: number[] | null;
 }
 
 interface ModelMetrics {
@@ -44,6 +50,15 @@ interface ModelMetrics {
   test_auc_pr: number;
 }
 
+interface RegressionMetrics {
+  mae_log10_pc: number;
+  rmse_log10_pc: number;
+  mae_log10_miss: number;
+  correlation_pc: number;
+  esc_f1: number;
+  n: number;
+}
+
 interface ForecastData {
   generated_at: string;
   model: string;
@@ -52,6 +67,7 @@ interface ForecastData {
   n_actionable: number;
   n_escalating: number;
   model_metrics?: ModelMetrics;
+  regression_metrics?: RegressionMetrics;
   pairs: ForecastPair[];
 }
 
@@ -89,7 +105,7 @@ function shortName(name: string): string {
   return name.replace(/ DEB$/, '').replace(/ R\/B$/, ' R/B').slice(0, 22);
 }
 
-function ModelMetricsBanner({ metrics, task }: { metrics: ModelMetrics; task: string }) {
+function ModelMetricsBanner({ metrics, task, regressionMetrics }: { metrics: ModelMetrics; task: string; regressionMetrics?: RegressionMetrics }) {
   const hasTest = metrics.test_accuracy > 0;
 
   return (
@@ -114,6 +130,23 @@ function ModelMetricsBanner({ metrics, task }: { metrics: ModelMetrics; task: st
           </div>
           <div className="text-[9px] text-[var(--color-text-muted)]">
             {metrics.n_training_pairs} train / {metrics.n_test_pairs} test pairs
+          </div>
+        </div>
+      )}
+      {regressionMetrics && regressionMetrics.n > 0 && (
+        <div className="flex items-center gap-4 text-center mt-2 pt-2 border-t border-[var(--color-border)]/30">
+          <div className="text-[9px] text-[var(--color-text-muted)] font-semibold">LSTM Regression</div>
+          <div>
+            <span className="text-sm font-bold text-[#ff9f43]">{regressionMetrics.mae_log10_pc.toFixed(3)}</span>
+            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">MAE(log Pc)</span>
+          </div>
+          <div>
+            <span className="text-sm font-bold text-[#00cec9]">{regressionMetrics.correlation_pc.toFixed(3)}</span>
+            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">Corr</span>
+          </div>
+          <div>
+            <span className="text-sm font-bold text-[#fd79a8]">{regressionMetrics.mae_log10_miss.toFixed(3)}</span>
+            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">MAE(log Miss)</span>
           </div>
         </div>
       )}
@@ -226,6 +259,62 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
             </div>
           </div>
 
+          {/* Regression predictions from CDMSequenceModel */}
+          {pair.predicted_max_pc != null && (
+            <div className="grid grid-cols-4 gap-3 text-[10px] pt-1 border-t border-[var(--color-border)]/30">
+              <div>
+                <div className="text-[var(--color-text-muted)]">Pred Max Pc</div>
+                <div className="font-mono font-semibold text-[#ff9f43]">
+                  {formatPc(pair.predicted_max_pc)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[var(--color-text-muted)]">Pred Min Miss</div>
+                <div className="font-mono font-semibold text-[#00cec9]">
+                  {pair.predicted_min_miss_km != null ? `${pair.predicted_min_miss_km.toFixed(1)} km` : '--'}
+                </div>
+              </div>
+              <div>
+                <div className="text-[var(--color-text-muted)]">LSTM P(Esc)</div>
+                <div className="font-mono font-semibold" style={{ color: (pair.lstm_escalation_prob ?? 0) >= 0.5 ? '#ff4f5a' : '#4fff8a' }}>
+                  {pair.lstm_escalation_prob != null ? formatPct(pair.lstm_escalation_prob) : '--'}
+                </div>
+              </div>
+              <div>
+                <div className="text-[var(--color-text-muted)]">log10(Max Pc)</div>
+                <div className="font-mono text-[#ff9f43]">
+                  {pair.predicted_max_log10_pc != null ? pair.predicted_max_log10_pc.toFixed(2) : '--'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Attention weights — small bar visualization */}
+          {pair.attention_weights && pair.attention_weights.length > 0 && (
+            <div className="pt-1">
+              <div className="text-[9px] text-[var(--color-text-muted)] mb-1">Attention (CDM importance)</div>
+              <div className="flex items-end gap-px h-6">
+                {pair.attention_weights.map((w, i) => {
+                  const maxW = Math.max(...(pair.attention_weights ?? [1]));
+                  const pct = maxW > 0 ? (w / maxW) * 100 : 0;
+                  return (
+                    <div
+                      key={i}
+                      className="flex-1 rounded-t"
+                      style={{
+                        height: `${Math.max(pct, 4)}%`,
+                        background: `rgba(139, 92, 246, ${0.3 + 0.7 * (w / maxW)})`,
+                        minWidth: 2,
+                        maxWidth: 12,
+                      }}
+                      title={`CDM ${i + 1}: ${(w * 100).toFixed(1)}%`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Pc evolution chart — X axis is hours to TCA */}
           {chartData.length >= 2 && (
             <div className="h-36 mt-1">
@@ -265,6 +354,15 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                     strokeDasharray="4 3"
                     strokeWidth={1.5}
                   />
+                  {pair.predicted_max_log10_pc != null && (
+                    <ReferenceLine
+                      y={pair.predicted_max_log10_pc}
+                      stroke="#ff9f43"
+                      strokeDasharray="2 3"
+                      strokeWidth={1.5}
+                      label={{ value: 'Pred Max', position: 'right', fill: '#ff9f43', fontSize: 8 }}
+                    />
+                  )}
                   <Area
                     type="monotone"
                     dataKey="log10(Pc)"
@@ -350,7 +448,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
         <>
           {/* Model metrics */}
           {data.model_metrics && (
-            <ModelMetricsBanner metrics={data.model_metrics} task={data.prediction_task} />
+            <ModelMetricsBanner metrics={data.model_metrics} task={data.prediction_task} regressionMetrics={data.regression_metrics} />
           )}
 
           {/* Risk breakdown + filter */}
