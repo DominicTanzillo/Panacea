@@ -39,15 +39,25 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-# Features shared between Kelvins and Space-Track
-# Kelvins has more (relative velocity, covariance), but these 3 are universal
-SHARED_FEATURES = ["log10_pc", "log10_miss_km", "time_to_tca_hours"]
-# Additional Kelvins features we can use in pre-training
+# Engineered per-timestep features for Space-Track CDMs.
+# We only get 16 raw fields (no covariance/velocity), so we engineer
+# temporal dynamics that give the LSTM meaningful sequential patterns.
+SPACETRACK_FEATURES = [
+    "log10_pc",           # 0: current log10(Pc)
+    "log10_miss_km",      # 1: current log10(miss distance in km)
+    "time_to_tca_hours",  # 2: hours until TCA at this CDM update
+    "delta_log10_pc",     # 3: change in log10(Pc) from previous update
+    "delta_log10_miss",   # 4: change in log10(miss) from previous update
+    "delta_time_hours",   # 5: hours elapsed since previous CDM update
+    "pc_rate",            # 6: d(log10_pc)/d(hours) — Pc velocity
+    "miss_rate",          # 7: d(log10_miss)/d(hours) — miss velocity
+]
+# Additional Kelvins features for pre-training (richer data)
 KELVINS_EXTRA = ["relative_speed", "log10_miss_m", "max_risk_estimate", "miss_distance"]
 
 MAX_SEQ_LEN = 30
-N_SHARED_FEATURES = 3
-N_KELVINS_FEATURES = 7  # shared + extras
+N_SHARED_FEATURES = len(SPACETRACK_FEATURES)  # 8
+N_KELVINS_FEATURES = N_SHARED_FEATURES + len(KELVINS_EXTRA)  # 12
 
 
 class _AttentionPooling(nn.Module):
@@ -210,7 +220,8 @@ class CDMSequenceModel:
         sequences, targets = [], []
         for eid, rows in events.items():
             rows.sort(key=lambda r: float(r["time_to_tca"]), reverse=True)
-            full_seq = []
+            # First pass: extract raw values
+            raw_vals = []
             for r in rows:
                 risk = float(r["risk"])  # log10(Pc)
                 miss_m = float(r["miss_distance"])
@@ -219,15 +230,44 @@ class CDMSequenceModel:
                 rel_speed = float(r.get("relative_speed", 0) or 0)
                 log_miss_m = math.log10(max(miss_m, 1e-3))
                 max_risk_est = float(r.get("max_risk_estimate", risk) or risk)
-                # 7 features: shared 3 + 4 Kelvins extras
+                log_miss_km = math.log10(max(miss_km, 1e-6))
+                raw_vals.append((risk, log_miss_km, ttca, rel_speed, log_miss_m, max_risk_est, miss_km))
+
+            # Second pass: compute temporal derivatives + build full feature vector
+            full_seq = []
+            for i, (risk, log_miss_km, ttca, rel_speed, log_miss_m, max_risk_est, miss_km) in enumerate(raw_vals):
+                if i == 0:
+                    delta_pc = 0.0
+                    delta_miss = 0.0
+                    delta_t = 0.0
+                    pc_rate = 0.0
+                    miss_rate = 0.0
+                else:
+                    prev = raw_vals[i - 1]
+                    delta_pc = risk - prev[0]
+                    delta_miss = log_miss_km - prev[1]
+                    delta_t = prev[2] - ttca  # positive = time elapsed
+                    if delta_t > 0.01:
+                        pc_rate = delta_pc / delta_t
+                        miss_rate = delta_miss / delta_t
+                    else:
+                        pc_rate = 0.0
+                        miss_rate = 0.0
+
+                # 12 features: 8 shared (matching Space-Track) + 4 Kelvins extras
                 full_seq.append([
                     risk,                          # 0: log10(Pc)
-                    math.log10(max(miss_km, 1e-6)),  # 1: log10(miss_km)
+                    log_miss_km,                   # 1: log10(miss_km)
                     ttca,                          # 2: time_to_tca_hours
-                    rel_speed / 1000.0,            # 3: relative speed (km/s, normalized)
-                    log_miss_m,                    # 4: log10(miss_m)
-                    max_risk_est,                  # 5: max risk estimate
-                    miss_km,                       # 6: miss_km (raw)
+                    delta_pc,                      # 3: delta log10(Pc)
+                    delta_miss,                    # 4: delta log10(miss)
+                    delta_t,                       # 5: hours since prev update
+                    pc_rate,                       # 6: d(log10_pc)/d(hours)
+                    miss_rate,                     # 7: d(log10_miss)/d(hours)
+                    rel_speed / 1000.0,            # 8: relative speed (km/s)
+                    log_miss_m,                    # 9: log10(miss_m)
+                    max_risk_est,                  # 10: max risk estimate
+                    miss_km,                       # 11: miss_km (raw)
                 ])
 
             full_seq = np.array(full_seq, dtype=np.float32)
@@ -426,8 +466,9 @@ class CDMSequenceModel:
         self.target_mean = np.array([train_pcs.mean(), train_miss.mean()], dtype=np.float32)
         self.target_std = np.array([train_pcs.std() + 1e-8, train_miss.std() + 1e-8], dtype=np.float32)
 
-        # Adapt network input size: Kelvins had 7 features, Space-Track has 3
-        # Create new network with 3 inputs, transfer LSTM weights where possible
+        # Adapt network input size: Kelvins had 12 features, Space-Track has 8
+        # First 8 features are shared (including temporal derivatives).
+        # Create new network with 8 inputs, transfer LSTM weights where possible.
         if self.net is not None and self.n_input_features != N_SHARED_FEATURES:
             print(f"  Adapting network: {self.n_input_features} -> {N_SHARED_FEATURES} input features")
             old_state = self.net.state_dict()
@@ -435,15 +476,19 @@ class CDMSequenceModel:
             new_state = self.net.state_dict()
 
             # Transfer all weights except the first LSTM input projection
+            old_n = self.n_input_features  # before adaptation
             for key in new_state:
                 if key in old_state and new_state[key].shape == old_state[key].shape:
                     new_state[key] = old_state[key]
-                elif "lstm.weight_ih_l0" in key:
-                    # First layer input weights: slice from 7->3 features
-                    # Keep the first 3 columns (shared features were first)
-                    old_w = old_state[key]  # (4*hidden, 7)
-                    new_state[key] = old_w[:, :N_SHARED_FEATURES].clone()
-                    print(f"    Sliced {key}: {old_w.shape} -> {new_state[key].shape}")
+                elif "lstm.weight_ih_l0" in key and key in old_state:
+                    old_w = old_state[key]  # (4*hidden, old_n)
+                    if old_w.shape[1] > N_SHARED_FEATURES:
+                        # Shrinking (e.g. 12->8): slice columns
+                        new_state[key] = old_w[:, :N_SHARED_FEATURES].clone()
+                    else:
+                        # Expanding (e.g. 3->8): copy old cols, init new randomly
+                        new_state[key][:, :old_w.shape[1]] = old_w
+                    print(f"    Adapted {key}: {old_w.shape} -> {new_state[key].shape}")
 
             self.net.load_state_dict(new_state)
         elif self.net is None:
@@ -653,7 +698,21 @@ class CDMSequenceModel:
         }
 
     def _cdm_list_to_sequence(self, cdms: list[dict]) -> Optional[np.ndarray]:
-        """Convert CDM list to (N, 3) feature array."""
+        """Convert CDM list to (N, 8) engineered feature array.
+
+        Features per timestep:
+          0: log10(Pc)
+          1: log10(miss_km)
+          2: time_to_tca_hours
+          3: delta_log10_pc      (change from previous CDM)
+          4: delta_log10_miss    (change from previous CDM)
+          5: delta_time_hours    (hours since previous CDM update)
+          6: pc_rate             (d(log10_pc) / d(hours) — Pc velocity)
+          7: miss_rate           (d(log10_miss) / d(hours) — miss velocity)
+
+        These temporal derivatives let the LSTM learn acceleration patterns
+        (e.g. "Pc is increasing AND accelerating" vs "Pc spiked but is leveling off").
+        """
         sorted_cdms = sorted(cdms, key=lambda c: c.get("cdm_id", c.get("CDM_ID", 0)))
 
         # Deduplicate by creation_date
@@ -667,7 +726,8 @@ class CDMSequenceModel:
                 seen.add(created)
             deduped.append(c)
 
-        features = []
+        # First pass: extract raw values
+        raw = []
         tca_str = deduped[0].get("tca", deduped[0].get("TCA", "")) if deduped else ""
         try:
             tca_dt = datetime.fromisoformat(tca_str.replace("Z", "+00:00"))
@@ -696,14 +756,45 @@ class CDMSequenceModel:
                 except (ValueError, AttributeError):
                     pass
 
+            log_pc = math.log10(max(pc, 1e-20))
+            log_miss = math.log10(max(miss_km, 0.001))
+            raw.append((log_pc, log_miss, ttca))
+
+        if not raw:
+            return None
+
+        # Second pass: compute temporal derivatives
+        features = []
+        for i, (log_pc, log_miss, ttca) in enumerate(raw):
+            if i == 0:
+                delta_pc = 0.0
+                delta_miss = 0.0
+                delta_t = 0.0
+                pc_rate = 0.0
+                miss_rate = 0.0
+            else:
+                prev_pc, prev_miss, prev_ttca = raw[i - 1]
+                delta_pc = log_pc - prev_pc
+                delta_miss = log_miss - prev_miss
+                delta_t = prev_ttca - ttca  # positive = time elapsed
+                if delta_t > 0.01:  # avoid division by tiny intervals
+                    pc_rate = delta_pc / delta_t
+                    miss_rate = delta_miss / delta_t
+                else:
+                    pc_rate = 0.0
+                    miss_rate = 0.0
+
             features.append([
-                math.log10(max(pc, 1e-20)),
-                math.log10(max(miss_km, 0.001)),
-                ttca,
+                log_pc,       # 0
+                log_miss,     # 1
+                ttca,         # 2
+                delta_pc,     # 3
+                delta_miss,   # 4
+                delta_t,      # 5
+                pc_rate,      # 6
+                miss_rate,    # 7
             ])
 
-        if not features:
-            return None
         return np.array(features, dtype=np.float32)
 
     def _load_spacetrack_pairs(self, cdm_store_path: str) -> dict:
