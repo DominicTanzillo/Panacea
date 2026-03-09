@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-08T01:36:32.867063Z",
+  "generated_at": "2026-03-09T01:38:51.750000Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -16,6 +16,14 @@
       "keep_new_model": true,
       "n_outcomes": 3110,
       "epochs_trained": 3
+    },
+    {
+      "date": "2026-03-08",
+      "pre_auc_pr": 0.4553056222466285,
+      "post_auc_pr": 0.3750629136844917,
+      "keep_new_model": false,
+      "n_outcomes": 3110,
+      "epochs_trained": 2
     }
   ],
   "daily_history": [
@@ -111,6 +119,34 @@
     },
     {
       "date": "2026-02-27",
+      "n_satellites_screened": 14541,
+      "n_candidate_pairs": 5346648,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-27",
+      "n_satellites_screened": 14541,
+      "n_candidate_pairs": 5346648,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-27",
+      "n_satellites_screened": 14541,
+      "n_candidate_pairs": 5346648,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-27",
+      "n_satellites_screened": 14541,
+      "n_candidate_pairs": 5346648,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2637
+    },
+    {
+      "date": "2026-02-27",
       "n_satellites_screened": 14704,
       "n_candidate_pairs": 5354368,
       "n_predictions_logged": 500,
@@ -163,48 +199,54 @@
       "n_satellites_screened": 15055,
       "n_candidate_pairs": 5409147,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-09",
+      "n_satellites_screened": 15570,
+      "n_candidate_pairs": 5473271,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 3375,
-    "last_fetch": "2026-03-08T01:34:48.320497+00:00",
-    "fetch_count": 9,
-    "pc_high": 1219,
+    "total_cdms": 2926,
+    "last_fetch": "2026-03-09T01:37:10.791431+00:00",
+    "fetch_count": 10,
+    "pc_high": 2926,
     "pc_moderate": 0,
-    "emergency_count": 1219
+    "emergency_count": 2926
   },
   "forecast_model": {
-    "n_pairs_total": 537,
-    "n_labeled": 537,
+    "n_pairs_total": 506,
+    "n_labeled": 506,
     "n_positive": 102,
-    "n_negative": 435,
-    "positive_rate": 0.1899,
-    "n_train": 375,
-    "n_test": 162,
+    "n_negative": 404,
+    "positive_rate": 0.2016,
+    "n_train": 354,
+    "n_test": 152,
     "mode": "logistic_regression",
     "train": {
-      "n": 375,
-      "accuracy": 0.856,
-      "precision": 0.6173,
-      "recall": 0.6849,
-      "f1": 0.6494,
-      "auc_pr": 0.7304,
-      "tp": 50,
-      "fp": 31,
-      "fn": 23,
-      "tn": 271
+      "n": 354,
+      "accuracy": 0.9294,
+      "precision": 0.8095,
+      "recall": 0.8831,
+      "f1": 0.8447,
+      "auc_pr": 0.7526,
+      "tp": 68,
+      "fp": 16,
+      "fn": 9,
+      "tn": 261
     },
     "test": {
-      "n": 162,
-      "accuracy": 0.8457,
-      "precision": 0.5714,
-      "recall": 0.5517,
-      "f1": 0.5614,
-      "auc_pr": 0.5858,
-      "tp": 16,
-      "fp": 12,
-      "fn": 13,
-      "tn": 121
+      "n": 152,
+      "accuracy": 0.9474,
+      "precision": 0.84,
+      "recall": 0.84,
+      "f1": 0.84,
+      "auc_pr": 0.7365,
+      "tp": 21,
+      "fp": 4,
+      "fn": 4,
+      "tn": 123
     }
   }
 }
