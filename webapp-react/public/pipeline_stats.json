@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-09T01:38:51.750000Z",
+  "generated_at": "2026-03-10T01:35:49.600116Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -205,48 +205,54 @@
       "n_satellites_screened": 15570,
       "n_candidate_pairs": 5473271,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-10",
+      "n_satellites_screened": 15574,
+      "n_candidate_pairs": 5520735,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 2926,
-    "last_fetch": "2026-03-09T01:37:10.791431+00:00",
-    "fetch_count": 10,
-    "pc_high": 2926,
+    "total_cdms": 3010,
+    "last_fetch": "2026-03-10T01:34:00.667019+00:00",
+    "fetch_count": 11,
+    "pc_high": 3010,
     "pc_moderate": 0,
-    "emergency_count": 2926
+    "emergency_count": 3010
   },
   "forecast_model": {
-    "n_pairs_total": 506,
-    "n_labeled": 506,
-    "n_positive": 102,
-    "n_negative": 404,
-    "positive_rate": 0.2016,
-    "n_train": 354,
-    "n_test": 152,
+    "n_pairs_total": 512,
+    "n_labeled": 512,
+    "n_positive": 105,
+    "n_negative": 407,
+    "positive_rate": 0.2051,
+    "n_train": 358,
+    "n_test": 154,
     "mode": "logistic_regression",
     "train": {
-      "n": 354,
-      "accuracy": 0.9294,
-      "precision": 0.8095,
-      "recall": 0.8831,
-      "f1": 0.8447,
-      "auc_pr": 0.7526,
-      "tp": 68,
-      "fp": 16,
+      "n": 358,
+      "accuracy": 0.933,
+      "precision": 0.8214,
+      "recall": 0.8846,
+      "f1": 0.8519,
+      "auc_pr": 0.7423,
+      "tp": 69,
+      "fp": 15,
       "fn": 9,
-      "tn": 261
+      "tn": 265
     },
     "test": {
-      "n": 152,
-      "accuracy": 0.9474,
-      "precision": 0.84,
-      "recall": 0.84,
-      "f1": 0.84,
-      "auc_pr": 0.7365,
-      "tp": 21,
-      "fp": 4,
-      "fn": 4,
-      "tn": 123
+      "n": 154,
+      "accuracy": 0.9351,
+      "precision": 0.8148,
+      "recall": 0.8148,
+      "f1": 0.8148,
+      "auc_pr": 0.6701,
+      "tp": 22,
+      "fp": 5,
+      "fn": 5,
+      "tn": 122
     }
   }
 }
