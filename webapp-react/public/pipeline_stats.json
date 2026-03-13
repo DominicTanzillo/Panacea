@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-12T01:35:12.328989Z",
+  "generated_at": "2026-03-13T01:39:27.928340Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -223,48 +223,54 @@
       "n_satellites_screened": 15657,
       "n_candidate_pairs": 5611113,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-13",
+      "n_satellites_screened": 15685,
+      "n_candidate_pairs": 5628759,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 3205,
-    "last_fetch": "2026-03-12T01:33:21.154562+00:00",
-    "fetch_count": 13,
-    "pc_high": 3205,
+    "total_cdms": 3320,
+    "last_fetch": "2026-03-13T01:37:41.177208+00:00",
+    "fetch_count": 14,
+    "pc_high": 3320,
     "pc_moderate": 0,
-    "emergency_count": 3205
+    "emergency_count": 3320
   },
   "forecast_model": {
-    "n_pairs_total": 544,
-    "n_labeled": 544,
-    "n_positive": 119,
-    "n_negative": 425,
-    "positive_rate": 0.2188,
-    "n_train": 380,
-    "n_test": 164,
+    "n_pairs_total": 558,
+    "n_labeled": 558,
+    "n_positive": 123,
+    "n_negative": 435,
+    "positive_rate": 0.2204,
+    "n_train": 390,
+    "n_test": 168,
     "mode": "logistic_regression",
     "train": {
-      "n": 380,
-      "accuracy": 0.9289,
-      "precision": 0.8152,
-      "recall": 0.8824,
-      "f1": 0.8475,
-      "auc_pr": 0.753,
-      "tp": 75,
-      "fp": 17,
+      "n": 390,
+      "accuracy": 0.9359,
+      "precision": 0.8387,
+      "recall": 0.8864,
+      "f1": 0.8619,
+      "auc_pr": 0.7434,
+      "tp": 78,
+      "fp": 15,
       "fn": 10,
-      "tn": 278
+      "tn": 287
     },
     "test": {
-      "n": 164,
-      "accuracy": 0.939,
-      "precision": 0.8529,
-      "recall": 0.8529,
-      "f1": 0.8529,
-      "auc_pr": 0.733,
-      "tp": 29,
+      "n": 168,
+      "accuracy": 0.9405,
+      "precision": 0.8571,
+      "recall": 0.8571,
+      "f1": 0.8571,
+      "auc_pr": 0.7905,
+      "tp": 30,
       "fp": 5,
       "fn": 5,
-      "tn": 125
+      "tn": 128
     }
   }
 }
