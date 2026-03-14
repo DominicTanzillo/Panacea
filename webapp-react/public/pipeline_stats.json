@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-13T01:39:27.928340Z",
+  "generated_at": "2026-03-14T01:37:13.144220Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -229,48 +229,54 @@
       "n_satellites_screened": 15685,
       "n_candidate_pairs": 5628759,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-14",
+      "n_satellites_screened": 15740,
+      "n_candidate_pairs": 5642021,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 3320,
-    "last_fetch": "2026-03-13T01:37:41.177208+00:00",
-    "fetch_count": 14,
-    "pc_high": 3320,
+    "total_cdms": 3480,
+    "last_fetch": "2026-03-14T01:35:25.914378+00:00",
+    "fetch_count": 15,
+    "pc_high": 3480,
     "pc_moderate": 0,
-    "emergency_count": 3320
+    "emergency_count": 3480
   },
   "forecast_model": {
-    "n_pairs_total": 558,
-    "n_labeled": 558,
-    "n_positive": 123,
-    "n_negative": 435,
-    "positive_rate": 0.2204,
-    "n_train": 390,
-    "n_test": 168,
+    "n_pairs_total": 576,
+    "n_labeled": 576,
+    "n_positive": 125,
+    "n_negative": 451,
+    "positive_rate": 0.217,
+    "n_train": 403,
+    "n_test": 173,
     "mode": "logistic_regression",
     "train": {
-      "n": 390,
-      "accuracy": 0.9359,
-      "precision": 0.8387,
+      "n": 403,
+      "accuracy": 0.933,
+      "precision": 0.8211,
       "recall": 0.8864,
-      "f1": 0.8619,
-      "auc_pr": 0.7434,
+      "f1": 0.8525,
+      "auc_pr": 0.7542,
       "tp": 78,
-      "fp": 15,
+      "fp": 17,
       "fn": 10,
-      "tn": 287
+      "tn": 298
     },
     "test": {
-      "n": 168,
-      "accuracy": 0.9405,
-      "precision": 0.8571,
-      "recall": 0.8571,
-      "f1": 0.8571,
-      "auc_pr": 0.7905,
-      "tp": 30,
-      "fp": 5,
-      "fn": 5,
-      "tn": 128
+      "n": 173,
+      "accuracy": 0.9249,
+      "precision": 0.7857,
+      "recall": 0.8919,
+      "f1": 0.8354,
+      "auc_pr": 0.7579,
+      "tp": 33,
+      "fp": 9,
+      "fn": 4,
+      "tn": 127
     }
   }
 }
