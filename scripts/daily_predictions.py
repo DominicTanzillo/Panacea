@@ -1207,7 +1207,13 @@ def main():
                 },
                 "pairs": [],
             }
-            for p in predictions[:30]:
+            # Prioritize future-TCA pairs (active conjunctions operators care about),
+            # then backfill with resolved pairs for context. Max 60 total.
+            now_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+            future = [p for p in predictions if p.get("tca", "") > now_str]
+            past = [p for p in predictions if p.get("tca", "") <= now_str]
+            export_pairs = future[:40] + past[:max(0, 60 - len(future[:40]))]
+            for p in export_pairs:
                 forecast_data["pairs"].append({
                     "sat1_name": p["sat1_name"],
                     "sat2_name": p["sat2_name"],
