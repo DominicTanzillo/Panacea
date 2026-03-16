@@ -1316,8 +1316,9 @@ def main():
                 for pair_key, cdms in pair_map.items():
                     pred = seq_model.predict(cdms)
                     if "error" not in pred:
-                        n1, n2, _tca = pair_key
-                        seq_predictions[(n1, n2)] = pred
+                        n1, n2, tca_date = pair_key
+                        # Key by (norad_pair, tca_date) so multiple events match correctly
+                        seq_predictions[(min(n1, n2), max(n1, n2), tca_date)] = pred
                 print(f"  CDMSequenceModel: {len(seq_predictions)} pair predictions")
                 if seq_regression_metrics:
                     print(f"  Regression MAE(log10_pc)={seq_regression_metrics.get('mae_log10_pc', 0):.3f}, "
@@ -1337,8 +1338,11 @@ def main():
                 with open(forecast_path) as f:
                     forecast_data = json.load(f)
                 for pair_entry in forecast_data.get("pairs", []):
-                    key = (min(pair_entry["sat1_norad"], pair_entry["sat2_norad"]),
-                           max(pair_entry["sat1_norad"], pair_entry["sat2_norad"]))
+                    n1 = pair_entry["sat1_norad"]
+                    n2 = pair_entry["sat2_norad"]
+                    tca_date = pair_entry.get("tca", "")[:10]
+                    # Match by (norad_pair, tca_date) for exact pair+event matching
+                    key = (min(n1, n2), max(n1, n2), tca_date)
                     sp = seq_predictions.get(key, {})
                     pair_entry["predicted_max_pc"] = sp.get("predicted_max_pc")
                     pair_entry["predicted_max_log10_pc"] = sp.get("predicted_max_log10_pc")
