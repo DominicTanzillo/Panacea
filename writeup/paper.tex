@@ -1,45 +1,40 @@
-\documentclass[conference]{IEEEtran}
+\documentclass{article}
+
+\usepackage[final]{neurips_2024}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{amsmath,amssymb,amsfonts}
-\usepackage{graphicx}
-\usepackage{booktabs}
 \usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath,amssymb}
+\usepackage{nicefrac}
+\usepackage{microtype}
 \usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage{multirow}
 \usepackage{array}
 \usepackage{float}
-\usepackage{url}
-\usepackage{cite}
-
-\hypersetup{
-  colorlinks=true,
-  linkcolor=blue,
-  citecolor=blue,
-  urlcolor=blue
-}
-
-\begin{document}
+\usepackage{natbib}
 
 \title{Panacea: Density-Augmented Temporal Fusion Transformers with Conformal Prediction for Orbital Debris Collision Risk Assessment}
 
 \author{
-\IEEEauthorblockN{Dominic Tanzillo}
-\IEEEauthorblockA{Duke University\\
-AIPI 540 Deep Learning Applications\\
-\texttt{dominic.tanzillo@duke.edu}}
+  Dominic Tanzillo \\
+  Duke University \\
+  AIPI 540 Deep Learning Applications \\
+  \texttt{dominic.tanzillo@duke.edu}
 }
+
+\begin{document}
 
 \maketitle
 
 \begin{abstract}
-The accelerating proliferation of orbital debris poses an existential threat to space sustainability, with the expected time between collisions (the ``CRASH Clock'') decreasing from 164 days in 2018 to 5.5 days in 2025. NASA's Conjunction Assessment office screens hundreds of conjunction data messages (CDMs) daily, yet current methods rely heavily on analyst judgment. We present \textbf{Panacea}---a unified framework for ML-based collision risk triage that combines three complementary approaches: (1) an orbital shell density baseline establishing altitude-based risk context, (2) gradient-boosted trees with engineered temporal features achieving near-perfect classification (AUC-PR 0.988), and (3) a novel \textbf{Physics-Informed Temporal Fusion Transformer (PI-TFT)} that processes raw CDM sequences with variable selection networks and attention-weighted pooling. We augment PI-TFT with population-level \textbf{orbital density features} derived from the CRASH Clock framework~\cite{thiele2025}, encoding shell-level collision rates as static context. Critically, we address NASA CARA's objection to ML uncertainty quantification by integrating \textbf{split-conformal prediction}, providing distribution-free coverage guarantees on risk tier assignments. On the ESA Kelvins Collision Avoidance Challenge dataset (162K CDMs, 13K events), we demonstrate that while XGBoost excels at triage with engineered features, PI-TFT provides complementary temporal reasoning and calibrated uncertainty bounds essential for operational deployment. We deploy the full system as an interactive 3D visualization tracking 25,000+ objects in real time.
+The accelerating proliferation of orbital debris poses an existential threat to space sustainability, with the expected time between collisions (the ``CRASH Clock'') decreasing from 164 days in 2018 to 5.5 days in 2025. NASA's Conjunction Assessment office screens hundreds of conjunction data messages (CDMs) daily, yet current methods rely heavily on analyst judgment. We present \textbf{Panacea}---a unified framework for ML-based collision risk triage that combines three complementary approaches: (1) an orbital shell density baseline establishing altitude-based risk context, (2) gradient-boosted trees with engineered temporal features achieving near-perfect classification (AUC-PR 0.988), and (3) a novel \textbf{Physics-Informed Temporal Fusion Transformer (PI-TFT)} that processes raw CDM sequences with variable selection networks and attention-weighted pooling. We augment PI-TFT with population-level \textbf{orbital density features} derived from the CRASH Clock framework~\citep{thiele2025}, encoding shell-level collision rates as static context. Critically, we address NASA CARA's objection to ML uncertainty quantification by integrating \textbf{split-conformal prediction}, providing distribution-free coverage guarantees on risk tier assignments. On the ESA Kelvins Collision Avoidance Challenge dataset (162K CDMs, 13K events), we demonstrate that while XGBoost excels at triage with engineered features, PI-TFT provides complementary temporal reasoning and calibrated uncertainty bounds essential for operational deployment. We deploy the full system as an interactive 3D visualization tracking 25,000+ objects in real time.
 \end{abstract}
-
-\begin{IEEEkeywords}
-orbital mechanics, collision avoidance, temporal fusion transformer, conformal prediction, space debris, attention mechanisms
-\end{IEEEkeywords}
 
 %----------------------------------------------------------------------
 \section{Introduction}
@@ -48,7 +43,7 @@ orbital mechanics, collision avoidance, temporal fusion transformer, conformal p
 \subsection{The Kessler Syndrome and Operational Context}
 \label{sec:kessler}
 
-Low-Earth orbit (LEO) is approaching a critical inflection point. With over 30,000 tracked objects and millions of untracked fragments, the self-sustaining cascading collision process predicted by Kessler \& Cour-Palais~\cite{kessler1978} is no longer theoretical. The CRASH Clock metric~\cite{thiele2025}---which estimates the expected time between collisions based on population density, relative velocities, and collision cross-sections---has decreased from approximately 164 days in 2018 to just 5.5 days in 2025, primarily driven by mega-constellations like Starlink.
+Low-Earth orbit (LEO) is approaching a critical inflection point. With over 30,000 tracked objects and millions of untracked fragments, the self-sustaining cascading collision process predicted by \citet{kessler1978} is no longer theoretical. The CRASH Clock metric~\citep{thiele2025}---which estimates the expected time between collisions based on population density, relative velocities, and collision cross-sections---has decreased from approximately 164 days in 2018 to just 5.5 days in 2025, primarily driven by mega-constellations like Starlink.
 
 NASA's Conjunction Assessment Risk Analysis (CARA) team processes hundreds of conjunction data messages (CDMs) daily, each containing orbital state vectors, covariance matrices, miss distances, and risk estimates for potential close approaches. The operational challenge is triage: distinguishing the handful of genuinely dangerous conjunctions from the vast majority of benign close approaches. Current workflows depend heavily on analyst expertise, with the 18th Space Defense Squadron providing conjunction screening data that CARA must filter through multiple layers of assessment.
 
@@ -57,12 +52,12 @@ The name \textbf{Panacea} reflects this project's dual ambition: as a medical te
 \subsection{Limitations of Current Approaches}
 \label{sec:limitations}
 
-The ESA Kelvins Collision Avoidance Challenge~\cite{uriot2021} established the benchmark for ML approaches to CDM-based risk classification. Competition winners~\cite{stevenson2020,siew2020} demonstrated that gradient-boosted trees with carefully engineered features could achieve strong performance. However, several limitations persist:
+The ESA Kelvins Collision Avoidance Challenge~\citep{uriot2021} established the benchmark for ML approaches to CDM-based risk classification. Competition winners~\citep{stevenson2020,siew2020} demonstrated that gradient-boosted trees with carefully engineered features could achieve strong performance. However, several limitations persist:
 
 \begin{enumerate}
 \item \textbf{Feature engineering burden}: Competition winners relied on extensive domain knowledge to construct temporal summary statistics (trends, deltas, rolling statistics). This approach, while effective, does not learn temporal patterns directly from data.
 
-\item \textbf{Lack of uncertainty quantification}: All competition entries produced point predictions. NASA CARA has explicitly identified the absence of calibrated uncertainty estimates as a barrier to operational adoption of ML methods~\cite{hejduk2023}.
+\item \textbf{Lack of uncertainty quantification}: All competition entries produced point predictions. NASA CARA has explicitly identified the absence of calibrated uncertainty estimates as a barrier to operational adoption of ML methods~\citep{hejduk2023}.
 
 \item \textbf{Missing population context}: Individual CDM sequences are evaluated in isolation, without considering the broader orbital environment. A conjunction at 550~km altitude (dense Starlink shell) carries fundamentally different population-level risk than one at 1200~km.
 
@@ -77,7 +72,7 @@ We make four contributions:
 \begin{enumerate}
 \item \textbf{Architecture}: We propose PI-TFT, a Physics-Informed Temporal Fusion Transformer that processes raw CDM sequences through variable selection networks and attention-weighted pooling, learning which features and timesteps matter per event.
 
-\item \textbf{Density augmentation}: We integrate population-level orbital density features derived from the CRASH Clock framework~\cite{thiele2025}, providing shell-level collision rate context as static enrichment to the temporal model.
+\item \textbf{Density augmentation}: We integrate population-level orbital density features derived from the CRASH Clock framework~\citep{thiele2025}, providing shell-level collision rate context as static enrichment to the temporal model.
 
 \item \textbf{Conformal prediction}: We apply split-conformal prediction to produce risk tier prediction sets with distribution-free coverage guarantees, directly addressing the uncertainty quantification gap.
 
@@ -91,18 +86,18 @@ We make four contributions:
 \subsection{ML for Conjunction Assessment}
 \label{sec:ml-ca}
 
-The ESA Kelvins Challenge~\cite{uriot2021} provided the foundational dataset: 162,634 CDMs across 13,154 conjunction events with 103 numerical features. Key approaches:
+The ESA Kelvins Challenge~\citep{uriot2021} provided the foundational dataset: 162,634 CDMs across 13,154 conjunction events with 103 numerical features. Key approaches:
 
 \begin{itemize}
-\item \textbf{Stevenson et al.}~\cite{stevenson2020} achieved top performance using gradient-boosted trees with temporal aggregation features (miss distance trends, covariance evolution). Their key insight: the \emph{trajectory} of CDM updates matters more than any single update.
-\item \textbf{Siew et al.}~\cite{siew2020} explored neural network approaches but found classical methods competitive, noting the challenge of learning from small event counts with extreme class imbalance ($\sim$3.4\% positive rate).
-\item \textbf{Acciarini et al.}~\cite{acciarini2021} applied LSTM-based sequence models to CDM time series, demonstrating the feasibility of temporal deep learning but without matching boosted tree performance.
+\item \textbf{\citet{stevenson2020}} achieved top performance using gradient-boosted trees with temporal aggregation features (miss distance trends, covariance evolution). Their key insight: the \emph{trajectory} of CDM updates matters more than any single update.
+\item \textbf{\citet{siew2020}} explored neural network approaches but found classical methods competitive, noting the challenge of learning from small event counts with extreme class imbalance ($\sim$3.4\% positive rate).
+\item \textbf{\citet{acciarini2021}} applied LSTM-based sequence models to CDM time series, demonstrating the feasibility of temporal deep learning but without matching boosted tree performance.
 \end{itemize}
 
 \subsection{Temporal Fusion Transformers}
 \label{sec:tft}
 
-Lim et al.~\cite{lim2021} introduced the Temporal Fusion Transformer (TFT) for multi-horizon time series forecasting, featuring:
+\citet{lim2021} introduced the Temporal Fusion Transformer (TFT) for multi-horizon time series forecasting, featuring:
 \begin{itemize}
 \item Variable selection networks for interpretable feature importance
 \item Static covariate encoders providing event-level context
@@ -115,7 +110,7 @@ Our PI-TFT adapts this architecture for CDM classification, replacing the foreca
 \subsection{CRASH Clock Framework}
 \label{sec:crash}
 
-Thiele et al.~\cite{thiele2025} developed the Collision Rate Assessment of Space Hazards (CRASH) Clock, estimating collision frequency as:
+\citet{thiele2025} developed the Collision Rate Assessment of Space Hazards (CRASH) Clock, estimating collision frequency as:
 \begin{equation}
 \Gamma = \frac{1}{2} n^2 \cdot A_{\text{col}} \cdot v_r \cdot V_{\text{shell}}^{-1}
 \label{eq:crash}
@@ -125,13 +120,13 @@ where $n$ is the number of objects, $A_{\text{col}}$ is the collision cross-sect
 \subsection{Conformal Prediction}
 \label{sec:conformal-related}
 
-Conformal prediction~\cite{vovk2005,angelopoulos2021} provides distribution-free prediction sets with guaranteed marginal coverage:
+Conformal prediction~\citep{vovk2005,angelopoulos2021} provides distribution-free prediction sets with guaranteed marginal coverage:
 \begin{equation}
 P(Y \in C(X)) \geq 1 - \alpha
 \label{eq:conformal}
 \end{equation}
 
-Split conformal prediction~\cite{lei2018} is particularly suitable for deployment: calibrate on a held-out set, compute nonconformity score quantiles, and construct prediction sets at test time with no distributional assumptions.
+Split conformal prediction~\citep{lei2018} is particularly suitable for deployment: calibrate on a held-out set, compute nonconformity score quantiles, and construct prediction sets at test time with no distributional assumptions.
 
 %----------------------------------------------------------------------
 \section{Methods}
@@ -238,7 +233,7 @@ Feature & Description & Physical Basis \\
 \end{tabular}
 \end{table}
 
-These features are computed from training data only (no leakage) using an \texttt{OrbitalDensityComputer} that fits a binned altitude histogram and derives CRASH Clock metrics per shell. The computation uses $A_{\text{col}} = 300$~m$^2$ (satellite-satellite cross-section) and $v_r = \frac{4}{3} v_{\text{orbital}}$ following Thiele et al.~\cite{thiele2025}.
+These features are computed from training data only (no leakage) using an \texttt{OrbitalDensityComputer} that fits a binned altitude histogram and derives CRASH Clock metrics per shell. The computation uses $A_{\text{col}} = 300$~m$^2$ (satellite-satellite cross-section) and $v_r = \frac{4}{3} v_{\text{orbital}}$ following \citet{thiele2025}.
 
 \subsubsection{Training Procedure}
 \label{sec:training}
@@ -290,7 +285,7 @@ CRITICAL & $[0.70, 1.00]$ \\
 \subsection{Dataset}
 \label{sec:dataset}
 
-The ESA Kelvins Collision Avoidance Challenge dataset~\cite{uriot2021}:
+The ESA Kelvins Collision Avoidance Challenge dataset~\citep{uriot2021}:
 \begin{itemize}
 \item \textbf{Training set}: 162,634 CDMs across 13,154 events
 \item \textbf{Test set}: 24,484 CDMs across 2,167 events (73 positive, 3.4\% prevalence)
@@ -412,7 +407,7 @@ We therefore developed a separate production model trained and validated entirel
 
 All CDMs in Space-Track's public feed have Pc $\geq 10^{-4}$---the 18th Space Defense Squadron pre-filters at the conjunction screening level. Using $10^{-4}$ as the classification threshold yields 100\% positive rate with zero negative examples, making supervised learning impossible (Figure~\ref{fig:pc-dist}).
 
-We classify at $5 \times 10^{-4}$, NASA CARA's ``red'' threshold where operators begin planning collision avoidance maneuvers~\cite{hejduk2023}. This gives 19.1\% positive rate (97 of 506 pairs exceeded $5 \times 10^{-4}$), providing sufficient class balance for meaningful ML.
+We classify at $5 \times 10^{-4}$, NASA CARA's ``red'' threshold where operators begin planning collision avoidance maneuvers~\citep{hejduk2023}. This gives 19.1\% positive rate (97 of 506 pairs exceeded $5 \times 10^{-4}$), providing sufficient class balance for meaningful ML.
 
 \begin{figure}[h]
 \centering
@@ -653,7 +648,7 @@ Both are implementable without model retraining and would likely eliminate all 3
 \subsection{When Does Deep Learning Help?}
 \label{sec:when-dl}
 
-Our results tell a nuanced story. For the specific task of binary risk classification on structured CDM data with strong engineered features, XGBoost is difficult to beat. This aligns with findings across tabular deep learning~\cite{grinsztajn2022,mcelfresh2023} showing that tree-based methods often dominate on medium-sized tabular datasets.
+Our results tell a nuanced story. For the specific task of binary risk classification on structured CDM data with strong engineered features, XGBoost is difficult to beat. This aligns with findings across tabular deep learning~\citep{grinsztajn2022,mcelfresh2023} showing that tree-based methods often dominate on medium-sized tabular datasets.
 
 However, PI-TFT offers capabilities beyond raw classification performance:
 
@@ -710,7 +705,7 @@ CF $\geq$ 25 km & 6,721 & 71.5\% & $\sim$70\% (shell density) \\
 
 The critical finding: \textbf{the close-approach rate is fully explained by orbital shell geometry, not avoidance intent.} In the Starlink shell at 550~km ($\sim$6,000 satellites in a narrow altitude band), any propagated position will have neighbors within 25~km purely by chance. We tested this by comparing delta-v distributions for ``close approach'' (CF $<$ 5~km, median delta-v = 0.116~m/s) versus the general population (CF $\geq$ 25~km, median delta-v = 0.135~m/s) and found no significant difference (Mann-Whitney $p = 0.23$). If these were genuine avoidance maneuvers, we would expect systematically different burn profiles.
 
-The root cause is a measurement precision problem. TLE/SGP4 position accuracy is approximately $0.8 \pm 0.3$~km instantaneously, growing to $\sim$1.5~km/day~\cite{levit2010}. After one day of propagation, the combined 1-$\sigma$ uncertainty for two satellites is $\sim$3.3~km. Our counterfactual distances of 1--10~km are \emph{within the noise floor of the measurement tool}. Additionally, the 10-minute propagation time step aliases away fast crossing encounters (at $\sim$10~km/s relative velocity, each step covers 6,000~km), making sampled distances unreliable for cross-plane interactions.
+The root cause is a measurement precision problem. TLE/SGP4 position accuracy is approximately $0.8 \pm 0.3$~km instantaneously, growing to $\sim$1.5~km/day~\citep{levit2010}. After one day of propagation, the combined 1-$\sigma$ uncertainty for two satellites is $\sim$3.3~km. Our counterfactual distances of 1--10~km are \emph{within the noise floor of the measurement tool}. Additionally, the 10-minute propagation time step aliases away fast crossing encounters (at $\sim$10~km/s relative velocity, each step covers 6,000~km), making sampled distances unreliable for cross-plane interactions.
 
 This negative result has implications beyond our system. Any approach attempting to reverse-engineer collision avoidance decisions from public TLE data faces the same fundamental limitation: \textbf{TLE precision is insufficient to distinguish genuine conjunctions from propagation noise below $\sim$10~km.} The operational conjunction assessment community uses Special Perturbation (SP) ephemerides with full covariance matrices, transmitted via Conjunction Data Messages (CDMs), precisely because TLEs lack the accuracy for close-approach analysis. Our pipeline architecture is sound---it needs CDM-quality inputs rather than TLE-derived counterfactuals.
 
@@ -793,56 +788,11 @@ Panacea addresses a real and growing market. The space situational awareness (SS
 This work was completed as part of AIPI 540 Deep Learning Applications at Duke University. All models and the interactive deployment are available at \url{https://github.com/DominicTanzillo/Panacea}.
 
 %----------------------------------------------------------------------
-\bibliographystyle{IEEEtran}
-
-\begin{thebibliography}{13}
-
-\bibitem{acciarini2021}
-G.~Acciarini et~al., ``Spacecraft collision risk assessment with probabilistic programming,'' in \emph{NeurIPS ML4PS Workshop}, 2021.
-
-\bibitem{angelopoulos2021}
-A.~N. Angelopoulos and S.~Bates, ``A gentle introduction to conformal prediction and distribution-free uncertainty quantification,'' \emph{arXiv:2107.07511}, 2021.
-
-\bibitem{grinsztajn2022}
-L.~Grinsztajn et~al., ``Why do tree-based models still outperform deep learning on tabular data?'' in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2022.
-
-\bibitem{hejduk2023}
-M.~Hejduk, ``AI/ML research for conjunction assessment,'' NASA CARA Technical Report, 2023.
-
-\bibitem{kessler1978}
-D.~J. Kessler and B.~G. Cour-Palais, ``Collision frequency of artificial satellites: The creation of a debris belt,'' \emph{Journal of Geophysical Research}, 1978.
-
-\bibitem{lei2018}
-J.~Lei et~al., ``Distribution-free predictive inference for regression,'' \emph{Journal of the American Statistical Association}, 2018.
-
-\bibitem{levit2010}
-C.~Levit and W.~Marshall, ``Improved orbit predictions using two-line elements,'' \emph{Advances in Space Research}, 2010.
-
-\bibitem{lim2021}
-B.~Lim et~al., ``Temporal fusion transformers for interpretable multi-horizon time series forecasting,'' \emph{International Journal of Forecasting}, 2021.
-
-\bibitem{mcelfresh2023}
-D.~McElfresh et~al., ``When do neural nets outperform boosted trees on tabular data?'' in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2023.
-
-\bibitem{siew2020}
-P.~M. Siew et~al., ``Towards collision avoidance with deep learning,'' Kelvins Challenge Report, 2020.
-
-\bibitem{stevenson2020}
-E.~Stevenson et~al., ``Probabilistic machine learning approach for conjunction assessment,'' Kelvins Challenge Winner Report, 2020.
-
-\bibitem{thiele2025}
-T.~Thiele et~al., ``The CRASH clock: Collision rate assessment of space hazards,'' in review, 2025.
-
-\bibitem{uriot2021}
-T.~Uriot et~al., ``Spacecraft collision avoidance challenge,'' Kelvins/ESA, 2021.
-
-\bibitem{vovk2005}
-V.~Vovk et~al., \emph{Algorithmic Learning in a Random World}.\hskip 1em plus 0.5em minus 0.4em\relax Springer, 2005.
-
-\end{thebibliography}
+\bibliographystyle{plainnat}
+\bibliography{references}
 
 %----------------------------------------------------------------------
-\appendices
+\appendix
 
 \section{Model Architecture Details}
 \label{app:architecture}
