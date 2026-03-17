@@ -37,7 +37,9 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+from src.model.deep import SigmoidFocalLoss
 
 # Engineered per-timestep features for Space-Track CDMs.
 # We only get 16 raw fields (no covariance/velocity), so we engineer
@@ -80,18 +82,20 @@ class _AttentionPooling(nn.Module):
 
 
 class _MultiTaskNet(nn.Module):
-    """Multi-task LSTM with attention and three output heads."""
+    """Multi-task bidirectional LSTM with attention and three output heads."""
     def __init__(self, input_size=3, hidden_size=128, num_layers=2, dropout=0.3):
         super().__init__()
+        self.hidden_size = hidden_size
         self.lstm = nn.LSTM(
             input_size, hidden_size, num_layers,
             batch_first=True, dropout=dropout if num_layers > 1 else 0.0,
+            bidirectional=True,
         )
-        self.attention = _AttentionPooling(hidden_size)
+        self.attention = _AttentionPooling(hidden_size * 2)
 
-        # Shared trunk after attention
+        # Shared trunk after attention (hidden_size * 2 for bidirectional)
         self.trunk = nn.Sequential(
-            nn.Linear(hidden_size, 64),
+            nn.Linear(hidden_size * 2, 64),
             nn.GELU(),
             nn.Dropout(0.2),
         )
@@ -132,24 +136,29 @@ class _MultiTaskNet(nn.Module):
         # Shared features
         trunk_out = self.trunk(context)
 
-        # Multi-task outputs
+        # Multi-task outputs (escalation returns raw logits for focal loss)
         max_pc = self.head_max_pc(trunk_out).squeeze(-1)       # regression
         min_miss = self.head_min_miss(trunk_out).squeeze(-1)   # regression
-        escalation = torch.sigmoid(self.head_escalation(trunk_out).squeeze(-1))  # classification
+        escalation_logit = self.head_escalation(trunk_out).squeeze(-1)  # raw logit
 
-        return max_pc, min_miss, escalation, attn_weights
+        return max_pc, min_miss, escalation_logit, attn_weights
 
 
 class _SeqRegressionDataset(Dataset):
-    """Dataset for multi-task sequence regression."""
-    def __init__(self, sequences, targets, max_len=MAX_SEQ_LEN):
+    """Dataset for multi-task sequence regression with optional augmentation."""
+    def __init__(self, sequences, targets, max_len=MAX_SEQ_LEN, training=False,
+                 feature_std=None):
         """
         targets: list of dicts with keys:
           - max_log10_pc: float (regression target)
           - min_log10_miss: float (regression target)
           - escalated: int (0/1, auxiliary classification)
+        training: if True, apply data augmentation
+        feature_std: per-feature std for Gaussian noise (after normalization, ~1.0)
         """
         self.targets = targets
+        self.training = training
+        self.feature_std = feature_std
         self.lengths = []
         self.padded = []
         n_feat = sequences[0].shape[1] if len(sequences) > 0 else 3
@@ -169,9 +178,24 @@ class _SeqRegressionDataset(Dataset):
 
     def __getitem__(self, idx):
         t = self.targets[idx]
+        x = self.padded[idx].copy()
+        length = int(self.lengths[idx])
+
+        if self.training and length >= 2:
+            # Gaussian noise on features (scale=0.05)
+            noise = np.random.randn(*x[:length].shape).astype(np.float32) * 0.05
+            x[:length] += noise
+
+            # Random CDM dropout: remove 1 update from sequences with 4+ updates
+            if length >= 4 and np.random.random() < 0.3:
+                drop_idx = np.random.randint(1, length - 1)  # keep first and last
+                x[drop_idx:length - 1] = x[drop_idx + 1:length]
+                x[length - 1] = 0.0
+                length -= 1
+
         return (
-            torch.from_numpy(self.padded[idx]),
-            torch.tensor(self.lengths[idx]),
+            torch.from_numpy(x),
+            torch.tensor(length, dtype=torch.int64),
             torch.tensor(t["max_log10_pc"], dtype=torch.float32),
             torch.tensor(t["min_log10_miss"], dtype=torch.float32),
             torch.tensor(t["escalated"], dtype=torch.float32),
@@ -194,6 +218,8 @@ class CDMSequenceModel:
         self.trained = False
         self.metrics: dict = {}
         self.n_input_features = N_SHARED_FEATURES
+        self.temperature = 1.0  # calibration temperature for escalation logits
+        self.focal_loss = SigmoidFocalLoss(alpha=0.75, gamma=2.0)
 
     def _init_net(self, input_size):
         self.n_input_features = input_size
@@ -321,7 +347,7 @@ class CDMSequenceModel:
         # Init network with Kelvins feature count
         self._init_net(input_size=N_KELVINS_FEATURES)
 
-        train_ds = _SeqRegressionDataset(train_seqs, train_targets)
+        train_ds = _SeqRegressionDataset(train_seqs, train_targets, training=True)
         test_ds = _SeqRegressionDataset(test_seqs, test_targets)
         train_dl = DataLoader(train_ds, batch_size=64, shuffle=True)
         test_dl = DataLoader(test_ds, batch_size=256)
@@ -343,16 +369,27 @@ class CDMSequenceModel:
                 lengths = lengths.to(self.device)
                 y_pc, y_miss, y_esc = y_pc.to(self.device), y_miss.to(self.device), y_esc.to(self.device)
 
+                # Feature dropout: zero out Kelvins-extra features (cols 8-11) with p=0.5
+                # Forces LSTM to learn from the 8 shared features for better transfer
+                if x.size(2) > N_SHARED_FEATURES:
+                    feat_mask = torch.ones_like(x)
+                    drop = (torch.rand(x.size(0), 1, 1, device=x.device) < 0.5)
+                    feat_mask[:, :, N_SHARED_FEATURES:] *= (~drop).float()
+                    x = x * feat_mask
+
                 pred_pc, pred_miss, pred_esc, _ = self.net(x, lengths)
 
                 # Normalize targets
                 y_pc_norm = (y_pc - self.target_mean[0]) / self.target_std[0]
                 y_miss_norm = (y_miss - self.target_mean[1]) / self.target_std[1]
 
-                # Multi-task loss
-                loss_pc = nn.functional.mse_loss(pred_pc, y_pc_norm)
-                loss_miss = nn.functional.mse_loss(pred_miss, y_miss_norm)
-                loss_esc = nn.functional.binary_cross_entropy(pred_esc, y_esc)
+                # Asymmetric regression: penalize underestimating risk 2x
+                residual_pc = pred_pc - y_pc_norm
+                asym_weight = torch.where(residual_pc < 0, 2.0, 1.0)
+                loss_pc = (asym_weight * F.huber_loss(pred_pc, y_pc_norm, reduction='none', delta=1.0)).mean()
+                loss_miss = F.huber_loss(pred_miss, y_miss_norm, delta=1.0)
+                # Focal loss for escalation (handles class imbalance, expects raw logits)
+                loss_esc = self.focal_loss(pred_esc, y_esc)
 
                 # Weighted combination: regression is primary, classification is auxiliary
                 loss = 1.0 * loss_pc + 0.5 * loss_miss + 0.3 * loss_esc
@@ -494,10 +531,19 @@ class CDMSequenceModel:
         elif self.net is None:
             self._init_net(input_size=N_SHARED_FEATURES)
 
-        train_ds = _SeqRegressionDataset(train_seqs, train_targets)
+        # Split calibration set (15% of train) for temperature scaling
+        n_cal = max(5, int(0.15 * len(train_seqs)))
+        cal_seqs = train_seqs[-n_cal:]
+        cal_targets = train_targets[-n_cal:]
+        train_seqs = train_seqs[:-n_cal]
+        train_targets = train_targets[:-n_cal]
+
+        train_ds = _SeqRegressionDataset(train_seqs, train_targets, training=True)
         test_ds = _SeqRegressionDataset(test_seqs, test_targets)
+        cal_ds = _SeqRegressionDataset(cal_seqs, cal_targets)
         train_dl = DataLoader(train_ds, batch_size=32, shuffle=True)
         test_dl = DataLoader(test_ds, batch_size=256)
+        cal_dl = DataLoader(cal_ds, batch_size=256)
 
         # Phase 1: Freeze LSTM, train heads (10 epochs)
         print("  Phase 1: Freeze LSTM, train heads...")
@@ -546,8 +592,16 @@ class CDMSequenceModel:
         if best_state:
             self.net.load_state_dict(best_state)
 
+        # Temperature calibration on held-out calibration set
+        print("  Phase 3: Temperature calibration...")
+        self.calibrate_temperature(cal_dl)
+
         train_metrics = self._evaluate(train_dl)
         test_metrics = self._evaluate(test_dl)
+
+        # Compute ECE on test set
+        test_metrics["ece"] = self._compute_ece_from_dl(test_dl)
+        test_metrics["temperature"] = self.temperature
 
         print(f"\nSpace-Track Results:")
         print(f"  Train: MAE(log10_pc)={train_metrics['mae_log10_pc']:.3f}, "
@@ -555,12 +609,26 @@ class CDMSequenceModel:
               f"Escalation F1={train_metrics['esc_f1']:.3f}")
         print(f"  Test:  MAE(log10_pc)={test_metrics['mae_log10_pc']:.3f}, "
               f"MAE(log10_miss)={test_metrics['mae_log10_miss']:.3f}, "
-              f"Escalation F1={test_metrics['esc_f1']:.3f}")
+              f"Escalation F1={test_metrics['esc_f1']:.3f}, "
+              f"ECE={test_metrics['ece']:.4f}, T={self.temperature:.2f}")
 
         self.trained = True
         self.metrics["finetune"] = {"train": train_metrics, "test": test_metrics,
                                      "n_pairs": len(sequences)}
         return self.metrics["finetune"]
+
+    def _compute_ece_from_dl(self, dl) -> float:
+        """Compute ECE from a DataLoader."""
+        self.net.eval()
+        all_probs, all_labels = [], []
+        with torch.no_grad():
+            for x, lengths, _, _, y_esc in dl:
+                x, lengths = x.to(self.device), lengths.to(self.device)
+                _, _, esc_logit, _ = self.net(x, lengths)
+                probs = torch.sigmoid(esc_logit / self.temperature).cpu().numpy()
+                all_probs.append(probs)
+                all_labels.append(y_esc.numpy())
+        return self._compute_ece(np.concatenate(all_probs), np.concatenate(all_labels))
 
     def _train_epoch(self, dl, optimizer):
         self.net.train()
@@ -574,9 +642,12 @@ class CDMSequenceModel:
             y_pc_norm = (y_pc - self.target_mean[0]) / self.target_std[0]
             y_miss_norm = (y_miss - self.target_mean[1]) / self.target_std[1]
 
-            loss_pc = nn.functional.huber_loss(pred_pc, y_pc_norm, delta=1.0)
-            loss_miss = nn.functional.huber_loss(pred_miss, y_miss_norm, delta=1.0)
-            loss_esc = nn.functional.binary_cross_entropy(pred_esc, y_esc)
+            # Asymmetric regression: penalize underestimating risk 2x
+            residual_pc = pred_pc - y_pc_norm
+            asym_weight = torch.where(residual_pc < 0, 2.0, 1.0)
+            loss_pc = (asym_weight * F.huber_loss(pred_pc, y_pc_norm, reduction='none', delta=1.0)).mean()
+            loss_miss = F.huber_loss(pred_miss, y_miss_norm, delta=1.0)
+            loss_esc = self.focal_loss(pred_esc, y_esc)
 
             loss = 1.0 * loss_pc + 0.5 * loss_miss + 0.3 * loss_esc
 
@@ -593,15 +664,17 @@ class CDMSequenceModel:
         with torch.no_grad():
             for x, lengths, y_pc, y_miss, y_esc in dl:
                 x, lengths = x.to(self.device), lengths.to(self.device)
-                pred_pc, pred_miss, pred_esc, _ = self.net(x, lengths)
+                pred_pc, pred_miss, pred_esc_logit, _ = self.net(x, lengths)
 
                 # Denormalize predictions
                 pred_pc_denorm = pred_pc.cpu().numpy() * self.target_std[0] + self.target_mean[0]
                 pred_miss_denorm = pred_miss.cpu().numpy() * self.target_std[1] + self.target_mean[1]
+                # Apply sigmoid to raw logits (with temperature scaling)
+                pred_esc = torch.sigmoid(pred_esc_logit / self.temperature).cpu().numpy()
 
                 all_pred_pc.append(pred_pc_denorm)
                 all_pred_miss.append(pred_miss_denorm)
-                all_pred_esc.append(pred_esc.cpu().numpy())
+                all_pred_esc.append(pred_esc)
                 all_y_pc.append(y_pc.numpy())
                 all_y_miss.append(y_miss.numpy())
                 all_y_esc.append(y_esc.numpy())
@@ -648,6 +721,55 @@ class CDMSequenceModel:
             "tp": tp, "fp": fp, "fn": fn, "tn": tn,
         }
 
+    def calibrate_temperature(self, cal_dl) -> float:
+        """Optimize temperature T on calibration set for calibrated probabilities.
+
+        Uses grid search to minimize Expected Calibration Error (ECE).
+        Stores optimal T in self.temperature.
+        """
+        self.net.eval()
+        all_logits, all_labels = [], []
+        with torch.no_grad():
+            for x, lengths, _, _, y_esc in cal_dl:
+                x, lengths = x.to(self.device), lengths.to(self.device)
+                _, _, esc_logit, _ = self.net(x, lengths)
+                all_logits.append(esc_logit.cpu())
+                all_labels.append(y_esc)
+
+        logits = torch.cat(all_logits)
+        labels = torch.cat(all_labels)
+
+        if len(labels) < 5:
+            print("  Temperature calibration: too few samples, keeping T=1.0")
+            return 1.0
+
+        best_ece = float("inf")
+        best_T = 1.0
+        for T in np.arange(0.1, 5.0, 0.05):
+            probs = torch.sigmoid(logits / T).numpy()
+            ece = self._compute_ece(probs, labels.numpy(), n_bins=10)
+            if ece < best_ece:
+                best_ece = ece
+                best_T = float(T)
+
+        self.temperature = best_T
+        print(f"  Temperature calibration: T={best_T:.2f}, ECE={best_ece:.4f}")
+        return best_T
+
+    @staticmethod
+    def _compute_ece(probs: np.ndarray, labels: np.ndarray, n_bins: int = 10) -> float:
+        """Expected Calibration Error — measures if predicted probabilities match outcomes."""
+        bin_boundaries = np.linspace(0, 1, n_bins + 1)
+        ece = 0.0
+        for i in range(n_bins):
+            mask = (probs >= bin_boundaries[i]) & (probs < bin_boundaries[i + 1])
+            if mask.sum() == 0:
+                continue
+            bin_confidence = probs[mask].mean()
+            bin_accuracy = labels[mask].mean()
+            ece += mask.sum() / len(probs) * abs(bin_accuracy - bin_confidence)
+        return float(ece)
+
     def predict(self, cdm_sequence: list[dict]) -> dict:
         """Predict for a single conjunction pair.
 
@@ -675,12 +797,13 @@ class CDMSequenceModel:
         lengths = torch.tensor([L]).to(self.device)
 
         with torch.no_grad():
-            pred_pc, pred_miss, pred_esc, attn_weights = self.net(x, lengths)
+            pred_pc, pred_miss, pred_esc_logit, attn_weights = self.net(x, lengths)
 
         # Denormalize
         max_log10_pc = float(pred_pc.item() * self.target_std[0] + self.target_mean[0])
         min_log10_miss = float(pred_miss.item() * self.target_std[1] + self.target_mean[1])
-        esc_prob = float(pred_esc.item())
+        # Apply sigmoid with temperature calibration
+        esc_prob = float(torch.sigmoid(pred_esc_logit / self.temperature).item())
 
         # Convert to physical units
         predicted_max_pc = 10 ** max_log10_pc
@@ -828,12 +951,20 @@ class CDMSequenceModel:
             "metrics": self.metrics,
             "trained": self.trained,
             "n_input_features": self.n_input_features,
+            "temperature": self.temperature,
+            "version": 2,  # v2 = bidirectional LSTM + focal loss
         }, str(p))
 
     @classmethod
     def load(cls, path: str) -> "CDMSequenceModel":
         model = cls()
         ckpt = torch.load(str(path), map_location=model.device, weights_only=False)
+        # Check version compatibility (v2 = bidirectional LSTM)
+        version = ckpt.get("version", 1)
+        if version < 2:
+            print(f"  Warning: checkpoint is v{version}, current is v2 (bidirectional LSTM). "
+                  "Will retrain from scratch.")
+            return model  # Return untrained model — caller should retrain
         model.n_input_features = ckpt.get("n_input_features", N_SHARED_FEATURES)
         model._init_net(input_size=model.n_input_features)
         if ckpt.get("model_state_dict"):
@@ -844,4 +975,5 @@ class CDMSequenceModel:
         model.target_std = ckpt.get("target_std")
         model.metrics = ckpt.get("metrics", {})
         model.trained = ckpt.get("trained", False)
+        model.temperature = ckpt.get("temperature", 1.0)
         return model

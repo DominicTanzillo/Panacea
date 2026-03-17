@@ -658,7 +658,7 @@ def validate_yesterday(
     """Validate predictions using CDM Pc escalation as ground truth.
 
     Primary validation: For resolved CDM pairs (TCA in past), did the
-    CDM forecast model correctly predict whether Pc exceeded 1e-4?
+    CDM forecast model correctly predict whether Pc exceeded 5e-4?
 
     Secondary: Maneuver detection continues for training data enrichment
     but is NOT used for accuracy reporting (maneuver != avoidance).
@@ -897,7 +897,7 @@ def validate_yesterday(
             test_metrics = cdm_metrics.get("test", {})
             if test_metrics:
                 cdm_accuracy = {
-                    "task": "Predict Pc > 1e-4 (action threshold exceedance)",
+                    "task": "Predict Pc > 5e-4 (maneuver planning threshold exceedance)",
                     "accuracy": test_metrics.get("accuracy", 0),
                     "precision": test_metrics.get("precision", 0),
                     "recall": test_metrics.get("recall", 0),
@@ -1189,8 +1189,9 @@ def main():
             forecast_data = {
                 "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "model": "CDMForecastModel",
-                "prediction_task": "Predict whether Pc will exceed 1e-4 (action threshold) before TCA",
+                "prediction_task": "Predict whether Pc will exceed 5e-4 (maneuver planning threshold) before TCA",
                 "n_pairs": len(predictions),
+                "n_pairs_exported": 0,  # updated after export_pairs is built
                 "n_actionable": sum(1 for p in predictions if p["action_recommended"]),
                 "n_escalating": sum(1 for p in predictions if p["risk_direction"] == "escalating"),
                 "model_metrics": {
@@ -1213,6 +1214,7 @@ def main():
             future = [p for p in predictions if p.get("tca", "") > now_str]
             past = [p for p in predictions if p.get("tca", "") <= now_str]
             export_pairs = future[:40] + past[:max(0, 60 - len(future[:40]))]
+            forecast_data["n_pairs_exported"] = len(export_pairs)
             for p in export_pairs:
                 forecast_data["pairs"].append({
                     "sat1_name": p["sat1_name"],
@@ -1224,7 +1226,7 @@ def main():
                     "forecast_pc": min(p["forecast_pc"], 1.0),
                     "exceedance_probability": p.get("exceedance_probability", 0),
                     "current_miss_km": p["current_miss_km"],
-                    "forecast_miss_km": max(p["forecast_miss_km"], 0),
+                    "forecast_miss_km": min(max(p["forecast_miss_km"], 0), 42000),
                     "risk_direction": p["risk_direction"],
                     "pc_trend": p["pc_trend"],
                     "confidence": p["confidence"],
@@ -1232,12 +1234,66 @@ def main():
                     "n_updates": p["n_updates"],
                     "time_series": p["time_series"],
                 })
+            # Build prediction vs outcome track record for resolved pairs
+            track_record = {
+                "n_correct": 0, "n_wrong": 0,
+                "n_true_positives": 0, "n_false_positives": 0,
+                "n_false_negatives": 0, "n_true_negatives": 0,
+                "examples": [],
+            }
+            THRESHOLD = 5e-4
+            for p in predictions:
+                tca_str = p.get("tca", "")
+                if not tca_str or tca_str > now_str:
+                    continue  # only resolved pairs (TCA in past)
+                predicted_action = p.get("action_recommended", False)
+                actual_exceeded = p.get("current_pc", 0) >= THRESHOLD
+                correct = predicted_action == actual_exceeded
+                if correct:
+                    track_record["n_correct"] += 1
+                else:
+                    track_record["n_wrong"] += 1
+                if predicted_action and actual_exceeded:
+                    track_record["n_true_positives"] += 1
+                elif predicted_action and not actual_exceeded:
+                    track_record["n_false_positives"] += 1
+                elif not predicted_action and actual_exceeded:
+                    track_record["n_false_negatives"] += 1
+                else:
+                    track_record["n_true_negatives"] += 1
+                # Collect interesting examples (wrong predictions first, then correct)
+                if not correct or len(track_record["examples"]) < 5:
+                    track_record["examples"].append({
+                        "sat1_name": p["sat1_name"],
+                        "sat2_name": p["sat2_name"],
+                        "sat1_norad": p["sat1_norad"],
+                        "sat2_norad": p["sat2_norad"],
+                        "tca": tca_str,
+                        "predicted_action": predicted_action,
+                        "actual_exceeded": actual_exceeded,
+                        "current_pc": p.get("current_pc", 0),
+                        "forecast_pc": p.get("forecast_pc", 0),
+                        "correct": correct,
+                    })
+            # Keep at most 5 examples, prioritizing wrong predictions
+            examples = track_record["examples"]
+            wrong_ex = [e for e in examples if not e["correct"]]
+            right_ex = [e for e in examples if e["correct"]]
+            track_record["examples"] = (wrong_ex + right_ex)[:5]
+            forecast_data["track_record"] = track_record
+
             forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
             with open(forecast_path, "w") as f:
                 json.dump(forecast_data, f, indent=2, default=_json_default)
             mode = fmetrics.get("mode", "heuristic")
+            n_resolved = track_record["n_correct"] + track_record["n_wrong"]
             print(f"  CDM forecast ({mode}): {fmetrics.get('n_pairs_total', 0)} pairs, "
                   f"{sum(1 for p in predictions if p['action_recommended'])} actionable")
+            if n_resolved > 0:
+                tr_acc = track_record["n_correct"] / n_resolved
+                print(f"  Track record: {track_record['n_correct']}/{n_resolved} correct ({tr_acc:.1%}) "
+                      f"— TP={track_record['n_true_positives']}, FP={track_record['n_false_positives']}, "
+                      f"FN={track_record['n_false_negatives']}, TN={track_record['n_true_negatives']}")
             if test_metrics:
                 print(f"  Model accuracy: {test_metrics.get('accuracy', 0):.1%}, "
                       f"F1: {test_metrics.get('f1', 0):.3f}, "
@@ -1330,40 +1386,73 @@ def main():
     except Exception as e:
         print(f"  CDMSequenceModel failed (non-fatal): {e}")
 
-    # Merge sequence model predictions into cdm_forecast.json if it exists
-    if seq_predictions:
-        try:
-            forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
-            if forecast_path.exists():
-                with open(forecast_path) as f:
-                    forecast_data = json.load(f)
-                for pair_entry in forecast_data.get("pairs", []):
-                    n1 = pair_entry["sat1_norad"]
-                    n2 = pair_entry["sat2_norad"]
-                    tca_date = pair_entry.get("tca", "")[:10]
-                    # Match by (norad_pair, tca_date) for exact pair+event matching
-                    key = (min(n1, n2), max(n1, n2), tca_date)
-                    sp = seq_predictions.get(key, {})
-                    pair_entry["predicted_max_pc"] = sp.get("predicted_max_pc")
-                    pair_entry["predicted_max_log10_pc"] = sp.get("predicted_max_log10_pc")
-                    pair_entry["predicted_min_miss_km"] = sp.get("predicted_min_miss_km")
-                    pair_entry["lstm_escalation_prob"] = sp.get("escalation_probability")
-                    pair_entry["attention_weights"] = sp.get("attention_weights")
-                # Add regression metrics
-                if seq_regression_metrics:
-                    forecast_data["regression_metrics"] = {
-                        "mae_log10_pc": seq_regression_metrics.get("mae_log10_pc", 0),
-                        "rmse_log10_pc": seq_regression_metrics.get("rmse_log10_pc", 0),
-                        "mae_log10_miss": seq_regression_metrics.get("mae_log10_miss", 0),
-                        "correlation_pc": seq_regression_metrics.get("correlation_pc", 0),
-                        "esc_f1": seq_regression_metrics.get("esc_f1", 0),
-                        "n": seq_regression_metrics.get("n", 0),
-                    }
-                with open(forecast_path, "w") as f:
-                    json.dump(forecast_data, f, indent=2, default=_json_default)
-                print(f"  Merged {len(seq_predictions)} regression predictions into cdm_forecast.json")
-        except Exception as e:
-            print(f"  Merge into cdm_forecast.json failed (non-fatal): {e}")
+    # Merge sequence model predictions + ensemble into cdm_forecast.json
+    print("\nComputing ensemble predictions ...")
+    try:
+        forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
+        if forecast_path.exists():
+            with open(forecast_path) as f:
+                forecast_data = json.load(f)
+            n_ensemble = 0
+            for pair_entry in forecast_data.get("pairs", []):
+                n1 = pair_entry["sat1_norad"]
+                n2 = pair_entry["sat2_norad"]
+                tca_date = pair_entry.get("tca", "")[:10]
+                key = (min(n1, n2), max(n1, n2), tca_date)
+                sp = seq_predictions.get(key, {})
+
+                # LSTM regression fields
+                pair_entry["predicted_max_pc"] = sp.get("predicted_max_pc")
+                pair_entry["predicted_max_log10_pc"] = sp.get("predicted_max_log10_pc")
+                pair_entry["predicted_min_miss_km"] = sp.get("predicted_min_miss_km")
+                pair_entry["lstm_escalation_prob"] = sp.get("escalation_probability")
+                pair_entry["attention_weights"] = sp.get("attention_weights")
+                # Trim attention_weights to match time_series length
+                ts_len = len(pair_entry.get("time_series", []))
+                if pair_entry.get("attention_weights") and len(pair_entry["attention_weights"]) > ts_len and ts_len > 0:
+                    pair_entry["attention_weights"] = pair_entry["attention_weights"][:ts_len]
+
+                # Ensemble: p = w1*LR + w2*LSTM + w3*sigmoid((pred_max_log10_pc + 3.3) * 5)
+                lr_prob = pair_entry.get("exceedance_probability", 0)
+                lstm_prob = sp.get("escalation_probability")
+                pred_max = sp.get("predicted_max_log10_pc")
+
+                if lstm_prob is not None and pred_max is not None:
+                    # Sigmoid signal from regression: how far above -3.3 threshold
+                    pc_signal = 1.0 / (1.0 + math.exp(-5.0 * (pred_max + 3.3)))
+                    p_ens = 0.4 * lr_prob + 0.3 * lstm_prob + 0.3 * pc_signal
+                    pair_entry["ensemble_probability"] = round(p_ens, 4)
+
+                    # Uncertainty interval (±1 MAE around predicted max)
+                    mae = seq_regression_metrics.get("mae_log10_pc", 0.3)
+                    p_upper = 1.0 / (1.0 + math.exp(-5.0 * (pred_max + mae + 3.3)))
+                    p_lower = 1.0 / (1.0 + math.exp(-5.0 * (pred_max - mae + 3.3)))
+                    pair_entry["exceedance_upper"] = round(max(p_ens, 0.4 * lr_prob + 0.3 * lstm_prob + 0.3 * p_upper), 4)
+                    pair_entry["exceedance_lower"] = round(min(p_ens, 0.4 * lr_prob + 0.3 * lstm_prob + 0.3 * p_lower), 4)
+                    n_ensemble += 1
+                else:
+                    # No LSTM prediction — use LR only
+                    pair_entry["ensemble_probability"] = round(lr_prob, 4) if lr_prob else None
+                    pair_entry["exceedance_upper"] = None
+                    pair_entry["exceedance_lower"] = None
+
+            # Add regression metrics
+            if seq_regression_metrics:
+                forecast_data["regression_metrics"] = {
+                    "mae_log10_pc": seq_regression_metrics.get("mae_log10_pc", 0),
+                    "rmse_log10_pc": seq_regression_metrics.get("rmse_log10_pc", 0),
+                    "mae_log10_miss": seq_regression_metrics.get("mae_log10_miss", 0),
+                    "correlation_pc": seq_regression_metrics.get("correlation_pc", 0),
+                    "esc_f1": seq_regression_metrics.get("esc_f1", 0),
+                    "ece": seq_regression_metrics.get("ece", 0),
+                    "temperature": seq_regression_metrics.get("temperature", 1.0),
+                    "n": seq_regression_metrics.get("n", 0),
+                }
+            with open(forecast_path, "w") as f:
+                json.dump(forecast_data, f, indent=2, default=_json_default)
+            print(f"  Merged {len(seq_predictions)} LSTM + {n_ensemble} ensemble predictions into cdm_forecast.json")
+    except Exception as e:
+        print(f"  Merge into cdm_forecast.json failed (non-fatal): {e}")
 
     print(f"\n{'='*60}")
     print(f"  Daily pipeline complete!")
@@ -1751,9 +1840,9 @@ def export_pipeline_stats():
                 rec = json.loads(line)
                 total += 1
                 pc = rec.get("pc", 0) or 0
-                if pc >= 1e-4:
+                if pc >= 5e-4:
                     pc_high += 1
-                elif pc >= 1e-7:
+                elif pc >= 1e-4:
                     pc_mod += 1
                 if rec.get("emergency_reportable") == "Y":
                     emrg += 1
