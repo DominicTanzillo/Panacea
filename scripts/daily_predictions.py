@@ -1454,6 +1454,62 @@ def main():
     except Exception as e:
         print(f"  Merge into cdm_forecast.json failed (non-fatal): {e}")
 
+    # Run conformal prediction analysis
+    print("\nRunning conformal prediction analysis ...")
+    conformal_results = {}
+    try:
+        from src.model.conformal import run_conformal_analysis
+        cdm_store = LOG_DIR / "cdm_store.jsonl"
+        if cdm_store.exists():
+            conformal_results = run_conformal_analysis(str(cdm_store), alpha=0.10)
+            # Merge conformal intervals into forecast JSON
+            forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
+            if forecast_path.exists() and conformal_results.get("regression"):
+                with open(forecast_path) as f:
+                    forecast_data = json.load(f)
+                reg_cov = conformal_results["regression"]["test_coverage"]
+                cls_cov = conformal_results["classification"]["test_coverage"]
+                forecast_data["conformal"] = {
+                    "alpha": 0.10,
+                    "regression_coverage": reg_cov["empirical_coverage"],
+                    "classification_coverage": cls_cov["empirical_coverage"],
+                    "interval_width_log10pc": reg_cov["mean_interval_width"],
+                    "q_hat": conformal_results["regression"]["calibration"]["q_hat"],
+                    "n_calibration": conformal_results["n_calibration"],
+                }
+                with open(forecast_path, "w") as f:
+                    json.dump(forecast_data, f, indent=2, default=_json_default)
+                print(f"  Conformal: {reg_cov['empirical_coverage']:.1%} regression coverage, "
+                      f"q_hat={conformal_results['regression']['calibration']['q_hat']:.3f}")
+    except Exception as e:
+        print(f"  Conformal analysis failed (non-fatal): {e}")
+
+    # Run GNN conjunction network model
+    print("\nRunning Conjunction GNN ...")
+    try:
+        from src.model.conjunction_gnn import ConjunctionGNNModel, HAS_PYG
+        cdm_store = LOG_DIR / "cdm_store.jsonl"
+        tle_path = ROOT / "webapp-react" / "public" / "latest_tles.json"
+        gnn_ckpt = ROOT / "models" / "conjunction_gnn.pt"
+        if HAS_PYG and cdm_store.exists():
+            if gnn_ckpt.exists():
+                gnn_model = ConjunctionGNNModel.load(str(gnn_ckpt))
+            else:
+                gnn_model = ConjunctionGNNModel()
+            gnn_metrics = gnn_model.train(
+                str(cdm_store),
+                tle_path=str(tle_path) if tle_path.exists() else None,
+                epochs=80,
+            )
+            gnn_model.save(str(gnn_ckpt))
+            test_m = gnn_metrics.get("test", {})
+            print(f"  GNN: F1={test_m.get('f1', 0):.3f}, Acc={test_m.get('accuracy', 0):.1%}, "
+                  f"{gnn_metrics.get('n_nodes', 0)} nodes, {gnn_metrics.get('n_pairs', 0)} pairs")
+        elif not HAS_PYG:
+            print("  GNN skipped (torch_geometric not installed)")
+    except Exception as e:
+        print(f"  GNN failed (non-fatal): {e}")
+
     print(f"\n{'='*60}")
     print(f"  Daily pipeline complete!")
     print(f"  Pairs screened: {len(candidates)}")
@@ -1462,6 +1518,9 @@ def main():
     if cdm_acc.get("accuracy"):
         print(f"  CDM forecast accuracy: {cdm_acc['accuracy']:.1%} "
               f"(F1={cdm_acc.get('f1', 0):.3f}, n_test={cdm_acc.get('n_test', 0)})")
+    if conformal_results.get("regression"):
+        reg_cov = conformal_results["regression"]["test_coverage"]
+        print(f"  Conformal: {reg_cov['empirical_coverage']:.1%} coverage @ 90% target")
     print(f"{'='*60}")
 
 

@@ -83,6 +83,15 @@ interface TrackRecord {
   examples?: TrackRecordExample[];
 }
 
+interface ConformalMetrics {
+  alpha: number;
+  regression_coverage: number;
+  classification_coverage: number;
+  interval_width_log10pc: number;
+  q_hat: number;
+  n_calibration: number;
+}
+
 interface ForecastData {
   generated_at: string;
   model: string;
@@ -91,6 +100,7 @@ interface ForecastData {
   n_actionable: number;
   n_escalating: number;
   model_metrics?: ModelMetrics;
+  conformal?: ConformalMetrics;
   regression_metrics?: RegressionMetrics;
   track_record?: TrackRecord;
   pairs: ForecastPair[];
@@ -579,6 +589,19 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
           {/* Prediction track record */}
           {data.track_record && (
             <TrackRecordSection record={data.track_record} />
+          )}
+
+          {/* Conformal prediction guarantee */}
+          {data.conformal && (
+            <div className="px-4 py-2 border-b border-[var(--color-border)] flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-[#a29bfe] shrink-0" />
+              <div className="text-[10px] text-[var(--color-text-muted)]">
+                <span className="font-semibold text-[var(--color-text)]">Conformal Guarantee:</span>{' '}
+                {(data.conformal.regression_coverage * 100).toFixed(0)}% of true Pc values fall within prediction intervals
+                (target: {((1 - data.conformal.alpha) * 100).toFixed(0)}%, width: {data.conformal.interval_width_log10pc.toFixed(1)} log<sub>10</sub>Pc,
+                n={data.conformal.n_calibration} calibration pairs)
+              </div>
+            </div>
           )}
 
           {/* Risk breakdown + filter */}
