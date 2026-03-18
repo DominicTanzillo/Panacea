@@ -210,12 +210,29 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
   }, [simPoints]);
 
   const [sliderIdx, setSliderIdx] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(false);
 
   useEffect(() => {
     if (simPoints.length > 0) {
       setSliderIdx(simTcaIdx);
     }
   }, [simTcaIdx, simPoints.length]);
+
+  // Auto-play: advance slider by 1 every 60ms
+  useEffect(() => {
+    if (!autoPlay || simPoints.length === 0) return;
+    const timer = setInterval(() => {
+      setSliderIdx(prev => {
+        const next = prev + 1;
+        if (next >= simPoints.length) {
+          setAutoPlay(false);
+          return prev;
+        }
+        return next;
+      });
+    }, 60);
+    return () => clearInterval(timer);
+  }, [autoPlay, simPoints.length]);
 
   const currentPoint = simPoints[sliderIdx] || null;
 
@@ -251,6 +268,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
       sat1: { ...point.sat1, name: pair.name_1, noradId: pair.norad_1 },
       sat2: { ...point.sat2, name: pair.name_2, noradId: pair.norad_2 },
       distanceKm: point.distance,
+      missDistanceKm: pair.miss_distance_km ?? undefined,
       ...(trailData || {}),
       ...(tcaPositions || {}),
     });
@@ -277,7 +295,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
   const isLoading = !hasPrecomputed && !hasTrail && !tle1 && !tle2;
 
   return (
-    <div className="absolute right-4 top-16 w-96 max-h-[85vh] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col">
+    <div className="absolute right-4 top-16 w-96 max-h-[85vh] border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col" style={{ borderRadius: 6 }}>
       {/* Header */}
       <div className="p-3 border-b border-[var(--color-border)]">
         <div className="flex items-center gap-2 mb-2">
@@ -326,7 +344,11 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[var(--color-text-muted)]">
               {pair.pc != null && (
-                <div>Pc: <span className="font-mono font-semibold" style={{ color }}>{pair.pc.toExponential(2)}</span></div>
+                <div>Pc: <span className="font-mono font-semibold" style={{ color }}>{
+                  pair.pc >= 1e-4
+                    ? `1 in ${Math.round(1 / pair.pc).toLocaleString()}`
+                    : pair.pc.toExponential(1)
+                }</span> <span className="text-[9px] opacity-60">({pair.pc.toExponential(1)})</span></div>
               )}
               {pair.miss_distance_km != null && (
                 <div>Miss dist: <span className="text-[var(--color-text)]">{pair.miss_distance_km.toFixed(1)} km</span></div>
@@ -463,24 +485,40 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
               </ResponsiveContainer>
             </div>
 
-            {/* Time slider — uses dense simulation data (15-sec steps around TCA) */}
-            <div className="mt-3 space-y-1.5">
-              <div className="flex items-center justify-between text-[9px] text-[var(--color-text-muted)] mb-0.5">
-                <span>-30 min</span>
-                <span className="font-medium text-[var(--color-text)]">Closest Approach</span>
-                <span>+30 min</span>
+            {/* Time slider with auto-play */}
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (!autoPlay && sliderIdx >= simPoints.length - 1) setSliderIdx(0);
+                    setAutoPlay(!autoPlay);
+                  }}
+                  className="w-7 h-7 flex items-center justify-center border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-accent)] transition-colors text-xs shrink-0"
+                  style={{ borderRadius: 4 }}
+                  title={autoPlay ? 'Pause' : 'Play approach animation'}
+                >
+                  {autoPlay ? '\u23F8' : '\u25B6'}
+                </button>
+                <div className="flex-1">
+                  <input
+                    type="range"
+                    min={0}
+                    max={simPoints.length - 1}
+                    value={sliderIdx}
+                    onChange={e => { setAutoPlay(false); setSliderIdx(Number(e.target.value)); }}
+                    className="w-full h-1.5 appearance-none cursor-pointer"
+                    style={{
+                      borderRadius: 2,
+                      background: `linear-gradient(to right, #4f8aff ${(sliderIdx / Math.max(simPoints.length - 1, 1)) * 100}%, var(--color-surface-2) ${(sliderIdx / Math.max(simPoints.length - 1, 1)) * 100}%)`,
+                    }}
+                  />
+                  <div className="flex items-center justify-between text-[8px] text-[var(--color-text-muted)] mt-0.5">
+                    <span>-30 min</span>
+                    <span className="font-medium text-[var(--color-text)]">TCA</span>
+                    <span>+30 min</span>
+                  </div>
+                </div>
               </div>
-              <input
-                type="range"
-                min={0}
-                max={simPoints.length - 1}
-                value={sliderIdx}
-                onChange={e => setSliderIdx(Number(e.target.value))}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, #4f8aff ${(sliderIdx / Math.max(simPoints.length - 1, 1)) * 100}%, var(--color-surface-2) ${(sliderIdx / Math.max(simPoints.length - 1, 1)) * 100}%)`,
-                }}
-              />
               {currentPoint && (
                 <div className="flex justify-between text-[10px] text-[var(--color-text-muted)]">
                   <span>
@@ -628,7 +666,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
             })()}
           </>
         ) : (
-          <div className="h-48 flex flex-col items-center justify-center text-xs text-[var(--color-text-muted)] gap-2">
+          <div className="h-48 flex flex-col items-center justify-center text-xs text-[var(--color-text-muted)] gap-3 px-4">
             {isLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
@@ -636,8 +674,15 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
               </>
             ) : (
               <>
-                <div className="w-5 h-5 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
-                <span>Computing SGP4 trajectory...</span>
+                <div className="text-2xl opacity-30">&#x1F6F0;</div>
+                <span className="text-center leading-relaxed">
+                  No orbital data available for this pair.
+                  <br />
+                  <span className="text-[10px]">
+                    Objects may not be in CelesTrak catalog (debris/rocket bodies).
+                    CDM metadata is still shown above.
+                  </span>
+                </span>
               </>
             )}
           </div>

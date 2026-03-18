@@ -320,6 +320,26 @@ function PairHighlight({ pair }: { pair: ProjectedPair }) {
       {/* TCA line — constant red solid line at closest approach */}
       {tcaLine && <primitive object={tcaLine} />}
 
+      {/* Uncertainty spheres at TCA — translucent spheres showing miss distance */}
+      {pair.sat1AtTCA && pair.missDistanceKm && pair.missDistanceKm > 0 && (() => {
+        // Scale: Earth radius = 6371 km mapped to scene unit 1.0
+        const radiusScene = Math.min(pair.missDistanceKm / 6371 * 1.0, 0.05);
+        const [s1x, s1y, s1z] = eciToScene(pair.sat1AtTCA!.x, pair.sat1AtTCA!.y, pair.sat1AtTCA!.z);
+        const [s2x, s2y, s2z] = eciToScene(pair.sat2AtTCA!.x, pair.sat2AtTCA!.y, pair.sat2AtTCA!.z);
+        return (
+          <>
+            <mesh position={[s1x, s1y, s1z]}>
+              <sphereGeometry args={[radiusScene, 16, 16]} />
+              <meshBasicMaterial color="#4f8aff" transparent opacity={0.12} side={THREE.DoubleSide} />
+            </mesh>
+            <mesh position={[s2x, s2y, s2z]}>
+              <sphereGeometry args={[radiusScene, 16, 16]} />
+              <meshBasicMaterial color="#ff8c42" transparent opacity={0.12} side={THREE.DoubleSide} />
+            </mesh>
+          </>
+        );
+      })()}
+
       {/* Sat 1 — blue ring */}
       <group ref={group1Ref}>
         <mesh ref={ring1Ref}>
