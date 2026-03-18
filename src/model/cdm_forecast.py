@@ -52,6 +52,19 @@ def extract_sequence_features(cdm_sequence: list[dict]) -> dict:
 
     seq = sorted(cdm_sequence, key=lambda c: c.get("cdm_id", 0))
 
+    # Deduplicate by creation_date (Space-Track sometimes has multiple CDM IDs
+    # for the same update — same timestamp, same Pc, same miss distance)
+    seen_dates: set[str] = set()
+    deduped = []
+    for cdm in seq:
+        created = cdm.get("creation_date", "")
+        if created and created in seen_dates:
+            continue
+        if created:
+            seen_dates.add(created)
+        deduped.append(cdm)
+    seq = deduped
+
     tca_str = seq[0].get("tca", "")
     try:
         tca_dt = datetime.fromisoformat(tca_str.replace("Z", "+00:00"))
@@ -241,10 +254,13 @@ def load_cdm_pairs(cdm_store_path: str | Path) -> dict[tuple, list[dict]]:
             except json.JSONDecodeError:
                 continue
 
+    # Group by (norad_pair, tca_date) — same satellites can have multiple
+    # conjunction events at different times; each is a separate sequence.
     pair_map: dict[tuple, list[dict]] = defaultdict(list)
     for c in cdms:
         n1, n2 = c.get("sat1_norad", 0), c.get("sat2_norad", 0)
-        pair_map[(min(n1, n2), max(n1, n2))].append(c)
+        tca = c.get("tca", "")[:10]  # group by TCA date (YYYY-MM-DD)
+        pair_map[(min(n1, n2), max(n1, n2), tca)].append(c)
 
     return pair_map
 
@@ -587,15 +603,20 @@ class CDMForecastModel:
         model_conf = abs(exc_prob - 0.5) * 2  # distance from decision boundary
         confidence = 0.4 * length_conf + 0.6 * model_conf
 
-        # Build time series for visualization
+        # Build time series for visualization (deduplicate by rounded hours)
         time_series = []
+        seen_hours: set[float] = set()
         for i in range(seq.shape[0]):
+            h = round(float(seq[i, 2]), 1)
+            if h in seen_hours:
+                continue
+            seen_hours.add(h)
             time_series.append({
-                "update_idx": i + 1,
+                "update_idx": len(time_series) + 1,
                 "log10_pc": round(float(seq[i, 0]), 2),
                 "pc": float(seq[i, 3]),
                 "miss_distance_km": round(float(seq[i, 4]), 1),
-                "time_to_tca_hours": round(float(seq[i, 2]), 1),
+                "time_to_tca_hours": h,
             })
 
         return {

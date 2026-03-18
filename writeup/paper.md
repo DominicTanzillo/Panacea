@@ -268,70 +268,147 @@ At $\alpha = 0.05$ (95% target coverage):
 
 The conformal predictor meets the coverage guarantee (96.6% >= 95%) with compact prediction sets (average 1.18 tiers). Most test examples receive single-tier predictions; only genuinely ambiguous cases receive multi-tier sets.
 
-### 5.5 Density Feature Impact
+### 5.5 CDM Pc Escalation Forecast (Production Model)
 
-[TODO: Full training run with density features. Preliminary results (5-epoch --quick run) show density features add 4 static dimensions capturing population context. Expected improvement: better calibration of risk estimates at high-density altitude shells (500-600 km, 750-850 km).]
+The benchmark models (Sections 5.1--5.4) are evaluated on the ESA Kelvins dataset, which provides 23 temporal features per CDM including full covariance matrices and relative state vectors. However, Space-Track's public CDM feed provides only 5 fields per record: collision probability (Pc), miss distance, object types, RCS class, and TCA. This feature gap makes the Kelvins-trained models inapplicable to real-world production data.
 
-### 5.6 CDM-Supervised Pairwise Risk Prediction from Public Data
+We therefore developed a separate production model trained and validated entirely on real Space-Track CDMs. The prediction task is:
 
-#### 5.6.1 Motivation
+> **Given early CDM updates for a conjunction pair, predict whether Pc will exceed $5 \times 10^{-4}$ (the maneuver planning threshold) before TCA.**
 
-Section 6.4 established that TLE-derived counterfactual labels are dominated by orbital shell density noise, with an estimated false positive rate exceeding 90%. Meanwhile, Space-Track's public CDM class provides ground-truth collision probability (Pc) values computed with Special Perturbation ephemerides and full covariance matrices. We leverage these CDM Pc values as supervision signal to train a model that requires **only free, public TLE data at inference time**.
+#### 5.5.1 Why $5 \times 10^{-4}$ (Not $10^{-4}$)
 
-This approach --- which we term CDM-Supervised Pairwise Risk (CSPR) --- directly addresses the TLE precision limitation: rather than deriving labels from noisy TLE propagation, we use CDM Pc as ground truth while extracting features exclusively from CelesTrak TLEs. At inference time, no CDM subscription or ITAR-restricted data is needed.
+All CDMs in Space-Track's public feed have Pc $\geq 10^{-4}$ --- the 18th Space Defense Squadron pre-filters at the conjunction screening level. Using $10^{-4}$ as the classification threshold yields 100% positive rate with zero negative examples, making supervised learning impossible (Figure~\ref{fig:pc-dist}).
 
-#### 5.6.2 Method
+We classify at $5 \times 10^{-4}$, NASA CARA's "red" threshold where operators begin planning collision avoidance maneuvers (Hejduk, 2023). This gives 19.1% positive rate (43 of 225 pairs exceeded $5 \times 10^{-4}$), providing sufficient class balance for meaningful ML.
 
-**Feature engineering.** For each satellite pair, we compute ~30 features from their CelesTrak TLE records across six groups:
+![Pc distribution with threshold annotation](figures/cdm_pc_distribution.png)
 
-| Group | Features | Count |
-|-------|----------|-------|
-| Object properties | Altitude, eccentricity, inclination, mean motion, RCS size | 10 |
-| Pairwise geometry | $\Delta$altitude, $\Delta$inclination, $\Delta$RAAN, $\Delta$eccentricity, $\Delta$arg. pericenter, $\Delta$mean motion | 6 |
-| Collision geometry | Coplanar angle ($|\Delta i| + |\Delta\Omega|$), vis-viva relative velocity, crossing angle | 3 |
-| Shell density | Objects within 10/50 km altitude band, congestion index | 3 |
-| Object classification | Debris/payload/rocket body flags for each object | 6 |
-| TLE freshness | TLE epoch age in hours for each object | 2 |
+#### 5.5.2 Method
 
-**Training data.** We join CDM records (Space-Track cdm\_public class) with temporally-closest TLE snapshots (CelesTrak daily archives). For each CDM pair, we compute pairwise features from the matched TLEs. Negative samples are drawn from same-altitude-shell random pairs not present in any CDM, at a 5:1 negative-to-positive ratio. This teaches the model to distinguish genuine conjunction geometry from benign proximity in crowded shells.
+**Feature engineering.** For each CDM sequence, we extract 12 features from the observation window (first half of available updates):
 
-**Model.** XGBoost regressor predicting $\log_{10}(\text{Pc})$ (clipped to $[-20, 0]$), chosen for its proven performance on this domain (Section 5.1), ability to handle mixed feature types, and interpretable feature importance. For binary risk classification, predictions are mapped through a sigmoid centered at $\log_{10}(\text{Pc}) = -5$ (matching the Kelvins risk threshold). Sample weights from `cdm_pc_to_label()` encode the operational significance of different Pc ranges.
+| Feature | Description |
+|---------|-------------|
+| Latest $\log_{10}(\text{Pc})$ | Most recent Pc in observation window |
+| Latest $\log_{10}(\text{miss km})$ | Most recent miss distance |
+| Time to TCA (hours) | Time remaining at latest update |
+| Pc trend (slope) | Linear regression of $\log_{10}(\text{Pc})$ vs time-to-TCA |
+| Miss distance trend | Change in $\log_{10}(\text{miss km})$ |
+| Pc acceleration | Second derivative of $\log_{10}(\text{Pc})$ sequence |
+| Max $\log_{10}(\text{Pc})$ | Peak Pc observed so far |
+| Min $\log_{10}(\text{Pc})$ | Lowest Pc observed so far |
+| $\log(1 + n_{\text{updates}})$ | Number of CDM updates (log-scaled) |
+| Sat1 RCS class | Radar cross-section (SMALL=0, MEDIUM=1, LARGE=2) |
+| Sat2 RCS class | Radar cross-section of secondary object |
+| Has debris | Whether either object is debris (binary) |
 
-**Online learning.** The model retrains weekly as CDM data accumulates, with a safety guardrail that reverts to the previous checkpoint if AUC-PR drops more than 10%. This enables continuous improvement without catastrophic degradation.
+**Training simulation.** For each resolved conjunction pair (TCA in past), we use the first $\lceil n/2 \rceil$ CDM updates as the observation window and predict whether the pair eventually exceeded $5 \times 10^{-4}$. This simulates the real operational scenario: given early warning signs, predict the outcome.
 
-#### 5.6.3 Results
+**Model.** Logistic regression with z-score normalization, L2 regularization ($\lambda = 0.01$), and class weighting ($w_+ = \sqrt{(1 - p) / p}$ where $p$ is the positive rate). Early stopping with patience 30 on weighted BCE loss.
 
-[TODO: Fill after first training run with accumulated CDM data]
+**Continuous learning.** Each daily pipeline run adds newly resolved pairs (TCA in past) to the training set and retrains from scratch. The model checkpoint and validation metrics are exported for the webapp dashboard.
 
-| Metric | Value |
-|--------|-------|
-| Training CDMs | ~460 (first week of collection) |
-| Training samples | ~2,700 (460 positive + ~2,300 negative) |
-| Test AUC-PR | [pending] |
-| Test AUC-ROC | [pending] |
-| Test RMSE ($\log_{10}$ Pc) | [pending] |
+#### 5.5.3 Results
 
-**Top-5 feature importance:**
+As of March 8, 2026: 1,219 CDMs across 225 conjunction pairs, 157 training / 68 test (shuffled split, seed 42).
 
-| Rank | Feature | Importance |
-|------|---------|------------|
-| 1 | [pending] | [pending] |
-| 2 | [pending] | [pending] |
-| 3 | [pending] | [pending] |
-| 4 | [pending] | [pending] |
-| 5 | [pending] | [pending] |
+| Metric | Train (n=157) | Test (n=68) |
+|--------|:---:|:---:|
+| Accuracy | 95.5% | **95.6%** |
+| Precision | 87.5% | **90.0%** |
+| Recall | 84.0% | **81.8%** |
+| F1 | 0.857 | **0.857** |
+| AUC-PR | 0.782 | **0.804** |
 
-**Learning curve.** [TODO: Plot AUC-PR vs. number of CDM training pairs, showing how model performance improves as data accumulates over weeks of daily collection.]
+![Confusion matrix](figures/cdm_confusion_matrix.png)
 
-#### 5.6.4 Significance
+**Feature importance** (Figure below) reveals that time-to-TCA dominates, followed by maximum and latest $\log_{10}(\text{Pc})$. Trend features (slope, acceleration) contribute minimally with current data --- likely because most pairs have only 2--6 early updates, insufficient for reliable trend estimation. As CDM data grows, trend features should become more predictive.
 
-CSPR makes three novel contributions:
+![Feature importance](figures/cdm_feature_importance.png)
 
-1. **First TLE-only model supervised by CDM ground truth.** Prior work either uses CDM features for CDM-based prediction (Kelvins challenge) or TLE features with TLE-derived labels (our Section 6.4 negative result). CSPR bridges this gap: CDM-quality labels with TLE-only inference.
+**Model improvement over time.** The model's accuracy improved from 92.2% (March 5, 954 CDMs) to 95.6% (March 8, 1,219 CDMs) with just 3 days of additional data accumulation. F1 improved from 0.714 to 0.857, and AUC-PR from 0.575 to 0.804 --- demonstrating the continuous learning loop is working as designed.
 
-2. **Democratized conjunction screening.** Inference requires only CelesTrak data (free, no registration, no ITAR restrictions). This enables conjunction awareness for operators, researchers, and nations without access to CDM subscriptions.
+![CDM data accumulation](figures/cdm_model_growth.png)
 
-3. **Continuous improvement.** Unlike the Kelvins models which are fixed at training time, CSPR improves daily as CDM data accumulates. The learning curve quantifies this improvement trajectory.
+**Pc evolution examples.** Figure below shows four conjunction pairs tracked over ~72 hours. The two "exceeded" pairs (red, orange) show clear escalation patterns crossing the $5 \times 10^{-4}$ threshold, while the two "safe" pairs (green, blue) remain below. The model learns to distinguish these trajectories from early CDM updates.
+
+![Pc evolution for selected pairs](figures/cdm_pair_evolution.png)
+
+#### 5.5.4 LSTM Transfer Learning: Kelvins to Space-Track
+
+To satisfy the deep learning model requirement and test whether learned temporal dynamics transfer across CDM sources, we train a 2-layer LSTM on the shared features between Kelvins and Space-Track.
+
+**Architecture.** Input (seq\_len, 3) $\rightarrow$ LSTM(64, 2 layers, dropout=0.2) $\rightarrow$ last hidden $\rightarrow$ FC(64$\rightarrow$32) $\rightarrow$ ReLU $\rightarrow$ Dropout(0.3) $\rightarrow$ FC(32$\rightarrow$1) $\rightarrow$ Sigmoid. Total parameters: ~37K. The 3 input features per timestep are: $\log_{10}(\text{Pc})$, $\log_{10}(\text{miss distance km})$, and time-to-TCA in hours --- the only fields shared between both datasets.
+
+**Phase 1: Pre-training on Kelvins** (13,154 events, ~162K CDM updates). We use a relaxed threshold of $\log_{10}(\text{Pc}) > -5.0$ (5.1% positive rate) rather than our production threshold of $5 \times 10^{-4}$ ($\log_{10} = -3.3$), because Kelvins Pc values span a much wider range ($10^{-30}$ to $10^{-1.4}$) and only 0.3% exceed $5 \times 10^{-4}$. The relaxed threshold enables the LSTM to learn the general shape of Pc escalation trajectories.
+
+**Phase 2: Fine-tuning on Space-Track** (728 pairs from 4,400+ CDMs). We combine the daily CDM store with 3,196 historical CDMs from Space-Track's emergency feed (January--March 2026). The LSTM layers are frozen for 10 epochs (FC head only, lr=$10^{-4}$), then all layers are unfrozen for 20 epochs (lr=$10^{-5}$).
+
+| Model | Phase | Accuracy | Precision | Recall | F1 |
+|-------|-------|:---:|:---:|:---:|:---:|
+| LSTM | Kelvins pre-train (test) | 98.4% | 80.5% | 90.2% | 0.851 |
+| LSTM | Space-Track fine-tune (test) | 87.2% | 100.0% | 52.5% | 0.689 |
+| Logistic Regression | Space-Track (test) | **95.6%** | 90.0% | 81.8% | **0.857** |
+
+**Analysis.** As predicted, logistic regression outperforms the LSTM on the current dataset (95.6% vs 87.2% accuracy, 0.857 vs 0.689 F1). The LSTM's error profile is notably different: 100% precision with 52.5% recall. It *never* produces false positives --- when it predicts escalation, it is always correct --- but misses ~half the true positives. This suggests the LSTM has learned conservative escalation patterns from Kelvins and applies them strictly to Space-Track data.
+
+This complementary error profile is operationally valuable: an ensemble of logistic regression (high recall) and LSTM (high precision) could provide both coverage and confidence. The LSTM is expected to surpass logistic regression as the Space-Track dataset grows beyond ~5,000 pairs, when learned sequence representations outperform hand-crafted trend features.
+
+### 5.6 Error Analysis
+
+We examine all 3 misclassified test examples (1 FP, 2 FN) to identify failure modes and propose mitigations.
+
+![Error analysis scatter](figures/cdm_error_analysis.png)
+
+#### Misprediction 1: False Negative --- CZ-6A DEB vs MACSAT 1
+
+| Field | Value |
+|-------|-------|
+| Observed Pc (at prediction time) | $1.32 \times 10^{-3}$ |
+| Actual max Pc | $1.49 \times 10^{-3}$ |
+| Model P(exceed) | 0.234 |
+| Updates observed / total | 6 / 11 |
+
+**Root cause:** Despite having Pc already above $5 \times 10^{-4}$ at prediction time ($1.32 \times 10^{-3}$), the model output P(exceed) = 0.234. This is a calibration issue: the model has learned conservative thresholds because many pairs with early Pc near $10^{-3}$ subsequently de-escalate. The observation window captured a stable-to-declining Pc trend, which the model interpreted as unlikely to escalate further --- but the pair was *already* above threshold.
+
+**Mitigation:** Add a hard override: if current Pc already exceeds the threshold, P(exceed) should be floored at 0.5 regardless of model output. This is a known limitation of using only early-window features for pairs that have already crossed the decision boundary.
+
+#### Misprediction 2: False Positive --- SL-8 R/B vs COSMOS 1867 COOLANT
+
+| Field | Value |
+|-------|-------|
+| Observed Pc (at prediction time) | $4.36 \times 10^{-4}$ |
+| Actual max Pc | $4.36 \times 10^{-4}$ |
+| Model P(exceed) | 0.518 |
+| Updates observed / total | 1 / 2 |
+
+**Root cause:** With only 1 CDM update observed, the model has no trend information. The Pc of $4.36 \times 10^{-4}$ sits just below the $5 \times 10^{-4}$ threshold. The model correctly identifies this as borderline (P = 0.518, barely above 0.5) but the pair never received additional updates that would push it over. This is an inherent uncertainty case --- the model is essentially guessing on a coin flip.
+
+**Mitigation:** For pairs with $< 3$ CDM updates, report prediction confidence as "low" rather than issuing a definitive classification. This would correctly flag this prediction as uncertain rather than actionable.
+
+#### Misprediction 3: False Negative --- TIROS 10 vs NOAA 17 DEB
+
+| Field | Value |
+|-------|-------|
+| Observed Pc (at prediction time) | $1.13 \times 10^{-3}$ |
+| Actual max Pc | $1.27 \times 10^{-3}$ |
+| Model P(exceed) | 0.273 |
+| Updates observed / total | 5 / 10 |
+
+**Root cause:** Same pattern as Misprediction 1 --- current Pc is already above threshold but the model outputs low probability. The early observation window (5 of 10 updates) shows Pc oscillating rather than monotonically escalating, which the linear trend feature interprets as non-escalating.
+
+**Mitigation:** Same as Misprediction 1. Additionally, adding a feature for "fraction of observation window above threshold" would directly encode this signal.
+
+#### Error Analysis Summary
+
+Both false negatives share a common pattern: the Pc *already exceeded* $5 \times 10^{-4}$ during the observation window, but the model failed to recognize this because the trend features suggested stability or de-escalation. The single false positive is a borderline case with minimal data (1 update).
+
+These errors suggest two concrete improvements:
+1. **Hard threshold override**: If any observed Pc exceeds the threshold, floor P(exceed) at 0.5
+2. **Minimum data requirement**: Flag predictions with $< 3$ updates as low-confidence
+
+Both are implementable without model retraining and would likely eliminate all 3 current errors.
 
 ---
 
@@ -398,13 +475,54 @@ This negative result has implications beyond our system. Any approach attempting
 
 ## 7. Conclusion
 
-Panacea demonstrates that ML-based conjunction assessment benefits from a multi-model framework rather than a single approach. XGBoost with engineered features provides excellent triage performance; PI-TFT offers temporal reasoning, interpretability, and uncertainty quantification via conformal prediction; and density augmentation from the CRASH Clock framework provides essential population-level context. The integration of split-conformal prediction with distribution-free coverage guarantees directly addresses NASA CARA's most persistent objection to ML adoption.
+Panacea demonstrates that ML-based conjunction assessment benefits from a multi-model framework rather than a single approach. On the ESA Kelvins benchmark, XGBoost with engineered features provides excellent triage performance (AUC-PR 0.988); PI-TFT offers temporal reasoning, interpretability, and uncertainty quantification via conformal prediction (AUC-PR 0.511); and density augmentation from the CRASH Clock framework provides essential population-level context.
 
-The deployed system -- featuring a 3D globe with 25,000+ real-time tracked objects, a FastAPI inference backend, and an interactive dashboard -- demonstrates that research-grade ML can be delivered as production-quality tools for space safety.
+For production deployment on real Space-Track CDM data, we developed a separate CDM Pc Escalation Forecast model that predicts whether conjunction collision probability will exceed the maneuver planning threshold ($5 \times 10^{-4}$) before closest approach. This model achieves 95.6% test accuracy (F1 = 0.857, AUC-PR = 0.804) and improves continuously as new CDM data accumulates daily through the automated pipeline. The model improved from 92.2% to 95.6% accuracy in just 3 days of additional data collection, validating the continuous learning design.
 
-We further introduce CDM-Supervised Pairwise Risk (CSPR), a novel approach that uses Space-Track CDM Pc values as ground-truth supervision for a model that requires only free, public TLE data at inference time. This directly addresses the TLE precision limitation documented in Section 6.4 and democratizes conjunction screening for operators without CDM access.
+The deployed system -- featuring a 3D globe with 15,000+ real-time tracked objects, CDM time series visualization, and a Pc escalation forecast dashboard showing live model accuracy metrics -- demonstrates that research-grade ML can be delivered as production-quality tools for space safety.
 
-Future work includes: (1) scaling CSPR as CDM data accumulates over months of daily collection, with learning curves quantifying improvement trajectory; (2) training on larger operational CDM datasets beyond the Kelvins benchmark; (3) graph neural network approaches modeling the orbital interaction network; (4) online conformal prediction for streaming CDM data; and (5) integration with maneuver planning optimization.
+### Future Work
+
+With another semester, we would pursue:
+
+1. **LSTM/Transformer for CDM sequences.** With current data (~1,200 CDMs), logistic regression on engineered features outperforms neural approaches. At ~5,000+ CDMs, sequence models that learn directly from raw Pc trajectories should surpass hand-crafted features. The daily pipeline already provides the data accumulation infrastructure.
+
+2. **Graph neural networks.** Model the orbital interaction network --- satellites as nodes, conjunctions as edges --- to capture population-level collision cascade risk that individual pair analysis misses.
+
+3. **Online conformal prediction.** Extend split-conformal prediction (Section 5.4) to streaming CDM data, providing distribution-free coverage guarantees that update in real time as new CDMs arrive.
+
+4. **Larger operational CDM datasets.** The Kelvins benchmark (13K events) is the largest public dataset. Partnership with NASA CARA or ESA SSA would provide orders of magnitude more training data, likely improving PI-TFT significantly.
+
+5. **Maneuver planning integration.** Connect risk predictions directly to delta-v optimization, computing fuel-optimal avoidance maneuvers for flagged conjunctions.
+
+### Commercial Viability Statement
+
+Panacea addresses a real and growing market. The space situational awareness (SSA) market is projected to reach \$2.1B by 2030, driven by the exponential growth of LEO constellations (Starlink, OneWeb, Kuiper) and the resulting conjunction volume. NASA CARA currently processes ~50,000 CDMs per day manually; this volume doubles every 2--3 years.
+
+**Viable aspects:**
+- The CDM Pc escalation forecast (Section 5.5) solves a genuine operational pain point: early warning of escalating conjunctions gives operators hours or days of additional lead time for maneuver planning, reducing fuel costs and mission disruption.
+- The continuous learning architecture means the system improves without manual intervention --- a key requirement for any commercial SSA product.
+- The webapp demonstrates production-quality UX with real-time satellite visualization, which commercial operators expect.
+
+**Barriers to commercial deployment:**
+- **Data dependency.** The model requires Space-Track CDM access, which is free but US-government controlled. Commercial alternatives (LeoLabs, ExoAnalytic) charge significant fees for CDM-equivalent data.
+- **Liability.** No operator will rely solely on ML predictions for collision avoidance decisions. The system must be positioned as a triage/prioritization tool augmenting human analysts, not replacing them.
+- **Benchmark limitations.** The Kelvins-trained models (Sections 5.1--5.4) cannot run on production data due to feature mismatch (23 vs 5 features). A commercial product would need access to full CDM fields or SP ephemerides to leverage the deep learning models.
+- **Scale.** Current CDM data (1,219 records) is sufficient for logistic regression but not for the deep learning models that would differentiate a commercial product. Months of accumulation are needed.
+
+**Assessment:** Panacea is a viable *technology demonstrator* for a commercial SSA product, not yet a deployable commercial system. The continuous learning architecture, operational pipeline, and webapp are production-ready infrastructure. The ML models need more data and domain-specific validation before operators would trust them for real maneuver decisions.
+
+### Ethics Statement
+
+**Dual-use concerns.** Space situational awareness is inherently dual-use: the same collision prediction capabilities that protect commercial satellites can inform anti-satellite (ASAT) operations by identifying orbital windows where debris generation would cause maximum cascading damage. We mitigate this by using only publicly available data (CelesTrak TLEs, Space-Track public CDMs) and publishing all methods openly. Our system provides no targeting capability beyond what is already available to any state actor with a Space-Track account.
+
+**Data access equity.** CDM data from the 18th Space Defense Squadron is available to registered users worldwide, but the registration process and data volume favor well-resourced operators. Our original CSPR design (Section 5.6) aimed to address this by training on CDM-supervised labels but inferring from free CelesTrak TLEs only. In practice, the production model still requires CDM access for both training and inference, limiting its accessibility.
+
+**Automation risk.** If satellite operators begin using ML predictions to trigger autonomous collision avoidance maneuvers (as Starlink already does internally), model errors propagate directly to physical actions in space. Our error analysis (Section 5.6) shows false negative rates of ~18% --- meaning roughly 1 in 5 escalating conjunctions could be missed. Any deployment must include human-in-the-loop review for maneuver decisions.
+
+**Environmental impact.** Every collision avoidance maneuver consumes finite fuel, shortening satellite operational lifetime. False positive predictions cause unnecessary fuel expenditure. Our 90% precision means ~10% of recommended actions would be unnecessary --- acceptable for early warning but potentially costly at scale across large constellations.
+
+**Kessler Syndrome context.** The broader motivation for this work --- preventing orbital debris cascades --- is itself an ethical imperative. The Kessler Syndrome threatens to render LEO unusable for future generations. Tools that improve conjunction assessment, even incrementally, contribute to the long-term sustainability of the space environment.
 
 ---
 
@@ -464,13 +582,13 @@ Future work includes: (1) scaling CSPR as CDM data accumulates over months of da
 | 0.10 | 90% | [pending full run] | -- | -- |
 | 0.20 | 80% | [pending full run] | -- | -- |
 
-## Appendix C: Feature Importance (XGBoost Top 20)
+## Appendix C: CDM Forecast Feature Importance
 
-[TODO: Extract SHAP values or XGBoost feature importance and list top 20]
+See Figure in Section 5.5.3 for the CDM forecast model's feature importance analysis. The top features are time-to-TCA, max $\log_{10}(\text{Pc})$, and latest $\log_{10}(\text{Pc})$. Trend-based features (slope, acceleration) contribute minimally with current data volumes, suggesting that raw Pc magnitude is more predictive than trajectory shape at the current sample size.
 
-## Appendix D: Temporal Attention Visualization
+## Appendix D: CDM Pc Evolution Examples
 
-[TODO: Visualize attention weights from PI-TFT on example high-risk vs low-risk events, showing which CDM updates the model attends to]
+See Figure in Section 5.5.3 for Pc evolution trajectories of selected conjunction pairs, demonstrating the divergent behavior between pairs that escalate above the maneuver threshold and those that remain below.
 
 ---
 
