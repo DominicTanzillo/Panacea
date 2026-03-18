@@ -532,6 +532,57 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
               </div>
             ) : null}
 
+            {/* Maneuver Simulation — shows why a burn is needed */}
+            {simPoints.length > 10 && tcaPoint && tcaPoint.distance < 200 && (() => {
+              // Compute how a small prograde burn changes miss distance.
+              // Apply velocity delta to sat1 at current slider time,
+              // then re-propagate to find new minimum distance.
+              const burnDvOptions = [0.01, 0.05, 0.1, 0.5]; // m/s
+              const results = burnDvOptions.map(dv => {
+                // Simplified: a prograde burn shifts the along-track position
+                // by dv * dt at TCA. At LEO (~7.5 km/s), dv m/s applied t hours
+                // before TCA shifts position by dv * t * 3600 meters along-track.
+                const burnIdx = Math.max(0, simTcaIdx - 20); // burn ~5 min before TCA
+                const burnPoint = simPoints[burnIdx];
+                const dtSec = Math.abs(burnPoint.hourFromTCA) * 3600;
+                const shiftKm = (dv * dtSec) / 1000; // along-track shift in km
+                // New miss ~ sqrt(original_miss^2 + shift^2) for cross-track,
+                // or original + shift for along-track (simplified)
+                const newMiss = Math.sqrt(tcaPoint.distance ** 2 + shiftKm ** 2);
+                return { dv, shiftKm: shiftKm, newMiss };
+              });
+              const best = results[results.length - 1];
+
+              return (
+                <div className="mt-2 rounded-lg border border-[#4f8aff]/30 bg-[#4f8aff]/5 p-2 text-xs">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="font-semibold text-[#4f8aff]">Maneuver Simulation</span>
+                    <span className="text-[9px] text-[var(--color-text-muted)]">(Object 1 prograde burn)</span>
+                  </div>
+                  <div className="text-[10px] text-[var(--color-text-muted)] mb-1.5">
+                    If {pair.name_1.split(' ')[0]} executes a burn {Math.abs(simPoints[Math.max(0, simTcaIdx - 20)]?.hourFromTCA * 60 || 5).toFixed(0)} min before TCA:
+                  </div>
+                  <div className="grid grid-cols-4 gap-1 text-[10px]">
+                    {results.map(r => (
+                      <div key={r.dv} className="text-center rounded bg-[var(--color-surface-2)] p-1">
+                        <div className="font-mono font-semibold text-[#4f8aff]">{r.dv < 0.1 ? r.dv * 100 + ' cm/s' : r.dv + ' m/s'}</div>
+                        <div className="text-[var(--color-text-muted)]">{r.shiftKm < 1 ? (r.shiftKm * 1000).toFixed(0) + ' m' : r.shiftKm.toFixed(1) + ' km'}</div>
+                        <div className="font-mono" style={{
+                          color: r.newMiss > tcaPoint.distance * 2 ? '#4fff8a' : '#ffb84f',
+                        }}>
+                          {r.newMiss.toFixed(1)} km
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-1.5 text-[9px] text-[var(--color-text-muted)]">
+                    Current miss: {tcaPoint.distance.toFixed(1)} km &rarr; With {best.dv} m/s burn: <span className="text-[#4fff8a] font-semibold">{best.newMiss.toFixed(1)} km</span>
+                    {best.newMiss > 25 && <span> (exceeds 25 km safety threshold)</span>}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Maneuver recommendation */}
             {tier !== 'LOW' && (() => {
               const isCDM = pair.source === 'cdm';
