@@ -233,7 +233,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
   }, [pair.time_series, expanded]);
 
   return (
-    <div className="rounded-lg bg-[var(--color-surface-2)] overflow-hidden">
+    <div className="bg-[var(--color-surface-2)] overflow-hidden" style={{ borderRadius: 4 }}>
       {/* Compact row — always visible */}
       <button
         onClick={onToggle}
@@ -638,7 +638,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
   if (!visible) return null;
 
   return (
-    <div className="absolute bottom-12 left-4 right-4 max-h-[60vh] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col">
+    <div className="absolute bottom-14 left-4 right-4 max-h-[60vh] border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col" style={{ borderRadius: 6 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)]">
         <div className="flex items-center gap-3">
@@ -697,7 +697,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
                 <button
                   key={f}
                   onClick={() => { setFilter(f); setExpandedIdx(null); }}
-                  className={`px-3 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                  className={`px-3 py-1.5 text-[11px] font-medium border transition-all ${
                     isActive
                       ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
                       : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
