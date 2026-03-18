@@ -77,4 +77,6 @@ export interface ProjectedPair {
   /** Positions at TCA for the constant red closest-approach line */
   sat1AtTCA?: { x: number; y: number; z: number };
   sat2AtTCA?: { x: number; y: number; z: number };
+  /** Miss distance at TCA for uncertainty sphere rendering */
+  missDistanceKm?: number;
 }
