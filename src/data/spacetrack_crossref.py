@@ -222,31 +222,45 @@ def fetch_and_store_cdms(
     lookback_days: int = 3,
     min_pc: float = 1e-7,
     store_path: Path = None,
-) -> list[dict]:
+    force: bool = False,
+    reset_bookmark: bool = False,
+) -> dict:
     """Fetch recent CDMs from Space-Track and store locally.
 
     This is the ONLY function that makes API calls. It:
-      1. Checks the 8-hour rate limit
+      1. Checks the 8-hour rate limit (bypass with force=True)
       2. Uses CDM_ID bookmark for delta downloads (only fetch new records)
-      3. Falls back to date-range query on first run
+      3. Falls back to date-range query on first run or reset_bookmark=True
       4. Appends new CDMs to local JSONL store (never re-downloads)
       5. Logs out session when done
 
     Uses 1 of 3 daily CDM query quota. Called once per daily pipeline run.
+
+    Returns dict with stats: {fetched, new, total, cdms, rate_limited, error}.
     """
-    if not _can_fetch():
+    result = {"fetched": 0, "new": 0, "total": 0, "cdms": [], "rate_limited": False, "error": None}
+
+    if not force and not _can_fetch():
         print("  Space-Track CDM: rate-limited (last fetch < 8 hours ago)")
-        return _load_local_cdms(store_path)
+        local = _load_local_cdms(store_path)
+        result["cdms"] = local
+        result["total"] = len(local)
+        result["rate_limited"] = True
+        return result
 
     session, authenticated = _get_session()
     if not authenticated:
-        return _load_local_cdms(store_path)
+        local = _load_local_cdms(store_path)
+        result["cdms"] = local
+        result["total"] = len(local)
+        result["error"] = "authentication_failed"
+        return result
 
     try:
         # Delta download: use CDM_ID bookmark if available
         # NOTE: COLLISION_PROBABILITY is a response field, NOT a query predicate.
         # We fetch all CDMs and filter by Pc client-side.
-        last_cdm_id = _get_last_cdm_id()
+        last_cdm_id = "" if reset_bookmark else _get_last_cdm_id()
         if last_cdm_id:
             # Only fetch CDMs with ID higher than our bookmark
             query_url = (
@@ -257,7 +271,7 @@ def fetch_and_store_cdms(
             )
             print(f"  Space-Track CDM: delta fetch (CDM_ID > {last_cdm_id}) ...")
         else:
-            # First run: fetch by date range
+            # First run or bookmark reset: fetch by date range
             lookback_str = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
             query_url = (
                 f"{CDM_QUERY_URL}"
@@ -274,7 +288,11 @@ def fetch_and_store_cdms(
     except Exception as e:
         print(f"  Space-Track CDM query failed: {e}")
         _logout(session)
-        return _load_local_cdms(store_path)
+        local = _load_local_cdms(store_path)
+        result["cdms"] = local
+        result["total"] = len(local)
+        result["error"] = str(e)
+        return result
 
     # Logout to close session (per Space-Track docs)
     _logout(session)
@@ -292,8 +310,14 @@ def fetch_and_store_cdms(
     # Record the fetch with bookmark
     _record_fetch(max_cdm_id=max_cdm_id)
 
-    print(f"  Space-Track CDM: {len(parsed)} CDMs fetched, {n_new} new (stored locally)")
-    return parsed
+    all_local = _load_local_cdms(store_path)
+    print(f"  Space-Track CDM: {len(parsed)} CDMs fetched, {n_new} new, {len(all_local)} total in store")
+
+    result["fetched"] = len(parsed)
+    result["new"] = n_new
+    result["total"] = len(all_local)
+    result["cdms"] = parsed
+    return result
 
 
 def fetch_recent_cdms(
@@ -311,12 +335,13 @@ def fetch_recent_cdms(
         store_path = cache_dir / "cdm_store.jsonl"
 
     # Try API fetch (respects rate limit internally)
-    fetched = fetch_and_store_cdms(
+    result = fetch_and_store_cdms(
         lookback_days=lookback_days,
         min_pc=min_pc,
         store_path=store_path,
     )
 
+    fetched = result.get("cdms", [])
     if fetched:
         return [c for c in fetched if c["pc"] >= min_pc]
 
