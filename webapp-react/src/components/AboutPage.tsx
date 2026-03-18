@@ -91,8 +91,8 @@ export function AboutPage({ visible, onClose }: AboutPageProps) {
                   <strong className="text-[var(--color-text)]">Gradient Boosted Trees (XGBoost)</strong> &mdash;
                   Uses hand-engineered summary statistics from CDM sequences: miss distance
                   trends, risk evolution, covariance determinants, and observation quality metrics.
-                  Achieves AUC-PR of 0.988 on the ESA Kelvins dataset, rivaling competition winners.
-                  This is the production workhorse for fast, accurate risk screening.
+                  Achieves AUC-PR of 0.988 on the ESA Kelvins benchmark (offline evaluation).
+                  The production system uses logistic regression + LSTM on Space-Track CDMs (different feature set).
                 </p>
               </div>
 
@@ -141,14 +141,15 @@ export function AboutPage({ visible, onClose }: AboutPageProps) {
           <section>
             <h3 className="text-base font-semibold tracking-tight mb-2">Uncertainty Quantification</h3>
             <p className="text-[var(--color-text-muted)]">
-              Raw model probabilities are often miscalibrated. PANACEA uses
-              <strong className="text-[var(--color-text)]"> split-conformal prediction</strong> to
-              produce prediction sets with distribution-free coverage guarantees. Instead of
-              a single risk score, the system outputs a set of risk tiers (e.g.,
+              Raw model probabilities are often miscalibrated. PANACEA implements
+              <strong className="text-[var(--color-text)]"> split-conformal prediction</strong> for
+              the ESA Kelvins benchmark, producing prediction sets with distribution-free
+              coverage guarantees. This technique outputs a set of risk tiers (e.g.,
               LOW, MODERATE) that provably contains the true risk level
               at a specified confidence level (e.g., 90%). This directly addresses
               NASA CARA's criticism about uncertainty quantification in ML-based
               collision risk assessment.
+              <em> Note: implemented for Kelvins benchmark; not yet deployed in production pipeline.</em>
             </p>
           </section>
 

@@ -35,6 +35,21 @@ interface ForecastPair {
   predicted_min_miss_km?: number | null;
   lstm_escalation_prob?: number | null;
   attention_weights?: number[] | null;
+  // Ensemble fields
+  ensemble_probability?: number | null;
+  exceedance_upper?: number | null;
+  exceedance_lower?: number | null;
+  // Autoregressive forecast
+  forecast_steps?: {
+    step: number;
+    predicted_log10_pc: number;
+    predicted_pc: number;
+    predicted_miss_km: number;
+    uncertainty_log10_pc: number;
+    hours_ahead: number;
+  }[];
+  // AI summary
+  ai_summary?: string;
 }
 
 interface ModelMetrics {
@@ -56,7 +71,36 @@ interface RegressionMetrics {
   mae_log10_miss: number;
   correlation_pc: number;
   esc_f1: number;
+  ece?: number;
+  temperature?: number;
   n: number;
+}
+
+interface TrackRecordExample {
+  sat1_name: string;
+  sat2_name: string;
+  predicted: string;
+  actual: string;
+  correct: boolean;
+}
+
+interface TrackRecord {
+  correct: number;
+  total: number;
+  tp: number;
+  fp: number;
+  fn: number;
+  tn: number;
+  examples?: TrackRecordExample[];
+}
+
+interface ConformalMetrics {
+  alpha: number;
+  regression_coverage: number;
+  classification_coverage: number;
+  interval_width_log10pc: number;
+  q_hat: number;
+  n_calibration: number;
 }
 
 interface ForecastData {
@@ -67,7 +111,9 @@ interface ForecastData {
   n_actionable: number;
   n_escalating: number;
   model_metrics?: ModelMetrics;
+  conformal?: ConformalMetrics;
   regression_metrics?: RegressionMetrics;
+  track_record?: TrackRecord;
   pairs: ForecastPair[];
 }
 
@@ -122,11 +168,11 @@ function ModelMetricsBanner({ metrics, task, regressionMetrics }: { metrics: Mod
           </div>
           <div>
             <span className="text-sm font-bold text-[#4f8aff]">{metrics.test_f1.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">F1</span>
+            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="F1 score: harmonic mean of precision and recall (1.0 = perfect)">F1</span>
           </div>
           <div>
             <span className="text-sm font-bold text-[#8b5cf6]">{metrics.test_auc_pr.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">AUC-PR</span>
+            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Area under precision-recall curve (higher = better at finding true positives)">AUC-PR</span>
           </div>
           <div className="text-[9px] text-[var(--color-text-muted)]">
             {metrics.n_training_pairs} train / {metrics.n_test_pairs} test pairs
@@ -135,18 +181,24 @@ function ModelMetricsBanner({ metrics, task, regressionMetrics }: { metrics: Mod
       )}
       {regressionMetrics && regressionMetrics.n > 0 && (
         <div className="flex items-center gap-4 text-center mt-2 pt-2 border-t border-[var(--color-border)]/30">
-          <div className="text-[9px] text-[var(--color-text-muted)] font-semibold">LSTM Regression</div>
+          <div className="text-[9px] text-[var(--color-text-muted)] font-semibold">BiLSTM Ensemble</div>
           <div>
             <span className="text-sm font-bold text-[#ff9f43]">{regressionMetrics.mae_log10_pc.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">MAE(log Pc)</span>
+            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Mean absolute error in log10(Pc) prediction">MAE(log Pc)</span>
           </div>
           <div>
             <span className="text-sm font-bold text-[#00cec9]">{regressionMetrics.correlation_pc.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">Corr</span>
+            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Pearson correlation between predicted and actual max Pc">Corr</span>
           </div>
+          {regressionMetrics.ece != null && (
+            <div>
+              <span className="text-sm font-bold text-[#a29bfe]">{regressionMetrics.ece.toFixed(3)}</span>
+              <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Expected Calibration Error — lower means predicted probabilities match actual outcomes (T={regressionMetrics.temperature?.toFixed(2)})">ECE</span>
+            </div>
+          )}
           <div>
-            <span className="text-sm font-bold text-[#fd79a8]">{regressionMetrics.mae_log10_miss.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">MAE(log Miss)</span>
+            <span className="text-sm font-bold text-[#fd79a8]">{regressionMetrics.esc_f1.toFixed(3)}</span>
+            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Escalation classification F1 score">Esc F1</span>
           </div>
         </div>
       )}
@@ -242,10 +294,29 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
               </div>
             </div>
             <div>
-              <div className="text-[var(--color-text-muted)]">P(Exceed 5e-4)</div>
-              <div className="font-mono font-semibold" style={{ color: (pair.exceedance_probability ?? 0) >= 0.5 ? '#ff4f5a' : '#4fff8a' }}>
-                {formatPct(pair.exceedance_probability ?? 0)}
+              <div className="text-[var(--color-text-muted)]" title="Ensemble: 40% LR + 30% BiLSTM + 30% regression signal">
+                {pair.ensemble_probability != null ? 'Ensemble P(Exceed)' : 'P(Exceed 5e-4)'}
               </div>
+              <div className="font-mono font-semibold" style={{ color: ((pair.ensemble_probability ?? pair.exceedance_probability ?? 0)) >= 0.5 ? '#ff4f5a' : '#4fff8a' }}>
+                {formatPct(pair.ensemble_probability ?? pair.exceedance_probability ?? 0)}
+              </div>
+              {/* Uncertainty bar */}
+              {pair.exceedance_lower != null && pair.exceedance_upper != null && (
+                <div className="mt-0.5 h-1.5 rounded-full bg-[var(--color-surface)] relative" title={`Uncertainty: ${formatPct(pair.exceedance_lower)} — ${formatPct(pair.exceedance_upper)}`}>
+                  <div
+                    className="absolute h-full rounded-full"
+                    style={{
+                      left: `${pair.exceedance_lower * 100}%`,
+                      width: `${Math.max(2, (pair.exceedance_upper - pair.exceedance_lower) * 100)}%`,
+                      background: 'rgba(139, 92, 246, 0.5)',
+                    }}
+                  />
+                  <div
+                    className="absolute h-full w-0.5 rounded-full bg-white"
+                    style={{ left: `${(pair.ensemble_probability ?? 0) * 100}%` }}
+                  />
+                </div>
+              )}
             </div>
             <div>
               <div className="text-[var(--color-text-muted)]">Trend</div>
@@ -260,6 +331,69 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
               </div>
             </div>
           </div>
+
+          {/* AI Risk Assessment Summary */}
+          {(() => {
+            const ep = pair.ensemble_probability ?? pair.exceedance_probability ?? 0;
+            const lines: string[] = [];
+
+            // Headline risk
+            if (pair.current_pc >= 5e-3) lines.push('CRITICAL: Collision probability is extremely elevated.');
+            else if (pair.current_pc >= 5e-4) lines.push('HIGH RISK: Pc already exceeds the maneuver planning threshold.');
+            else if (ep >= 0.5) lines.push('ELEVATED: Models predict likely threshold exceedance.');
+            else lines.push('Being monitored. Risk currently below action threshold.');
+
+            // Trend
+            if (pair.risk_direction === 'escalating') {
+              const pctStr = pair.pc_trend > 0 ? ` (+${(pair.pc_trend * 100).toFixed(0)}%/update)` : '';
+              lines.push(`Pc is escalating across ${pair.n_updates} CDM updates${pctStr}.`);
+            } else if (pair.risk_direction === 'de-escalating') {
+              lines.push('Pc trend is decreasing \u2014 conjunction may be resolving safely.');
+            }
+
+            // Deep learning insight
+            if (pair.predicted_max_log10_pc != null) {
+              const above = pair.predicted_max_log10_pc > -3.3;
+              lines.push(`BiLSTM predicts max Pc of 10^${pair.predicted_max_log10_pc.toFixed(1)} \u2014 ${above ? 'ABOVE' : 'below'} the 5e-4 threshold.`);
+            }
+            if (pair.lstm_escalation_prob != null && pair.lstm_escalation_prob > 0.4) {
+              lines.push(`Deep learning escalation confidence: ${(pair.lstm_escalation_prob * 100).toFixed(0)}%.`);
+            }
+
+            // Attention insight
+            if (pair.attention_weights && pair.attention_weights.length >= 2) {
+              const maxI = pair.attention_weights.indexOf(Math.max(...pair.attention_weights));
+              if (maxI === pair.attention_weights.length - 1) {
+                lines.push('Model attention focuses on the latest CDM \u2014 recent orbital data is most informative.');
+              } else if (pair.attention_weights[maxI] > 0.4) {
+                lines.push(`CDM #${maxI + 1} receives ${(pair.attention_weights[maxI] * 100).toFixed(0)}% attention \u2014 a significant state change occurred there.`);
+              }
+            }
+
+            // Data quality
+            if (pair.n_updates <= 2) {
+              lines.push(`Only ${pair.n_updates} CDM update${pair.n_updates > 1 ? 's' : ''} available \u2014 confidence will improve with more data.`);
+            }
+
+            // Recommendation
+            if (ep >= 0.5 || pair.current_pc >= 5e-4) {
+              lines.push('Recommend: active monitoring at 6-hour intervals.');
+            }
+
+            return (
+              <div
+                className="mt-2 pl-2 py-1.5 rounded-r"
+                style={{ borderLeft: `3px solid ${color}`, fontSize: '10px', background: `${color}08` }}
+              >
+                <div className="font-semibold text-[var(--color-text)] mb-1 flex items-center gap-1.5">
+                  <span style={{ fontSize: 12 }}>{'\u{1F916}'}</span> AI Risk Assessment
+                </div>
+                {lines.map((line, i) => (
+                  <div key={i} className="text-[var(--color-text-muted)] leading-relaxed">{line}</div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Regression predictions from CDMSequenceModel */}
           {pair.predicted_max_pc != null && (
@@ -381,6 +515,82 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
               </div>
             </div>
           )}
+
+          {/* Autoregressive forecast — next CDM predictions */}
+          {pair.forecast_steps && pair.forecast_steps.length > 0 && (
+            <div className="pt-1.5">
+              <div className="text-[9px] font-semibold text-[var(--color-text-muted)] mb-1">
+                Predicted Next CDM Updates (Autoregressive)
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {pair.forecast_steps.map(fc => (
+                  <div key={fc.step} className="rounded-lg bg-[var(--color-surface)] p-1.5 text-center text-[9px]">
+                    <div className="text-[var(--color-text-muted)] mb-0.5">+{fc.hours_ahead}h</div>
+                    <div className="font-mono font-semibold" style={{
+                      color: fc.predicted_pc >= 5e-4 ? '#ff4f5a' : '#4fff8a'
+                    }}>
+                      {fc.predicted_pc >= 0.01 ? `${(fc.predicted_pc*100).toFixed(1)}%` : fc.predicted_pc.toExponential(1)}
+                    </div>
+                    <div className="text-[8px] text-[var(--color-text-muted)]">
+                      {'\u00b1'}{fc.uncertainty_log10_pc.toFixed(2)} log
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI-generated summary from pipeline */}
+          {pair.ai_summary && (
+            <div className="mt-1.5 rounded-lg bg-[var(--color-surface)]/50 p-2 text-[9px] text-[var(--color-text-muted)] leading-relaxed border border-[var(--color-border)]/30">
+              <span className="font-semibold text-[var(--color-text)]">{'\u{1F4DD}'} Event Summary: </span>
+              {pair.ai_summary}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrackRecordSection({ record }: { record: TrackRecord }) {
+  const accuracy = record.total > 0 ? ((record.correct / record.total) * 100).toFixed(0) : '0';
+  return (
+    <div className="px-4 py-2 border-b border-[var(--color-border)]">
+      <div className="text-[11px] text-[var(--color-text-muted)] mb-1.5">
+        Past predictions: {record.correct}/{record.total} correct ({accuracy}% accuracy)
+      </div>
+      <div className="grid grid-cols-4 gap-1 text-center text-[10px] mb-1.5">
+        <div className="rounded p-1" style={{ background: 'rgba(79, 255, 138, 0.12)' }}>
+          <div className="font-bold text-[#4fff8a]">{record.tp}</div>
+          <div className="text-[var(--color-text-muted)]">TP</div>
+        </div>
+        <div className="rounded p-1" style={{ background: 'rgba(255, 79, 90, 0.12)' }}>
+          <div className="font-bold text-[#ff4f5a]">{record.fp}</div>
+          <div className="text-[var(--color-text-muted)]">FP</div>
+        </div>
+        <div className="rounded p-1" style={{ background: 'rgba(255, 79, 90, 0.12)' }}>
+          <div className="font-bold text-[#ff4f5a]">{record.fn}</div>
+          <div className="text-[var(--color-text-muted)]">FN</div>
+        </div>
+        <div className="rounded p-1" style={{ background: 'rgba(79, 255, 138, 0.12)' }}>
+          <div className="font-bold text-[#4fff8a]">{record.tn}</div>
+          <div className="text-[var(--color-text-muted)]">TN</div>
+        </div>
+      </div>
+      {record.examples && record.examples.length > 0 && (
+        <div className="space-y-1">
+          {record.examples.slice(0, 3).map((ex, i) => (
+            <div key={i} className="text-[9px] text-[var(--color-text-muted)] rounded bg-[var(--color-surface-2)] px-2 py-1 flex items-center justify-between gap-1">
+              <span className="truncate">{ex.sat1_name} vs {ex.sat2_name}</span>
+              <span className="shrink-0">
+                Predicted: {ex.predicted} | Actual: {ex.actual} |{' '}
+                <span style={{ color: ex.correct ? '#4fff8a' : '#ff4f5a', fontWeight: 600 }}>
+                  {ex.correct ? 'CORRECT' : 'WRONG'}
+                </span>
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -390,7 +600,8 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
 export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [data, setData] = useState<ForecastData | null>(null);
   const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'moderate'>('all');
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [expandedIdx, setExpandedIdx] = useState<string | null>(null);
+  const [showResolved, setShowResolved] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
@@ -434,7 +645,8 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
           <h3 className="font-semibold text-sm">Pc Escalation Forecast</h3>
           {data && (
             <span className="text-[10px] text-[var(--color-text-muted)]">
-              {data.n_pairs} conjunction pairs tracked
+              {data.n_pairs} pairs
+              {data.generated_at && ` \u00b7 ${data.generated_at.slice(0, 16).replace('T', ' ')} UTC`}
             </span>
           )}
         </div>
@@ -455,6 +667,24 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
           {/* Model metrics */}
           {data.model_metrics && (
             <ModelMetricsBanner metrics={data.model_metrics} task={data.prediction_task} regressionMetrics={data.regression_metrics} />
+          )}
+
+          {/* Prediction track record */}
+          {data.track_record && (
+            <TrackRecordSection record={data.track_record} />
+          )}
+
+          {/* Conformal prediction guarantee */}
+          {data.conformal && (
+            <div className="px-4 py-2 border-b border-[var(--color-border)] flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-[#a29bfe] shrink-0" />
+              <div className="text-[10px] text-[var(--color-text-muted)]">
+                <span className="font-semibold text-[var(--color-text)]">Conformal Guarantee:</span>{' '}
+                {(data.conformal.regression_coverage * 100).toFixed(0)}% of true Pc values fall within prediction intervals
+                (target: {((1 - data.conformal.alpha) * 100).toFixed(0)}%, width: {data.conformal.interval_width_log10pc.toFixed(1)} log<sub>10</sub>Pc,
+                n={data.conformal.n_calibration} calibration pairs)
+              </div>
+            </div>
           )}
 
           {/* Risk breakdown + filter */}
@@ -482,22 +712,63 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
             })}
           </div>
 
-          {/* Pair list — compact, expandable */}
+          {/* Pair list — split into active and resolved */}
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
-            {filtered.length === 0 ? (
-              <div className="text-xs text-[var(--color-text-muted)] text-center py-4">
-                No pairs in this category.
-              </div>
-            ) : (
-              filtered.map((pair, i) => (
-                <PairCard
-                  key={`${pair.sat1_norad}-${pair.sat2_norad}`}
-                  pair={pair}
-                  expanded={expandedIdx === i}
-                  onToggle={() => setExpandedIdx(expandedIdx === i ? null : i)}
-                />
-              ))
-            )}
+            {(() => {
+              const now = new Date().toISOString();
+              const activePairsList = filtered.filter(p => !p.tca || p.tca > now);
+              const resolvedPairsList = filtered.filter(p => p.tca && p.tca <= now);
+
+              return (
+                <>
+                  {/* Active Conjunctions */}
+                  <div className="text-[11px] font-semibold text-[var(--color-text)] px-1 pt-1 pb-0.5">
+                    Active Conjunctions ({activePairsList.length})
+                  </div>
+                  {activePairsList.length === 0 ? (
+                    <div className="text-xs text-[var(--color-text-muted)] text-center py-3">
+                      No active pairs in this category.
+                    </div>
+                  ) : (
+                    activePairsList.map((pair) => {
+                      const key = `active-${pair.sat1_norad}-${pair.sat2_norad}`;
+                      return (
+                        <PairCard
+                          key={key}
+                          pair={pair}
+                          expanded={expandedIdx === key}
+                          onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)}
+                        />
+                      );
+                    })
+                  )}
+
+                  {/* Resolved Events */}
+                  {resolvedPairsList.length > 0 && (
+                    <>
+                      <button
+                        onClick={() => setShowResolved(!showResolved)}
+                        className="w-full flex items-center justify-between text-[11px] font-semibold text-[var(--color-text-muted)] px-1 pt-3 pb-0.5 hover:text-[var(--color-text)] transition-colors"
+                      >
+                        <span>Resolved Events ({resolvedPairsList.length})</span>
+                        <span className="text-[10px]">{showResolved ? '\u25B2' : '\u25BC'}</span>
+                      </button>
+                      {showResolved && resolvedPairsList.map((pair) => {
+                        const key = `resolved-${pair.sat1_norad}-${pair.sat2_norad}`;
+                        return (
+                          <PairCard
+                            key={key}
+                            pair={pair}
+                            expanded={expandedIdx === key}
+                            onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)}
+                          />
+                        );
+                      })}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Footer */}

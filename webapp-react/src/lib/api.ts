@@ -111,7 +111,7 @@ export interface ForecastModelMetrics {
   n_train?: number;
   n_test?: number;
   train?: { accuracy: number; precision: number; recall: number; f1: number; auc_pr: number };
-  test?: { accuracy: number; precision: number; recall: number; f1: number; auc_pr: number };
+  test?: { accuracy: number; precision: number; recall: number; f1: number; auc_pr: number; tp?: number; fp?: number; fn?: number; tn?: number };
 }
 
 export interface PipelineStats {

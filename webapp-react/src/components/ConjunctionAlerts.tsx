@@ -62,7 +62,26 @@ function shortObjType(t?: string): string {
 export function ConjunctionAlerts({ pairs, tles, visible, onClose, onProjection }: ConjunctionAlertsProps) {
   const [selectedPair, setSelectedPair] = useState<ScreeningPair | null>(null);
 
-  if (!visible || pairs.length === 0) return null;
+  if (!visible) return null;
+
+  if (pairs.length === 0) {
+    return (
+      <div className="absolute right-4 top-16 w-80 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col">
+        <div className="flex items-center justify-between p-3 border-b border-[var(--color-border)]">
+          <h3 className="font-semibold text-sm">Conjunction Alerts</h3>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] transition-colors text-base"
+          >
+            &times;
+          </button>
+        </div>
+        <div className="p-4 text-xs text-[var(--color-text-muted)] text-center leading-relaxed">
+          No active conjunction alerts. The pipeline screens satellite pairs daily &mdash; alerts appear when Pc exceeds screening thresholds.
+        </div>
+      </div>
+    );
+  }
 
   if (selectedPair) {
     return (
