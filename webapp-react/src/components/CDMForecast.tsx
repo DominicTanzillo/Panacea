@@ -39,6 +39,17 @@ interface ForecastPair {
   ensemble_probability?: number | null;
   exceedance_upper?: number | null;
   exceedance_lower?: number | null;
+  // Autoregressive forecast
+  forecast_steps?: {
+    step: number;
+    predicted_log10_pc: number;
+    predicted_pc: number;
+    predicted_miss_km: number;
+    uncertainty_log10_pc: number;
+    hours_ahead: number;
+  }[];
+  // AI summary
+  ai_summary?: string;
 }
 
 interface ModelMetrics {
@@ -321,24 +332,64 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
             </div>
           </div>
 
-          {/* Risk Factors — model explainability */}
+          {/* AI Risk Assessment Summary */}
           {(() => {
-            const factors: string[] = [];
-            if ((pair.exceedance_probability ?? 0) > 0.7) factors.push('High probability of exceeding maneuver threshold');
-            if (pair.pc_trend > 0.05) factors.push('Pc is escalating across recent CDM updates');
-            if (pair.pc_trend < -0.05) factors.push('Pc is de-escalating \u2014 risk may be decreasing');
-            if (pair.n_updates <= 2) factors.push('Limited CDM data \u2014 prediction confidence is low');
-            if (pair.predicted_max_log10_pc != null && pair.predicted_max_log10_pc > -3.3) factors.push(`LSTM model predicts max Pc of ${pair.predicted_max_log10_pc.toFixed(2)} (above 5e-4 threshold)`);
-            if (pair.lstm_escalation_prob != null && pair.lstm_escalation_prob > 0.5) factors.push(`Deep learning model: ${(pair.lstm_escalation_prob * 100).toFixed(0)}% escalation probability`);
-            if (factors.length === 0) return null;
+            const ep = pair.ensemble_probability ?? pair.exceedance_probability ?? 0;
+            const lines: string[] = [];
+
+            // Headline risk
+            if (pair.current_pc >= 5e-3) lines.push('CRITICAL: Collision probability is extremely elevated.');
+            else if (pair.current_pc >= 5e-4) lines.push('HIGH RISK: Pc already exceeds the maneuver planning threshold.');
+            else if (ep >= 0.5) lines.push('ELEVATED: Models predict likely threshold exceedance.');
+            else lines.push('Being monitored. Risk currently below action threshold.');
+
+            // Trend
+            if (pair.risk_direction === 'escalating') {
+              const pctStr = pair.pc_trend > 0 ? ` (+${(pair.pc_trend * 100).toFixed(0)}%/update)` : '';
+              lines.push(`Pc is escalating across ${pair.n_updates} CDM updates${pctStr}.`);
+            } else if (pair.risk_direction === 'de-escalating') {
+              lines.push('Pc trend is decreasing \u2014 conjunction may be resolving safely.');
+            }
+
+            // Deep learning insight
+            if (pair.predicted_max_log10_pc != null) {
+              const above = pair.predicted_max_log10_pc > -3.3;
+              lines.push(`BiLSTM predicts max Pc of 10^${pair.predicted_max_log10_pc.toFixed(1)} \u2014 ${above ? 'ABOVE' : 'below'} the 5e-4 threshold.`);
+            }
+            if (pair.lstm_escalation_prob != null && pair.lstm_escalation_prob > 0.4) {
+              lines.push(`Deep learning escalation confidence: ${(pair.lstm_escalation_prob * 100).toFixed(0)}%.`);
+            }
+
+            // Attention insight
+            if (pair.attention_weights && pair.attention_weights.length >= 2) {
+              const maxI = pair.attention_weights.indexOf(Math.max(...pair.attention_weights));
+              if (maxI === pair.attention_weights.length - 1) {
+                lines.push('Model attention focuses on the latest CDM \u2014 recent orbital data is most informative.');
+              } else if (pair.attention_weights[maxI] > 0.4) {
+                lines.push(`CDM #${maxI + 1} receives ${(pair.attention_weights[maxI] * 100).toFixed(0)}% attention \u2014 a significant state change occurred there.`);
+              }
+            }
+
+            // Data quality
+            if (pair.n_updates <= 2) {
+              lines.push(`Only ${pair.n_updates} CDM update${pair.n_updates > 1 ? 's' : ''} available \u2014 confidence will improve with more data.`);
+            }
+
+            // Recommendation
+            if (ep >= 0.5 || pair.current_pc >= 5e-4) {
+              lines.push('Recommend: active monitoring at 6-hour intervals.');
+            }
+
             return (
               <div
-                className="mt-2 pl-2 py-1"
-                style={{ borderLeft: `3px solid ${color}`, fontSize: '10px' }}
+                className="mt-2 pl-2 py-1.5 rounded-r"
+                style={{ borderLeft: `3px solid ${color}`, fontSize: '10px', background: `${color}08` }}
               >
-                <div className="font-semibold text-[var(--color-text-muted)] mb-0.5">Why this risk level?</div>
-                {factors.map((f, i) => (
-                  <div key={i} className="text-[var(--color-text-muted)] leading-relaxed">{f}</div>
+                <div className="font-semibold text-[var(--color-text)] mb-1 flex items-center gap-1.5">
+                  <span style={{ fontSize: 12 }}>{'\u{1F916}'}</span> AI Risk Assessment
+                </div>
+                {lines.map((line, i) => (
+                  <div key={i} className="text-[var(--color-text-muted)] leading-relaxed">{line}</div>
                 ))}
               </div>
             );
@@ -462,6 +513,38 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
               <div className="text-[9px] text-[var(--color-text-muted)] text-center -mt-1">
                 Red dashed line = maneuver planning threshold (Pc = 5e-4)
               </div>
+            </div>
+          )}
+
+          {/* Autoregressive forecast — next CDM predictions */}
+          {pair.forecast_steps && pair.forecast_steps.length > 0 && (
+            <div className="pt-1.5">
+              <div className="text-[9px] font-semibold text-[var(--color-text-muted)] mb-1">
+                Predicted Next CDM Updates (Autoregressive)
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {pair.forecast_steps.map(fc => (
+                  <div key={fc.step} className="rounded-lg bg-[var(--color-surface)] p-1.5 text-center text-[9px]">
+                    <div className="text-[var(--color-text-muted)] mb-0.5">+{fc.hours_ahead}h</div>
+                    <div className="font-mono font-semibold" style={{
+                      color: fc.predicted_pc >= 5e-4 ? '#ff4f5a' : '#4fff8a'
+                    }}>
+                      {fc.predicted_pc >= 0.01 ? `${(fc.predicted_pc*100).toFixed(1)}%` : fc.predicted_pc.toExponential(1)}
+                    </div>
+                    <div className="text-[8px] text-[var(--color-text-muted)]">
+                      {'\u00b1'}{fc.uncertainty_log10_pc.toFixed(2)} log
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI-generated summary from pipeline */}
+          {pair.ai_summary && (
+            <div className="mt-1.5 rounded-lg bg-[var(--color-surface)]/50 p-2 text-[9px] text-[var(--color-text-muted)] leading-relaxed border border-[var(--color-border)]/30">
+              <span className="font-semibold text-[var(--color-text)]">{'\u{1F4DD}'} Event Summary: </span>
+              {pair.ai_summary}
             </div>
           )}
         </div>

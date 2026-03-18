@@ -1484,6 +1484,61 @@ def main():
     except Exception as e:
         print(f"  Conformal analysis failed (non-fatal): {e}")
 
+    # Run autoregressive CDM forecaster
+    print("\nRunning autoregressive CDM forecaster ...")
+    try:
+        from src.model.cdm_autoregressive import CDMAutoregressive
+        cdm_store = LOG_DIR / "cdm_store.jsonl"
+        ar_ckpt = ROOT / "models" / "cdm_autoregressive.pt"
+        if cdm_store.exists():
+            ar_model = CDMAutoregressive()
+            ar_metrics = ar_model.train(str(cdm_store), epochs=50)
+            ar_model.save(str(ar_ckpt))
+            print(f"  Autoregressive: MAE_pc={ar_metrics.get('mae_log10_pc', 0):.3f}, "
+                  f"corr={ar_metrics.get('correlation_pc', 0):.3f}")
+
+            # Add forecasts to cdm_forecast.json
+            forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
+            if forecast_path.exists():
+                with open(forecast_path) as f:
+                    forecast_data = json.load(f)
+                forecast_data["autoregressive_metrics"] = ar_metrics
+
+                # Generate forecasts for active pairs
+                pair_map = ar_model._load_pairs(str(cdm_store))
+                for pair_entry in forecast_data.get("pairs", []):
+                    n1 = pair_entry["sat1_norad"]
+                    n2 = pair_entry["sat2_norad"]
+                    tca_date = pair_entry.get("tca", "")[:10]
+                    key = (min(n1, n2), max(n1, n2), tca_date)
+                    cdms = pair_map.get(key, [])
+                    if len(cdms) >= 3:
+                        fc = ar_model.forecast(cdms, n_steps=3, mc_samples=15)
+                        pair_entry["forecast_steps"] = fc
+
+                with open(forecast_path, "w") as f:
+                    json.dump(forecast_data, f, indent=2, default=_json_default)
+    except Exception as e:
+        print(f"  Autoregressive failed (non-fatal): {e}")
+
+    # Generate AI risk summaries for all pairs
+    print("\nGenerating AI risk summaries ...")
+    try:
+        from src.model.event_summarizer import summarize_pair
+        forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
+        if forecast_path.exists():
+            with open(forecast_path) as f:
+                forecast_data = json.load(f)
+            n_summarized = 0
+            for pair_entry in forecast_data.get("pairs", []):
+                pair_entry["ai_summary"] = summarize_pair(pair_entry)
+                n_summarized += 1
+            with open(forecast_path, "w") as f:
+                json.dump(forecast_data, f, indent=2, default=_json_default)
+            print(f"  Generated {n_summarized} AI risk summaries")
+    except Exception as e:
+        print(f"  AI summaries failed (non-fatal): {e}")
+
     # Run GNN conjunction network model
     print("\nRunning Conjunction GNN ...")
     try:

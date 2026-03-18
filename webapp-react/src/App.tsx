@@ -9,6 +9,7 @@ import { ConjunctionAlerts } from './components/ConjunctionAlerts';
 import { RiskDashboard } from './components/RiskDashboard';
 import { CDMForecast } from './components/CDMForecast';
 import { AboutPage } from './components/AboutPage';
+import { LandingOverlay } from './components/LandingOverlay';
 import { useSatellites } from './hooks/useSatellites';
 import { useApi } from './hooks/useApi';
 import type { SatellitePosition, ProjectedPair } from './lib/types';
@@ -100,6 +101,7 @@ function App() {
   const [showBorders, setShowBorders] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showForecast, setShowForecast] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
 
   // When a conjunction pair projection updates, deselect individual satellites
   const handleProjection = useCallback((pair: ProjectedPair | null) => {
@@ -187,6 +189,15 @@ function App() {
       />
 
       <AboutPage visible={showAbout} onClose={() => setShowAbout(false)} />
+
+      {showLanding && (
+        <LandingOverlay
+          loading={loading}
+          nSatellites={totalTLEs}
+          nPairs={screeningPairs.length}
+          onEnter={() => setShowLanding(false)}
+        />
+      )}
     </div>
   );
 }
