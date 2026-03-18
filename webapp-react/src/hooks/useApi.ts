@@ -13,11 +13,18 @@ import {
 } from '../lib/api';
 import type { TLERecord } from '../lib/types';
 
+interface AlertsMeta {
+  cdmCount: number;
+  tleCount: number;
+  dataDate?: string;
+}
+
 interface UseApiResult {
   healthy: boolean;
   modelComparison: ModelComparisonResult[] | null;
   experimentResults: StalenessResults | null;
   screeningPairs: ScreeningPair[];
+  alertsMeta: AlertsMeta;
   loading: boolean;
   refresh: () => void;
 }
@@ -27,6 +34,7 @@ export function useApi(tles?: TLERecord[]): UseApiResult {
   const [modelComparison, setModelComparison] = useState<ModelComparisonResult[] | null>(null);
   const [experimentResults, setExperimentResults] = useState<StalenessResults | null>(null);
   const [screeningPairs, setScreeningPairs] = useState<ScreeningPair[]>([]);
+  const [alertsMeta, setAlertsMeta] = useState<AlertsMeta>({ cdmCount: 0, tleCount: 0 });
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -73,7 +81,12 @@ export function useApi(tles?: TLERecord[]): UseApiResult {
         const alertsResp = await fetch('./latest_alerts.json');
         if (alertsResp.ok) {
           const data: StaticAlerts = await alertsResp.json();
-          if (data?.pairs) setScreeningPairs(data.pairs);
+          if (data?.pairs) {
+            setScreeningPairs(data.pairs);
+            const cdmCount = data.n_cdm_alerts ?? data.pairs.filter(p => p.source === 'cdm').length;
+            const tleCount = data.n_tle_alerts ?? data.pairs.filter(p => p.source !== 'cdm').length;
+            setAlertsMeta({ cdmCount, tleCount, dataDate: data.prediction_date });
+          }
         }
       } catch {
         // Static alerts not available
@@ -115,6 +128,7 @@ export function useApi(tles?: TLERecord[]): UseApiResult {
     modelComparison,
     experimentResults,
     screeningPairs,
+    alertsMeta,
     loading,
     refresh: fetchData,
   };

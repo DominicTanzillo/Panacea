@@ -6,8 +6,12 @@ interface HeaderProps {
   onToggleAlerts: () => void;
   showDashboard: boolean;
   onToggleDashboard: () => void;
+  showForecast: boolean;
+  onToggleForecast: () => void;
   onShowAbout: () => void;
   alertCount: number;
+  cdmAlertCount: number;
+  dataDate?: string;
 }
 
 export function PanaceaLogo({ size = 32 }: { size?: number }) {
@@ -58,8 +62,12 @@ export function Header({
   onToggleAlerts,
   showDashboard,
   onToggleDashboard,
+  showForecast,
+  onToggleForecast,
   onShowAbout,
   alertCount,
+  cdmAlertCount,
+  dataDate,
 }: HeaderProps) {
   return (
     <header className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
@@ -87,13 +95,19 @@ export function Header({
         <div className="flex items-center gap-2 pointer-events-auto flex-wrap justify-end">
           <div
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md"
-            title={healthy ? 'Backend connected' : 'Backend offline — globe still works'}
+            title={
+              healthy
+                ? 'Backend API connected — live screening active'
+                : dataDate
+                  ? `Static data from ${dataDate} — globe is live`
+                  : 'Globe is live — alerts from daily pipeline'
+            }
           >
             <span
               className="w-1.5 h-1.5 rounded-full"
-              style={{ background: healthy ? '#4fff8a' : '#ff4f5a' }}
+              style={{ background: healthy ? '#4fff8a' : cdmAlertCount > 0 ? '#4f8aff' : '#ffb84f' }}
             />
-            {healthy ? 'API' : 'Offline'}
+            {healthy ? 'Live API' : dataDate ? `Data ${dataDate}` : 'Static Data'}
           </div>
 
           <button
@@ -109,6 +123,13 @@ export function Header({
             className={`${pill} ${showAlerts ? pillOn : pillOff}`}
           >
             Alerts{alertCount > 0 ? ` (${alertCount})` : ''}
+          </button>
+
+          <button
+            onClick={onToggleForecast}
+            className={`${pill} ${showForecast ? pillOn : pillOff}`}
+          >
+            Forecast
           </button>
 
           <button
