@@ -1,160 +1,39 @@
 {
-  "generated_at": "2026-03-17T01:42:33Z",
+  "generated_at": "2026-03-18T02:00:32Z",
   "model": "CDMForecastModel",
   "prediction_task": "Predict whether Pc will exceed 1e-4 (action threshold) before TCA",
-  "n_pairs": 670,
-  "n_actionable": 211,
-  "n_escalating": 3,
+  "n_pairs": 687,
+  "n_actionable": 198,
+  "n_escalating": 4,
   "model_metrics": {
     "mode": "logistic_regression",
-    "n_training_pairs": 468,
-    "n_test_pairs": 202,
-    "n_total_pairs": 670,
-    "positive_rate": 0.2269,
-    "test_accuracy": 0.9158,
-    "test_precision": 0.7797,
-    "test_recall": 0.92,
-    "test_f1": 0.844,
-    "test_auc_pr": 0.7568
+    "n_training_pairs": 480,
+    "n_test_pairs": 207,
+    "n_total_pairs": 687,
+    "positive_rate": 0.2271,
+    "test_accuracy": 0.9469,
+    "test_precision": 0.875,
+    "test_recall": 0.8936,
+    "test_f1": 0.8842,
+    "test_auc_pr": 0.7769
   },
   "pairs": [
-    {
-      "sat1_name": "COSMOS 1670",
-      "sat2_name": "CZ-4C R/B",
-      "sat1_norad": 15930,
-      "sat2_norad": 54250,
-      "tca": "2026-03-17T18:23:41.608000",
-      "current_pc": 0.002345577,
-      "forecast_pc": 0.0003154229198116809,
-      "exceedance_probability": 1.0,
-      "current_miss_km": 102.0,
-      "forecast_miss_km": 205.5,
-      "risk_direction": "stable",
-      "pc_trend": -0.0235,
-      "confidence": 1.0,
-      "action_recommended": true,
-      "n_updates": 12,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -1.93,
-          "pc": 0.011712949723005295,
-          "miss_distance_km": 35.0,
-          "time_to_tca_hours": 68.6
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -1.93,
-          "pc": 0.011712949723005295,
-          "miss_distance_km": 35.0,
-          "time_to_tca_hours": 68.5
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -1.94,
-          "pc": 0.011376069858670235,
-          "miss_distance_km": 93.0,
-          "time_to_tca_hours": 61.4
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -1.94,
-          "pc": 0.011376069858670235,
-          "miss_distance_km": 93.0,
-          "time_to_tca_hours": 61.2
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -1.99,
-          "pc": 0.010170940309762955,
-          "miss_distance_km": 109.0,
-          "time_to_tca_hours": 54.1
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -1.99,
-          "pc": 0.010170940309762955,
-          "miss_distance_km": 109.0,
-          "time_to_tca_hours": 54.0
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -2.8,
-          "pc": 0.0015906649641692638,
-          "miss_distance_km": 142.0,
-          "time_to_tca_hours": 44.9
-        },
-        {
-          "update_idx": 8,
-          "log10_pc": -2.8,
-          "pc": 0.0015906649641692638,
-          "miss_distance_km": 142.0,
-          "time_to_tca_hours": 44.7
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -2.89,
-          "pc": 0.0012974670389667153,
-          "miss_distance_km": 101.0,
-          "time_to_tca_hours": 36.5
-        },
-        {
-          "update_idx": 10,
-          "log10_pc": -2.84,
-          "pc": 0.001456315047107637,
-          "miss_distance_km": 105.0,
-          "time_to_tca_hours": 29.9
-        },
-        {
-          "update_idx": 11,
-          "log10_pc": -2.84,
-          "pc": 0.001456315047107637,
-          "miss_distance_km": 105.0,
-          "time_to_tca_hours": 29.7
-        },
-        {
-          "update_idx": 12,
-          "log10_pc": -2.63,
-          "pc": 0.0023455771151930094,
-          "miss_distance_km": 102.0,
-          "time_to_tca_hours": 20.5
-        }
-      ],
-      "predicted_max_pc": 0.009558827303371202,
-      "predicted_max_log10_pc": -2.02,
-      "predicted_min_miss_km": 37.26,
-      "lstm_escalation_prob": 1.0,
-      "attention_weights": [
-        0.04482651129364967,
-        0.10416874289512634,
-        0.13341587781906128,
-        0.13783970475196838,
-        0.12416135519742966,
-        0.11084067821502686,
-        0.08793453127145767,
-        0.06954467296600342,
-        0.05721113458275795,
-        0.048244137316942215,
-        0.04166855663061142,
-        0.040144141763448715
-      ]
-    },
     {
       "sat1_name": "AUREOLE 3",
       "sat2_name": "OBJECT C",
       "sat1_norad": 12848,
       "sat2_norad": 54253,
       "tca": "2026-03-18T05:05:15.737000",
-      "current_pc": 0.006212618,
-      "forecast_pc": 0.01857379451394081,
+      "current_pc": 0.01145724,
+      "forecast_pc": 0.027917873114347458,
       "exceedance_probability": 1.0,
-      "current_miss_km": 66.0,
-      "forecast_miss_km": 19.6,
+      "current_miss_km": 309.0,
+      "forecast_miss_km": 26.7,
       "risk_direction": "stable",
-      "pc_trend": 0.0184,
-      "confidence": 0.72,
+      "pc_trend": 0.0216,
+      "confidence": 0.8,
       "action_recommended": true,
-      "n_updates": 3,
+      "n_updates": 5,
       "time_series": [
         {
           "update_idx": 1,
@@ -176,346 +55,73 @@
           "pc": 0.006212618201971054,
           "miss_distance_km": 66.0,
           "time_to_tca_hours": 31.2
-        }
-      ],
-      "predicted_max_pc": 0.004877139612463381,
-      "predicted_max_log10_pc": -2.312,
-      "predicted_min_miss_km": 71.71,
-      "lstm_escalation_prob": 1.0,
-      "attention_weights": [
-        0.11334162205457687,
-        0.2326948195695877,
-        0.6539635062217712
-      ]
-    },
-    {
-      "sat1_name": "GEOS 3",
-      "sat2_name": "SL-16 DEB",
-      "sat1_norad": 7734,
-      "sat2_norad": 22615,
-      "tca": "2026-03-17T11:46:22.516000",
-      "current_pc": 0.003180998,
-      "forecast_pc": 0.001337203779257834,
-      "exceedance_probability": 0.9999,
-      "current_miss_km": 121.0,
-      "forecast_miss_km": 192.0,
-      "risk_direction": "stable",
-      "pc_trend": 0.003,
-      "confidence": 1.0,
-      "action_recommended": true,
-      "n_updates": 15,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -2.91,
-          "pc": 0.001230099005624652,
-          "miss_distance_km": 287.0,
-          "time_to_tca_hours": 71.3
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.05,
-          "pc": 0.0008946211892180145,
-          "miss_distance_km": 148.0,
-          "time_to_tca_hours": 62.0
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -2.96,
-          "pc": 0.0010973609751090407,
-          "miss_distance_km": 216.0,
-          "time_to_tca_hours": 54.8
         },
         {
           "update_idx": 4,
-          "log10_pc": -2.96,
-          "pc": 0.0010973609751090407,
-          "miss_distance_km": 216.0,
-          "time_to_tca_hours": 54.7
+          "log10_pc": -1.93,
+          "pc": 0.01177056971937418,
+          "miss_distance_km": 16.0,
+          "time_to_tca_hours": 23.7
         },
         {
           "update_idx": 5,
-          "log10_pc": -3.03,
-          "pc": 0.0009375400841236115,
-          "miss_distance_km": 293.0,
-          "time_to_tca_hours": 47.5
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -3.36,
-          "pc": 0.0004405957879498601,
-          "miss_distance_km": 331.0,
-          "time_to_tca_hours": 38.2
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -3.19,
-          "pc": 0.000644557410851121,
-          "miss_distance_km": 292.0,
-          "time_to_tca_hours": 29.9
-        },
-        {
-          "update_idx": 8,
-          "log10_pc": -3.19,
-          "pc": 0.000644557410851121,
-          "miss_distance_km": 292.0,
-          "time_to_tca_hours": 29.8
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -3.08,
-          "pc": 0.0008243551128543913,
-          "miss_distance_km": 270.0,
-          "time_to_tca_hours": 23.3
-        },
-        {
-          "update_idx": 10,
-          "log10_pc": -2.5,
-          "pc": 0.0031809979118406773,
-          "miss_distance_km": 121.0,
-          "time_to_tca_hours": 13.9
+          "log10_pc": -1.94,
+          "pc": 0.011457240208983421,
+          "miss_distance_km": 309.0,
+          "time_to_tca_hours": 16.3
         }
       ],
-      "predicted_max_pc": 0.0021208150663864435,
-      "predicted_max_log10_pc": -2.673,
-      "predicted_min_miss_km": 107.89,
-      "lstm_escalation_prob": 0.9997,
-      "attention_weights": [
-        0.03977759927511215,
-        0.06158547103404999,
-        0.08247801661491394,
-        0.07748053967952728,
-        0.07121777534484863,
-        0.06532761454582214,
-        0.0589367151260376,
-        0.05343129485845566,
-        0.045865800231695175,
-        0.038179948925971985,
-        0.03811470419168472,
-        0.038916412740945816,
-        0.04775846004486084,
-        0.11140041798353195,
-        0.16952918469905853
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 970 DEB",
-      "sat2_name": "SECOR 5 (EGRS 5)",
-      "sat1_norad": 10568,
-      "sat2_norad": 1506,
-      "tca": "2026-03-17T10:09:00.053000",
-      "current_pc": 0.001942614,
-      "forecast_pc": 0.003655156819149852,
-      "exceedance_probability": 0.9999,
-      "current_miss_km": 63.0,
-      "forecast_miss_km": 47.1,
-      "risk_direction": "stable",
-      "pc_trend": 0.0012,
-      "confidence": 1.0,
-      "action_recommended": true,
-      "n_updates": 14,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -2.62,
-          "pc": 0.0023844290990382433,
-          "miss_distance_km": 49.0,
-          "time_to_tca_hours": 69.7
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -2.61,
-          "pc": 0.0024330338928848505,
-          "miss_distance_km": 186.0,
-          "time_to_tca_hours": 60.4
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -2.61,
-          "pc": 0.0024330338928848505,
-          "miss_distance_km": 186.0,
-          "time_to_tca_hours": 60.3
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -2.47,
-          "pc": 0.00341789610683918,
-          "miss_distance_km": 118.0,
-          "time_to_tca_hours": 53.1
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -2.4,
-          "pc": 0.003997333813458681,
-          "miss_distance_km": 43.0,
-          "time_to_tca_hours": 45.9
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -2.54,
-          "pc": 0.002877861959859729,
-          "miss_distance_km": 88.0,
-          "time_to_tca_hours": 36.6
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -2.28,
-          "pc": 0.005211587995290756,
-          "miss_distance_km": 61.0,
-          "time_to_tca_hours": 28.2
-        },
-        {
-          "update_idx": 8,
-          "log10_pc": -2.17,
-          "pc": 0.006720859091728926,
-          "miss_distance_km": 47.0,
-          "time_to_tca_hours": 21.7
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -2.71,
-          "pc": 0.0019426139770075679,
-          "miss_distance_km": 63.0,
-          "time_to_tca_hours": 12.3
-        }
-      ],
-      "predicted_max_pc": 0.006035669894455824,
-      "predicted_max_log10_pc": -2.219,
-      "predicted_min_miss_km": 38.97,
+      "predicted_max_pc": 0.014728706595767761,
+      "predicted_max_log10_pc": -1.832,
+      "predicted_min_miss_km": 19.33,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.03386101499199867,
-        0.05530385673046112,
-        0.07407593727111816,
-        0.09175898879766464,
-        0.0917167142033577,
-        0.09845983982086182,
-        0.09213767945766449,
-        0.07656138390302658,
-        0.06643620133399963,
-        0.0673433169722557,
-        0.06635905802249908,
-        0.070064477622509,
-        0.061782993376255035,
-        0.05413860082626343
+        0.03630431368947029,
+        0.0763109102845192,
+        0.21975049376487732,
+        0.3731860816478729,
+        0.2944481372833252
       ]
     },
     {
-      "sat1_name": "SL-8 R/B",
-      "sat2_name": "COSMOS 1275 DEB",
-      "sat1_norad": 10600,
-      "sat2_norad": 12648,
-      "tca": "2026-03-17T06:37:42.991000",
-      "current_pc": 0.0002941867,
-      "forecast_pc": 4.8941926900081256e-11,
-      "exceedance_probability": 0.999,
-      "current_miss_km": 163.0,
-      "forecast_miss_km": 19864.2,
-      "risk_direction": "de-escalating",
-      "pc_trend": -0.1193,
-      "confidence": 0.76,
-      "action_recommended": true,
-      "n_updates": 4,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -2.42,
-          "pc": 0.003830013098195195,
-          "miss_distance_km": 74.0,
-          "time_to_tca_hours": 66.2
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.53,
-          "pc": 0.0002941866987384856,
-          "miss_distance_km": 163.0,
-          "time_to_tca_hours": 56.8
-        }
-      ],
-      "predicted_max_pc": 0.0034377549016504716,
-      "predicted_max_log10_pc": -2.464,
-      "predicted_min_miss_km": 75.14,
-      "lstm_escalation_prob": 1.0,
-      "attention_weights": [
-        0.152912899851799,
-        0.30440443754196167,
-        0.3141469359397888,
-        0.22853578627109528
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 1603",
-      "sat2_name": "FENGYUN 1C DEB",
-      "sat1_norad": 15333,
-      "sat2_norad": 30691,
-      "tca": "2026-03-18T21:17:56.990000",
-      "current_pc": 0.002190309,
-      "forecast_pc": 0.007095144130289555,
-      "exceedance_probability": 0.999,
-      "current_miss_km": 110.0,
-      "forecast_miss_km": 14.3,
+      "sat1_name": "THORAD AGENA D DEB",
+      "sat2_name": "SL-8 R/B",
+      "sat1_norad": 4767,
+      "sat2_norad": 14974,
+      "tca": "2026-03-19T02:58:44.916000",
+      "current_pc": 0.004763966,
+      "forecast_pc": 0.004763966891914606,
+      "exceedance_probability": 0.9991,
+      "current_miss_km": 32.0,
+      "forecast_miss_km": 32.0,
       "risk_direction": "stable",
-      "pc_trend": 0.011,
-      "confidence": 0.92,
+      "pc_trend": -0.0,
+      "confidence": 0.68,
       "action_recommended": true,
-      "n_updates": 8,
+      "n_updates": 2,
       "time_series": [
         {
           "update_idx": 1,
-          "log10_pc": -2.85,
-          "pc": 0.0014210999943315983,
-          "miss_distance_km": 200.0,
-          "time_to_tca_hours": 71.8
+          "log10_pc": -2.32,
+          "pc": 0.0047639659605920315,
+          "miss_distance_km": 32.0,
+          "time_to_tca_hours": 28.1
         },
         {
           "update_idx": 2,
-          "log10_pc": -2.85,
-          "pc": 0.0014210999943315983,
-          "miss_distance_km": 200.0,
-          "time_to_tca_hours": 71.7
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.03,
-          "pc": 0.0009349141037091613,
-          "miss_distance_km": 263.0,
-          "time_to_tca_hours": 63.4
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.03,
-          "pc": 0.0009349141037091613,
-          "miss_distance_km": 263.0,
-          "time_to_tca_hours": 63.3
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -2.68,
-          "pc": 0.002083336003124714,
-          "miss_distance_km": 61.0,
-          "time_to_tca_hours": 56.8
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -2.66,
-          "pc": 0.0021903091110289097,
-          "miss_distance_km": 110.0,
-          "time_to_tca_hours": 47.4
+          "log10_pc": -2.32,
+          "pc": 0.0047639659605920315,
+          "miss_distance_km": 32.0,
+          "time_to_tca_hours": 28.0
         }
       ],
-      "predicted_max_pc": 0.003233398930381527,
-      "predicted_max_log10_pc": -2.49,
-      "predicted_min_miss_km": 59.1,
+      "predicted_max_pc": 0.0027252775458816944,
+      "predicted_max_log10_pc": -2.565,
+      "predicted_min_miss_km": 51.02,
       "lstm_escalation_prob": 0.9999,
       "attention_weights": [
-        0.06109613925218582,
-        0.09851975739002228,
-        0.11871490627527237,
-        0.11072004586458206,
-        0.1494288146495819,
-        0.16101616621017456,
-        0.15518757700920105,
-        0.14531660079956055
+        0.3166908621788025,
+        0.6833091378211975
       ]
     },
     {
@@ -524,16 +130,16 @@
       "sat1_norad": 5150,
       "sat2_norad": 22782,
       "tca": "2026-03-18T09:59:50.467000",
-      "current_pc": 0.001306432,
-      "forecast_pc": 0.003550442401319742,
-      "exceedance_probability": 0.9989,
-      "current_miss_km": 180.0,
-      "forecast_miss_km": 173.3,
+      "current_pc": 0.0009329835,
+      "forecast_pc": 0.0016046733362600207,
+      "exceedance_probability": 0.9981,
+      "current_miss_km": 197.0,
+      "forecast_miss_km": 211.7,
       "risk_direction": "stable",
-      "pc_trend": 0.0088,
-      "confidence": 0.96,
+      "pc_trend": 0.003,
+      "confidence": 1.0,
       "action_recommended": true,
-      "n_updates": 9,
+      "n_updates": 11,
       "time_series": [
         {
           "update_idx": 1,
@@ -576,258 +182,122 @@
           "pc": 0.001306431950069964,
           "miss_distance_km": 180.0,
           "time_to_tca_hours": 36.1
-        }
-      ],
-      "predicted_max_pc": 0.0027677508280109556,
-      "predicted_max_log10_pc": -2.558,
-      "predicted_min_miss_km": 62.7,
-      "lstm_escalation_prob": 0.9999,
-      "attention_weights": [
-        0.055904366075992584,
-        0.08367029577493668,
-        0.09686902165412903,
-        0.09354360401630402,
-        0.11364157497882843,
-        0.11949983239173889,
-        0.17039182782173157,
-        0.14512252807617188,
-        0.12135690450668335
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 2251 DEB",
-      "sat2_name": "CZ-6A DEB",
-      "sat1_norad": 35016,
-      "sat2_norad": 61389,
-      "tca": "2026-03-17T10:55:12.804000",
-      "current_pc": 0.001389706,
-      "forecast_pc": 0.00220045680180192,
-      "exceedance_probability": 0.9979,
-      "current_miss_km": 27.0,
-      "forecast_miss_km": 18.6,
-      "risk_direction": "stable",
-      "pc_trend": 0.0176,
-      "confidence": 1.0,
-      "action_recommended": true,
-      "n_updates": 16,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.79,
-          "pc": 0.00016200239770114422,
-          "miss_distance_km": 112.0,
-          "time_to_tca_hours": 70.4
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.79,
-          "pc": 0.00016200239770114422,
-          "miss_distance_km": 112.0,
-          "time_to_tca_hours": 70.3
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.7,
-          "pc": 0.00020064550335519016,
-          "miss_distance_km": 66.0,
-          "time_to_tca_hours": 61.1
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.7,
-          "pc": 0.00020064550335519016,
-          "miss_distance_km": 66.0,
-          "time_to_tca_hours": 60.9
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.73,
-          "pc": 0.00018830109911505133,
-          "miss_distance_km": 148.0,
-          "time_to_tca_hours": 53.8
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -3.73,
-          "pc": 0.00018830109911505133,
-          "miss_distance_km": 148.0,
-          "time_to_tca_hours": 53.6
         },
         {
           "update_idx": 7,
-          "log10_pc": -3.68,
-          "pc": 0.00020699189917650074,
-          "miss_distance_km": 124.0,
-          "time_to_tca_hours": 46.6
+          "log10_pc": -3.03,
+          "pc": 0.0009329834720119834,
+          "miss_distance_km": 197.0,
+          "time_to_tca_hours": 28.6
+        }
+      ],
+      "predicted_max_pc": 0.0027834820357905505,
+      "predicted_max_log10_pc": -2.555,
+      "predicted_min_miss_km": 62.6,
+      "lstm_escalation_prob": 1.0,
+      "attention_weights": [
+        0.04763626679778099,
+        0.07221665978431702,
+        0.083535335958004,
+        0.08050157874822617,
+        0.09790278226137161,
+        0.10219044983386993,
+        0.1454630047082901,
+        0.12159538269042969,
+        0.1011647954583168,
+        0.0811246857047081,
+        0.06666906923055649
+      ]
+    },
+    {
+      "sat1_name": "COSMOS 1603",
+      "sat2_name": "FENGYUN 1C DEB",
+      "sat1_norad": 15333,
+      "sat2_norad": 30691,
+      "tca": "2026-03-18T21:17:56.990000",
+      "current_pc": 0.0001670351,
+      "forecast_pc": 8.779629570199177e-05,
+      "exceedance_probability": 0.9971,
+      "current_miss_km": 253.0,
+      "forecast_miss_km": 127.5,
+      "risk_direction": "stable",
+      "pc_trend": -0.0189,
+      "confidence": 1.0,
+      "action_recommended": true,
+      "n_updates": 10,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -2.85,
+          "pc": 0.0014210999943315983,
+          "miss_distance_km": 200.0,
+          "time_to_tca_hours": 71.8
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -2.85,
+          "pc": 0.0014210999943315983,
+          "miss_distance_km": 200.0,
+          "time_to_tca_hours": 71.7
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.03,
+          "pc": 0.0009349141037091613,
+          "miss_distance_km": 263.0,
+          "time_to_tca_hours": 63.4
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.03,
+          "pc": 0.0009349141037091613,
+          "miss_distance_km": 263.0,
+          "time_to_tca_hours": 63.3
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -2.68,
+          "pc": 0.002083336003124714,
+          "miss_distance_km": 61.0,
+          "time_to_tca_hours": 56.8
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -2.66,
+          "pc": 0.0021903091110289097,
+          "miss_distance_km": 110.0,
+          "time_to_tca_hours": 47.4
+        },
+        {
+          "update_idx": 7,
+          "log10_pc": -3.78,
+          "pc": 0.00016703510482329875,
+          "miss_distance_km": 253.0,
+          "time_to_tca_hours": 39.9
         },
         {
           "update_idx": 8,
-          "log10_pc": -3.68,
-          "pc": 0.00020699189917650074,
-          "miss_distance_km": 124.0,
-          "time_to_tca_hours": 46.4
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -3.17,
-          "pc": 0.000677222793456167,
-          "miss_distance_km": 33.0,
-          "time_to_tca_hours": 37.3
-        },
-        {
-          "update_idx": 10,
-          "log10_pc": -3.17,
-          "pc": 0.000677222793456167,
-          "miss_distance_km": 33.0,
-          "time_to_tca_hours": 37.1
-        },
-        {
-          "update_idx": 11,
-          "log10_pc": -3.05,
-          "pc": 0.0008853126782923937,
-          "miss_distance_km": 17.0,
-          "time_to_tca_hours": 28.9
-        },
-        {
-          "update_idx": 12,
-          "log10_pc": -3.05,
-          "pc": 0.0008853126782923937,
-          "miss_distance_km": 17.0,
-          "time_to_tca_hours": 28.7
-        },
-        {
-          "update_idx": 13,
-          "log10_pc": -3.14,
-          "pc": 0.0007277888944372535,
-          "miss_distance_km": 62.0,
-          "time_to_tca_hours": 22.2
-        },
-        {
-          "update_idx": 14,
-          "log10_pc": -3.14,
-          "pc": 0.0007277888944372535,
-          "miss_distance_km": 62.0,
-          "time_to_tca_hours": 22.4
-        },
-        {
-          "update_idx": 15,
-          "log10_pc": -2.86,
-          "pc": 0.0013897060416638851,
-          "miss_distance_km": 27.0,
-          "time_to_tca_hours": 13.0
-        },
-        {
-          "update_idx": 16,
-          "log10_pc": -2.86,
-          "pc": 0.0013897060416638851,
-          "miss_distance_km": 27.0,
-          "time_to_tca_hours": 12.8
+          "log10_pc": -3.78,
+          "pc": 0.00016703510482329875,
+          "miss_distance_km": 253.0,
+          "time_to_tca_hours": 39.8
         }
       ],
-      "predicted_max_pc": 0.0013124110767082362,
-      "predicted_max_log10_pc": -2.882,
-      "predicted_min_miss_km": 13.29,
-      "lstm_escalation_prob": 0.9761,
+      "predicted_max_pc": 0.00327527718671802,
+      "predicted_max_log10_pc": -2.485,
+      "predicted_min_miss_km": 57.23,
+      "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.024681132286787033,
-        0.026914376765489578,
-        0.03555016964673996,
-        0.038534726947546005,
-        0.03733628988265991,
-        0.035798922181129456,
-        0.03857440501451492,
-        0.03862692043185234,
-        0.08187553286552429,
-        0.10227414965629578,
-        0.12162352353334427,
-        0.11466751247644424,
-        0.08543848246335983,
-        0.0677265077829361,
-        0.07475028932094574,
-        0.07562696933746338
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 2251 DEB",
-      "sat2_name": "GAOFEN 3 DEB",
-      "sat1_norad": 33892,
-      "sat2_norad": 42679,
-      "tca": "2026-03-17T02:36:13.169000",
-      "current_pc": 0.0009473017,
-      "forecast_pc": 0.004497895948588848,
-      "exceedance_probability": 0.9877,
-      "current_miss_km": 40.0,
-      "forecast_miss_km": 4.2,
-      "risk_direction": "stable",
-      "pc_trend": 0.0173,
-      "confidence": 0.95,
-      "action_recommended": true,
-      "n_updates": 9,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.54,
-          "pc": 0.00028698871028609574,
-          "miss_distance_km": 99.0,
-          "time_to_tca_hours": 68.7
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.42,
-          "pc": 0.0003783910069614649,
-          "miss_distance_km": 128.0,
-          "time_to_tca_hours": 62.1
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.24,
-          "pc": 0.0005761823849752545,
-          "miss_distance_km": 39.0,
-          "time_to_tca_hours": 52.8
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.24,
-          "pc": 0.0005761823849752545,
-          "miss_distance_km": 39.0,
-          "time_to_tca_hours": 52.7
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.12,
-          "pc": 0.0007645270088687539,
-          "miss_distance_km": 13.0,
-          "time_to_tca_hours": 45.5
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -3.02,
-          "pc": 0.0009473016834817827,
-          "miss_distance_km": 40.0,
-          "time_to_tca_hours": 38.3
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -3.02,
-          "pc": 0.0009473016834817827,
-          "miss_distance_km": 40.0,
-          "time_to_tca_hours": 38.2
-        }
-      ],
-      "predicted_max_pc": 0.0010459243059952556,
-      "predicted_max_log10_pc": -2.98,
-      "predicted_min_miss_km": 18.24,
-      "lstm_escalation_prob": 0.9405,
-      "attention_weights": [
-        0.05352725088596344,
-        0.06415927410125732,
-        0.08271411806344986,
-        0.09120887517929077,
-        0.12660320103168488,
-        0.12953945994377136,
-        0.1568482220172882,
-        0.15179012715816498,
-        0.14360946416854858
+        0.0513288751244545,
+        0.0839976966381073,
+        0.10113319009542465,
+        0.09380432963371277,
+        0.1267678290605545,
+        0.1348201483488083,
+        0.12853197753429413,
+        0.11961033195257187,
+        0.09510033577680588,
+        0.06490521878004074
       ]
     },
     {
@@ -836,16 +306,16 @@
       "sat1_norad": 18122,
       "sat2_norad": 87214,
       "tca": "2026-03-19T11:51:54.099000",
-      "current_pc": 0.0004358229,
-      "forecast_pc": 3.875233232975006e-06,
-      "exceedance_probability": 0.9762,
-      "current_miss_km": 595.0,
-      "forecast_miss_km": 2722.9,
+      "current_pc": 0.0002059485,
+      "forecast_pc": 5.09570018039085e-05,
+      "exceedance_probability": 0.987,
+      "current_miss_km": 677.0,
+      "forecast_miss_km": 967.9,
       "risk_direction": "stable",
-      "pc_trend": -0.0331,
-      "confidence": 0.65,
+      "pc_trend": -0.0164,
+      "confidence": 0.78,
       "action_recommended": true,
-      "n_updates": 2,
+      "n_updates": 5,
       "time_series": [
         {
           "update_idx": 1,
@@ -860,15 +330,39 @@
           "pc": 0.00043582290527410805,
           "miss_distance_km": 595.0,
           "time_to_tca_hours": 62.0
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.46,
+          "pc": 0.00034941890044137836,
+          "miss_distance_km": 613.0,
+          "time_to_tca_hours": 54.5
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.45,
+          "pc": 0.00035596120869740844,
+          "miss_distance_km": 616.0,
+          "time_to_tca_hours": 47.0
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.69,
+          "pc": 0.00020594849775079638,
+          "miss_distance_km": 677.0,
+          "time_to_tca_hours": 36.9
         }
       ],
-      "predicted_max_pc": 0.0006540122028653866,
-      "predicted_max_log10_pc": -3.184,
-      "predicted_min_miss_km": 398.87,
-      "lstm_escalation_prob": 0.8929,
+      "predicted_max_pc": 0.0005925377791153474,
+      "predicted_max_log10_pc": -3.227,
+      "predicted_min_miss_km": 477.4,
+      "lstm_escalation_prob": 0.8673,
       "attention_weights": [
-        0.4482826590538025,
-        0.5517174005508423
+        0.17779721319675446,
+        0.2203933149576187,
+        0.22770246863365173,
+        0.20523381233215332,
+        0.16887319087982178
       ]
     },
     {
@@ -879,7 +373,7 @@
       "tca": "2026-03-19T03:10:41.455000",
       "current_pc": 0.001552458,
       "forecast_pc": 0.0015524576883763075,
-      "exceedance_probability": 0.9734,
+      "exceedance_probability": 0.976,
       "current_miss_km": 281.0,
       "forecast_miss_km": 281.0,
       "risk_direction": "stable",
@@ -896,186 +390,13 @@
           "time_to_tca_hours": 69.3
         }
       ],
-      "predicted_max_pc": 0.00122453636624468,
-      "predicted_max_log10_pc": -2.912,
-      "predicted_min_miss_km": 245.63,
-      "lstm_escalation_prob": 0.9973,
+      "predicted_max_pc": 0.0012347253860066478,
+      "predicted_max_log10_pc": -2.908,
+      "predicted_min_miss_km": 244.4,
+      "lstm_escalation_prob": 0.9983,
       "attention_weights": [
-        0.3804584741592407,
-        0.6195415258407593
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 1707",
-      "sat2_name": "CZ-2C R/B",
-      "sat1_norad": 16326,
-      "sat2_norad": 54039,
-      "tca": "2026-03-17T03:18:22.689000",
-      "current_pc": 0.0001543899,
-      "forecast_pc": 0.0002110372734023258,
-      "exceedance_probability": 0.9656,
-      "current_miss_km": 938.0,
-      "forecast_miss_km": 7464.8,
-      "risk_direction": "stable",
-      "pc_trend": -0.001,
-      "confidence": 0.96,
-      "action_recommended": true,
-      "n_updates": 10,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.64,
-          "pc": 0.00022951459686737508,
-          "miss_distance_km": 39.0,
-          "time_to_tca_hours": 69.4
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.64,
-          "pc": 0.00022951459686737508,
-          "miss_distance_km": 39.0,
-          "time_to_tca_hours": 69.3
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.63,
-          "pc": 0.0002353527961531654,
-          "miss_distance_km": 572.0,
-          "time_to_tca_hours": 62.8
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.62,
-          "pc": 0.00023788900580257177,
-          "miss_distance_km": 40.0,
-          "time_to_tca_hours": 62.7
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.65,
-          "pc": 0.00022195850033313036,
-          "miss_distance_km": 394.0,
-          "time_to_tca_hours": 46.3
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -3.65,
-          "pc": 0.00022195850033313036,
-          "miss_distance_km": 394.0,
-          "time_to_tca_hours": 46.1
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -3.4,
-          "pc": 0.00039990281220525503,
-          "miss_distance_km": 373.0,
-          "time_to_tca_hours": 39.0
-        },
-        {
-          "update_idx": 8,
-          "log10_pc": -3.4,
-          "pc": 0.00039990281220525503,
-          "miss_distance_km": 373.0,
-          "time_to_tca_hours": 38.9
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -3.81,
-          "pc": 0.00015438989794347435,
-          "miss_distance_km": 938.0,
-          "time_to_tca_hours": 29.8
-        },
-        {
-          "update_idx": 10,
-          "log10_pc": -3.81,
-          "pc": 0.00015438989794347435,
-          "miss_distance_km": 938.0,
-          "time_to_tca_hours": 29.6
-        }
-      ],
-      "predicted_max_pc": 0.000493059923486918,
-      "predicted_max_log10_pc": -3.307,
-      "predicted_min_miss_km": 80.7,
-      "lstm_escalation_prob": 0.4435,
-      "attention_weights": [
-        0.07215770334005356,
-        0.08532057702541351,
-        0.09148991107940674,
-        0.1272190809249878,
-        0.11928155273199081,
-        0.09906385093927383,
-        0.11096004396677017,
-        0.11573955416679382,
-        0.09870997071266174,
-        0.080057792365551
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 1937",
-      "sat2_name": "CZ-2D DEB",
-      "sat1_norad": 19038,
-      "sat2_norad": 36292,
-      "tca": "2026-03-17T12:00:45.732000",
-      "current_pc": 0.0005341569,
-      "forecast_pc": 0.0020821725483983755,
-      "exceedance_probability": 0.9593,
-      "current_miss_km": 63.0,
-      "forecast_miss_km": 10.9,
-      "risk_direction": "stable",
-      "pc_trend": 0.0151,
-      "confidence": 0.87,
-      "action_recommended": true,
-      "n_updates": 8,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.64,
-          "pc": 0.00022916539455763996,
-          "miss_distance_km": 191.0,
-          "time_to_tca_hours": 71.5
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.78,
-          "pc": 0.00016688879986759275,
-          "miss_distance_km": 792.0,
-          "time_to_tca_hours": 62.2
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.62,
-          "pc": 0.00024174479767680168,
-          "miss_distance_km": 254.0,
-          "time_to_tca_hours": 55.0
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.62,
-          "pc": 0.00024174479767680168,
-          "miss_distance_km": 254.0,
-          "time_to_tca_hours": 54.9
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.27,
-          "pc": 0.0005341569194570184,
-          "miss_distance_km": 63.0,
-          "time_to_tca_hours": 47.7
-        }
-      ],
-      "predicted_max_pc": 0.0005673666594801421,
-      "predicted_max_log10_pc": -3.246,
-      "predicted_min_miss_km": 70.96,
-      "lstm_escalation_prob": 0.6087,
-      "attention_weights": [
-        0.07503782212734222,
-        0.08487633615732193,
-        0.0922948345541954,
-        0.0912574753165245,
-        0.11752879619598389,
-        0.11401281505823135,
-        0.19789642095565796,
-        0.2270956039428711
+        0.37696781754493713,
+        0.6230321526527405
       ]
     },
     {
@@ -1084,16 +405,16 @@
       "sat1_norad": 36258,
       "sat2_norad": 17912,
       "tca": "2026-03-19T10:52:37.859000",
-      "current_pc": 0.0003558133,
-      "forecast_pc": 5.231531758909114e-07,
-      "exceedance_probability": 0.9577,
-      "current_miss_km": 393.0,
-      "forecast_miss_km": 2073844.3,
-      "risk_direction": "stable",
-      "pc_trend": -0.0464,
-      "confidence": 0.67,
+      "current_pc": 0.0001064623,
+      "forecast_pc": 9.309808035595779e-08,
+      "exceedance_probability": 0.9437,
+      "current_miss_km": 422.0,
+      "forecast_miss_km": 28142.6,
+      "risk_direction": "de-escalating",
+      "pc_trend": -0.0578,
+      "confidence": 0.73,
       "action_recommended": true,
-      "n_updates": 3,
+      "n_updates": 5,
       "time_series": [
         {
           "update_idx": 1,
@@ -1108,498 +429,32 @@
           "pc": 0.0003558133030310273,
           "miss_distance_km": 393.0,
           "time_to_tca_hours": 61.0
-        }
-      ],
-      "predicted_max_pc": 0.0007934279999319352,
-      "predicted_max_log10_pc": -3.1,
-      "predicted_min_miss_km": 188.58,
-      "lstm_escalation_prob": 0.9529,
-      "attention_weights": [
-        0.2926982641220093,
-        0.352682888507843,
-        0.3546188473701477
-      ]
-    },
-    {
-      "sat1_name": "SCOUT X-4 R/B",
-      "sat2_name": "COSMOS 663 DEB",
-      "sat1_norad": 907,
-      "sat2_norad": 45505,
-      "tca": "2026-03-17T10:10:13.668000",
-      "current_pc": 0.001024579,
-      "forecast_pc": 0.0010458388132974505,
-      "exceedance_probability": 0.9435,
-      "current_miss_km": 210.0,
-      "forecast_miss_km": 203.5,
-      "risk_direction": "stable",
-      "pc_trend": 0.0003,
-      "confidence": 0.65,
-      "action_recommended": true,
-      "n_updates": 3,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -2.99,
-          "pc": 0.0010182870319113135,
-          "miss_distance_km": 212.0,
-          "time_to_tca_hours": 36.6
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -2.99,
-          "pc": 0.0010245790472254157,
-          "miss_distance_km": 210.0,
-          "time_to_tca_hours": 28.3
         },
         {
           "update_idx": 3,
-          "log10_pc": -2.99,
-          "pc": 0.0010245790472254157,
-          "miss_distance_km": 210.0,
-          "time_to_tca_hours": 28.1
-        }
-      ],
-      "predicted_max_pc": 0.0013065536651971873,
-      "predicted_max_log10_pc": -2.884,
-      "predicted_min_miss_km": 151.77,
-      "lstm_escalation_prob": 0.9968,
-      "attention_weights": [
-        0.21302226185798645,
-        0.33739930391311646,
-        0.4495784640312195
-      ]
-    },
-    {
-      "sat1_name": "THOR ABLESTAR DEB",
-      "sat2_name": "GGSE 3",
-      "sat1_norad": 232,
-      "sat2_norad": 1292,
-      "tca": "2026-03-17T22:11:48.949000",
-      "current_pc": 0.0001142385,
-      "forecast_pc": 5.274274371913634e-05,
-      "exceedance_probability": 0.9274,
-      "current_miss_km": 72.0,
-      "forecast_miss_km": 48.0,
-      "risk_direction": "stable",
-      "pc_trend": -0.0153,
-      "confidence": 0.87,
-      "action_recommended": true,
-      "n_updates": 9,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.26,
-          "pc": 0.0005452373879961669,
-          "miss_distance_km": 149.0,
-          "time_to_tca_hours": 65.2
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.44,
-          "pc": 0.00035949089215137064,
-          "miss_distance_km": 98.0,
-          "time_to_tca_hours": 57.9
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.52,
-          "pc": 0.00030262040672823787,
-          "miss_distance_km": 112.0,
-          "time_to_tca_hours": 48.7
+          "log10_pc": -3.97,
+          "pc": 0.00010646229929989204,
+          "miss_distance_km": 422.0,
+          "time_to_tca_hours": 53.5
         },
         {
           "update_idx": 4,
-          "log10_pc": -3.67,
-          "pc": 0.0002160143048968166,
-          "miss_distance_km": 76.0,
-          "time_to_tca_hours": 33.7
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.94,
-          "pc": 0.00011423850082792342,
-          "miss_distance_km": 72.0,
-          "time_to_tca_hours": 24.3
+          "log10_pc": -3.97,
+          "pc": 0.00010646229929989204,
+          "miss_distance_km": 422.0,
+          "time_to_tca_hours": 53.4
         }
       ],
-      "predicted_max_pc": 0.00042631251174699724,
-      "predicted_max_log10_pc": -3.37,
-      "predicted_min_miss_km": 57.84,
-      "lstm_escalation_prob": 0.306,
+      "predicted_max_pc": 0.0006341503130083752,
+      "predicted_max_log10_pc": -3.198,
+      "predicted_min_miss_km": 229.9,
+      "lstm_escalation_prob": 0.869,
       "attention_weights": [
-        0.09106404334306717,
-        0.12203557789325714,
-        0.145685613155365,
-        0.13672436773777008,
-        0.12186845391988754,
-        0.10744908452033997,
-        0.10437460243701935,
-        0.09058854728937149,
-        0.08020969480276108
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 858",
-      "sat2_name": "THOR ABLESTAR DEB",
-      "sat1_norad": 9443,
-      "sat2_norad": 465,
-      "tca": "2026-03-18T15:10:43.594000",
-      "current_pc": 0.001180024,
-      "forecast_pc": 0.0011800240026786923,
-      "exceedance_probability": 0.9165,
-      "current_miss_km": 518.0,
-      "forecast_miss_km": 518.0,
-      "risk_direction": "stable",
-      "pc_trend": 0.0,
-      "confidence": 0.54,
-      "action_recommended": true,
-      "n_updates": 1,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -2.93,
-          "pc": 0.0011800240026786923,
-          "miss_distance_km": 518.0,
-          "time_to_tca_hours": 50.7
-        }
-      ],
-      "predicted_max_pc": 0.0005258716920802937,
-      "predicted_max_log10_pc": -3.279,
-      "predicted_min_miss_km": 379.64,
-      "lstm_escalation_prob": 0.5925,
-      "attention_weights": [
-        1.0
-      ]
-    },
-    {
-      "sat1_name": "SL-8 R/B",
-      "sat2_name": "CZ-4 DEB",
-      "sat1_norad": 6966,
-      "sat2_norad": 20876,
-      "tca": "2026-03-17T06:41:12.808000",
-      "current_pc": 0.0004054889,
-      "forecast_pc": 0.00043117167660966516,
-      "exceedance_probability": 0.8331,
-      "current_miss_km": 365.0,
-      "forecast_miss_km": 675.4,
-      "risk_direction": "stable",
-      "pc_trend": 0.0058,
-      "confidence": 0.72,
-      "action_recommended": true,
-      "n_updates": 8,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.72,
-          "pc": 0.00019125020480714738,
-          "miss_distance_km": 290.0,
-          "time_to_tca_hours": 66.2
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.61,
-          "pc": 0.0002431369066471234,
-          "miss_distance_km": 350.0,
-          "time_to_tca_hours": 42.4
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.7,
-          "pc": 0.00019888470706064254,
-          "miss_distance_km": 741.0,
-          "time_to_tca_hours": 33.2
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.7,
-          "pc": 0.00019888470706064254,
-          "miss_distance_km": 741.0,
-          "time_to_tca_hours": 33.1
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.39,
-          "pc": 0.00040548891411162913,
-          "miss_distance_km": 365.0,
-          "time_to_tca_hours": 24.8
-        }
-      ],
-      "predicted_max_pc": 0.0004448207261430366,
-      "predicted_max_log10_pc": -3.352,
-      "predicted_min_miss_km": 228.4,
-      "lstm_escalation_prob": 0.3659,
-      "attention_weights": [
-        0.08317666500806808,
-        0.09063054621219635,
-        0.12746915221214294,
-        0.12690822780132294,
-        0.11552231013774872,
-        0.10555345565080643,
-        0.1645357608795166,
-        0.18620386719703674
-      ]
-    },
-    {
-      "sat1_name": "STEX",
-      "sat2_name": "COSMOS 2251 DEB",
-      "sat1_norad": 25489,
-      "sat2_norad": 34059,
-      "tca": "2026-03-17T18:23:14.603000",
-      "current_pc": 0.0002362438,
-      "forecast_pc": 0.000393203052226454,
-      "exceedance_probability": 0.7383,
-      "current_miss_km": 980.0,
-      "forecast_miss_km": 7779.0,
-      "risk_direction": "stable",
-      "pc_trend": 0.0049,
-      "confidence": 0.53,
-      "action_recommended": true,
-      "n_updates": 6,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.96,
-          "pc": 0.00011045699648093432,
-          "miss_distance_km": 79.0,
-          "time_to_tca_hours": 61.4
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.96,
-          "pc": 0.00011045699648093432,
-          "miss_distance_km": 79.0,
-          "time_to_tca_hours": 61.3
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.34,
-          "pc": 0.0004542272072285414,
-          "miss_distance_km": 897.0,
-          "time_to_tca_hours": 54.1
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.63,
-          "pc": 0.00023624379537068307,
-          "miss_distance_km": 980.0,
-          "time_to_tca_hours": 29.9
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.63,
-          "pc": 0.00023624379537068307,
-          "miss_distance_km": 980.0,
-          "time_to_tca_hours": 29.8
-        }
-      ],
-      "predicted_max_pc": 0.0008024262307663752,
-      "predicted_max_log10_pc": -3.096,
-      "predicted_min_miss_km": 208.65,
-      "lstm_escalation_prob": 0.9559,
-      "attention_weights": [
-        0.09408500045537949,
-        0.09894805401563644,
-        0.1590578556060791,
-        0.23702725768089294,
-        0.248025044798851,
-        0.1628568172454834
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 735",
-      "sat2_name": "THORAD DELTA 1 DEB",
-      "sat1_norad": 7824,
-      "sat2_norad": 8300,
-      "tca": "2026-03-17T10:17:39.255000",
-      "current_pc": 0.0002572527,
-      "forecast_pc": 0.00023433275055140257,
-      "exceedance_probability": 0.7295,
-      "current_miss_km": 547.0,
-      "forecast_miss_km": 620.3,
-      "risk_direction": "stable",
-      "pc_trend": -0.0009,
-      "confidence": 0.68,
-      "action_recommended": true,
-      "n_updates": 14,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.55,
-          "pc": 0.0002824859111569822,
-          "miss_distance_km": 464.0,
-          "time_to_tca_hours": 69.8
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.58,
-          "pc": 0.0002610695955809206,
-          "miss_distance_km": 548.0,
-          "time_to_tca_hours": 60.5
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.57,
-          "pc": 0.000266842806013301,
-          "miss_distance_km": 528.0,
-          "time_to_tca_hours": 53.3
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.6,
-          "pc": 0.00025046791415661573,
-          "miss_distance_km": 567.0,
-          "time_to_tca_hours": 46.0
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.63,
-          "pc": 0.00023243119358085096,
-          "miss_distance_km": 614.0,
-          "time_to_tca_hours": 36.8
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -3.63,
-          "pc": 0.0002357558987569064,
-          "miss_distance_km": 612.0,
-          "time_to_tca_hours": 28.4
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -3.59,
-          "pc": 0.0002542319125495851,
-          "miss_distance_km": 553.0,
-          "time_to_tca_hours": 21.8
-        },
-        {
-          "update_idx": 8,
-          "log10_pc": -3.59,
-          "pc": 0.00025725268642418087,
-          "miss_distance_km": 547.0,
-          "time_to_tca_hours": 12.4
-        }
-      ],
-      "predicted_max_pc": 0.0003725345144806382,
-      "predicted_max_log10_pc": -3.429,
-      "predicted_min_miss_km": 353.37,
-      "lstm_escalation_prob": 0.1847,
-      "attention_weights": [
-        0.05056450515985489,
-        0.05769776552915573,
-        0.06974563002586365,
-        0.07089415937662125,
-        0.072193942964077,
-        0.06825006008148193,
-        0.06931263208389282,
-        0.0703979879617691,
-        0.0666513666510582,
-        0.07172496616840363,
-        0.07259779423475266,
-        0.08281370252370834,
-        0.09109029918909073,
-        0.08606517314910889
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 1275 DEB",
-      "sat2_name": "SL-8 R/B",
-      "sat1_norad": 12730,
-      "sat2_norad": 13992,
-      "tca": "2026-03-19T00:56:10.721000",
-      "current_pc": 0.0002900927,
-      "forecast_pc": 5.3262829169398174e-05,
-      "exceedance_probability": 0.7289,
-      "current_miss_km": 306.0,
-      "forecast_miss_km": 247.4,
-      "risk_direction": "stable",
-      "pc_trend": -0.0144,
-      "confidence": 0.43,
-      "action_recommended": true,
-      "n_updates": 4,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.31,
-          "pc": 0.0004923304077237844,
-          "miss_distance_km": 327.0,
-          "time_to_tca_hours": 67.0
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.54,
-          "pc": 0.0002900926920119673,
-          "miss_distance_km": 306.0,
-          "time_to_tca_hours": 51.1
-        }
-      ],
-      "predicted_max_pc": 0.0005671340372842131,
-      "predicted_max_log10_pc": -3.246,
-      "predicted_min_miss_km": 220.94,
-      "lstm_escalation_prob": 0.703,
-      "attention_weights": [
-        0.19556556642055511,
-        0.2504170536994934,
-        0.29530438780784607,
-        0.2587129771709442
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 1833",
-      "sat2_name": "FENGYUN 1C DEB",
-      "sat1_norad": 17589,
-      "sat2_norad": 30600,
-      "tca": "2026-03-17T15:53:16.632000",
-      "current_pc": 0.0003474276,
-      "forecast_pc": 0.0005814693868160248,
-      "exceedance_probability": 0.6609,
-      "current_miss_km": 546.0,
-      "forecast_miss_km": 607.3,
-      "risk_direction": "stable",
-      "pc_trend": 0.0139,
-      "confidence": 0.43,
-      "action_recommended": false,
-      "n_updates": 6,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.77,
-          "pc": 0.00016852769476827234,
-          "miss_distance_km": 502.0,
-          "time_to_tca_hours": 42.3
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.79,
-          "pc": 0.00016346840129699558,
-          "miss_distance_km": 937.0,
-          "time_to_tca_hours": 34.0
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.79,
-          "pc": 0.00016346840129699558,
-          "miss_distance_km": 937.0,
-          "time_to_tca_hours": 33.9
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.46,
-          "pc": 0.0003474275872576982,
-          "miss_distance_km": 546.0,
-          "time_to_tca_hours": 18.0
-        }
-      ],
-      "predicted_max_pc": 0.0005455616376790417,
-      "predicted_max_log10_pc": -3.263,
-      "predicted_min_miss_km": 294.81,
-      "lstm_escalation_prob": 0.6854,
-      "attention_weights": [
-        0.09897132962942123,
-        0.10579372197389603,
-        0.13032759726047516,
-        0.14992739260196686,
-        0.2630804181098938,
-        0.2518995404243469
+        0.19316500425338745,
+        0.2327597737312317,
+        0.23432672023773193,
+        0.19420449435710907,
+        0.14554405212402344
       ]
     },
     {
@@ -1608,16 +463,16 @@
       "sat1_norad": 16012,
       "sat2_norad": 36204,
       "tca": "2026-03-18T04:52:18.566000",
-      "current_pc": 0.0002698252,
-      "forecast_pc": 0.0003875996917486191,
-      "exceedance_probability": 0.6513,
-      "current_miss_km": 150.0,
-      "forecast_miss_km": 319.1,
+      "current_pc": 0.000472818,
+      "forecast_pc": 0.0005868002772331238,
+      "exceedance_probability": 0.9379,
+      "current_miss_km": 118.0,
+      "forecast_miss_km": 121.2,
       "risk_direction": "stable",
-      "pc_trend": 0.0072,
-      "confidence": 0.46,
-      "action_recommended": false,
-      "n_updates": 7,
+      "pc_trend": 0.0109,
+      "confidence": 0.93,
+      "action_recommended": true,
+      "n_updates": 13,
       "time_series": [
         {
           "update_idx": 1,
@@ -1646,290 +501,607 @@
           "pc": 0.00026982519193552434,
           "miss_distance_km": 150.0,
           "time_to_tca_hours": 31.0
-        }
-      ],
-      "predicted_max_pc": 0.00042684199714207796,
-      "predicted_max_log10_pc": -3.37,
-      "predicted_min_miss_km": 75.21,
-      "lstm_escalation_prob": 0.3079,
-      "attention_weights": [
-        0.09252211451530457,
-        0.1015855073928833,
-        0.1289667785167694,
-        0.14722344279289246,
-        0.13366319239139557,
-        0.1965216100215912,
-        0.1995173692703247
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 1570",
-      "sat2_name": "COSMOS 2251 DEB",
-      "sat1_norad": 15031,
-      "sat2_norad": 37537,
-      "tca": "2026-03-17T02:28:49.890000",
-      "current_pc": 0.000182695,
-      "forecast_pc": 0.00019186624558642507,
-      "exceedance_probability": 0.6136,
-      "current_miss_km": 304.0,
-      "forecast_miss_km": 297.3,
-      "risk_direction": "stable",
-      "pc_trend": 0.0015,
-      "confidence": 0.54,
-      "action_recommended": false,
-      "n_updates": 17,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.83,
-          "pc": 0.00014764750085305423,
-          "miss_distance_km": 458.0,
-          "time_to_tca_hours": 68.6
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.79,
-          "pc": 0.00016392540419474244,
-          "miss_distance_km": 438.0,
-          "time_to_tca_hours": 62.0
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.85,
-          "pc": 0.00014032410399522632,
-          "miss_distance_km": 669.0,
-          "time_to_tca_hours": 52.7
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.85,
-          "pc": 0.00014032410399522632,
-          "miss_distance_km": 669.0,
-          "time_to_tca_hours": 52.6
         },
         {
           "update_idx": 5,
-          "log10_pc": -3.74,
-          "pc": 0.00018225700478069484,
-          "miss_distance_km": 529.0,
-          "time_to_tca_hours": 45.5
+          "log10_pc": -3.44,
+          "pc": 0.0003633149026427418,
+          "miss_distance_km": 132.0,
+          "time_to_tca_hours": 23.5
         },
         {
           "update_idx": 6,
-          "log10_pc": -3.73,
-          "pc": 0.00018591570551507175,
-          "miss_distance_km": 457.0,
-          "time_to_tca_hours": 38.2
+          "log10_pc": -3.44,
+          "pc": 0.0003633149026427418,
+          "miss_distance_km": 132.0,
+          "time_to_tca_hours": 23.4
         },
         {
           "update_idx": 7,
-          "log10_pc": -3.73,
-          "pc": 0.00018591570551507175,
-          "miss_distance_km": 457.0,
-          "time_to_tca_hours": 38.1
+          "log10_pc": -3.36,
+          "pc": 0.0004377446894068271,
+          "miss_distance_km": 113.0,
+          "time_to_tca_hours": 16.0
         },
         {
           "update_idx": 8,
-          "log10_pc": -3.74,
-          "pc": 0.0001805415959097445,
-          "miss_distance_km": 305.0,
-          "time_to_tca_hours": 28.9
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -3.75,
-          "pc": 0.00017808159464038908,
-          "miss_distance_km": 354.0,
-          "time_to_tca_hours": 20.6
-        },
-        {
-          "update_idx": 10,
-          "log10_pc": -3.75,
-          "pc": 0.00017808159464038908,
-          "miss_distance_km": 354.0,
-          "time_to_tca_hours": 20.5
-        },
-        {
-          "update_idx": 11,
-          "log10_pc": -3.75,
-          "pc": 0.00017917010700330138,
-          "miss_distance_km": 337.0,
-          "time_to_tca_hours": 14.0
-        },
-        {
-          "update_idx": 12,
-          "log10_pc": -3.75,
-          "pc": 0.00017917010700330138,
-          "miss_distance_km": 337.0,
-          "time_to_tca_hours": 13.9
-        },
-        {
-          "update_idx": 13,
-          "log10_pc": -3.74,
-          "pc": 0.00018269500287715346,
-          "miss_distance_km": 304.0,
-          "time_to_tca_hours": 4.6
+          "log10_pc": -3.33,
+          "pc": 0.00047281800652854145,
+          "miss_distance_km": 118.0,
+          "time_to_tca_hours": 5.9
         }
       ],
-      "predicted_max_pc": 0.00033382953783769555,
-      "predicted_max_log10_pc": -3.476,
-      "predicted_min_miss_km": 199.11,
-      "lstm_escalation_prob": 0.1561,
+      "predicted_max_pc": 0.0007572363491138711,
+      "predicted_max_log10_pc": -3.121,
+      "predicted_min_miss_km": 56.4,
+      "lstm_escalation_prob": 0.8722,
       "attention_weights": [
-        0.036157235503196716,
-        0.037435658276081085,
-        0.0459199883043766,
-        0.05142856761813164,
-        0.0542525090277195,
-        0.051367197185754776,
-        0.05873306840658188,
-        0.06294303387403488,
-        0.05970751494169235,
-        0.064889095723629,
-        0.062115833163261414,
-        0.0645948201417923,
-        0.0639420673251152,
-        0.06905388832092285,
-        0.06893930584192276,
-        0.07587186247110367,
-        0.0726482942700386
+        0.0384429395198822,
+        0.042340997606515884,
+        0.054221101105213165,
+        0.0623580738902092,
+        0.056428566575050354,
+        0.08408525586128235,
+        0.08505678921937943,
+        0.09517307579517365,
+        0.09293472021818161,
+        0.10134661942720413,
+        0.09799305349588394,
+        0.09858986735343933,
+        0.09102892875671387
       ]
     },
     {
-      "sat1_name": "AUREOLE 1",
-      "sat2_name": "THORAD DELTA 1 DEB",
-      "sat1_norad": 5729,
-      "sat2_norad": 8395,
-      "tca": "2026-03-17T11:09:29.836000",
-      "current_pc": 0.0001845033,
-      "forecast_pc": 0.0002170940861105919,
-      "exceedance_probability": 0.4113,
-      "current_miss_km": 654.0,
-      "forecast_miss_km": 671.6,
+      "sat1_name": "COSMOS 858",
+      "sat2_name": "THOR ABLESTAR DEB",
+      "sat1_norad": 9443,
+      "sat2_norad": 465,
+      "tca": "2026-03-18T15:10:43.594000",
+      "current_pc": 0.001180024,
+      "forecast_pc": 0.0011800240026786923,
+      "exceedance_probability": 0.9298,
+      "current_miss_km": 518.0,
+      "forecast_miss_km": 518.0,
       "risk_direction": "stable",
-      "pc_trend": 0.0042,
-      "confidence": 0.51,
-      "action_recommended": false,
-      "n_updates": 11,
+      "pc_trend": 0.0,
+      "confidence": 0.56,
+      "action_recommended": true,
+      "n_updates": 1,
       "time_series": [
         {
           "update_idx": 1,
-          "log10_pc": -3.94,
-          "pc": 0.00011361639917595312,
-          "miss_distance_km": 696.0,
-          "time_to_tca_hours": 70.7
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.96,
-          "pc": 0.00011012549657607451,
-          "miss_distance_km": 980.0,
-          "time_to_tca_hours": 46.9
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.75,
-          "pc": 0.00017843960085883737,
-          "miss_distance_km": 697.0,
-          "time_to_tca_hours": 37.6
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.72,
-          "pc": 0.00018933390674646944,
-          "miss_distance_km": 668.0,
-          "time_to_tca_hours": 29.2
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.83,
-          "pc": 0.00014630419900640845,
-          "miss_distance_km": 746.0,
-          "time_to_tca_hours": 22.7
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -3.73,
-          "pc": 0.00018450329662300646,
-          "miss_distance_km": 654.0,
-          "time_to_tca_hours": 13.3
+          "log10_pc": -2.93,
+          "pc": 0.0011800240026786923,
+          "miss_distance_km": 518.0,
+          "time_to_tca_hours": 50.7
         }
       ],
-      "predicted_max_pc": 0.0002937118680311005,
-      "predicted_max_log10_pc": -3.532,
-      "predicted_min_miss_km": 352.02,
-      "lstm_escalation_prob": 0.0717,
+      "predicted_max_pc": 0.0005271307416458014,
+      "predicted_max_log10_pc": -3.278,
+      "predicted_min_miss_km": 385.33,
+      "lstm_escalation_prob": 0.5994,
       "attention_weights": [
-        0.05906976759433746,
-        0.05846439301967621,
-        0.07527066022157669,
-        0.07364595681428909,
-        0.0934230387210846,
-        0.09645073860883713,
-        0.10848742723464966,
-        0.10733991861343384,
-        0.10362891107797623,
-        0.11517605185508728,
-        0.10904320329427719
+        1.0
       ]
     },
     {
-      "sat1_name": "SPOT 4",
-      "sat2_name": "IRIDIUM 33 DEB",
-      "sat1_norad": 25260,
-      "sat2_norad": 38241,
-      "tca": "2026-03-17T15:39:29.345000",
-      "current_pc": 0.000143685,
-      "forecast_pc": 0.00010624383867252618,
-      "exceedance_probability": 0.4063,
-      "current_miss_km": 144.0,
-      "forecast_miss_km": 48.8,
+      "sat1_name": "COSMOS 1275 DEB",
+      "sat2_name": "SL-8 R/B",
+      "sat1_norad": 12730,
+      "sat2_norad": 13992,
+      "tca": "2026-03-19T00:56:10.721000",
+      "current_pc": 0.0003500316,
+      "forecast_pc": 0.00014412461314350367,
+      "exceedance_probability": 0.9002,
+      "current_miss_km": 60.0,
+      "forecast_miss_km": 6.6,
       "risk_direction": "stable",
-      "pc_trend": -0.0054,
-      "confidence": 0.35,
+      "pc_trend": -0.0076,
+      "confidence": 0.72,
+      "action_recommended": true,
+      "n_updates": 6,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.31,
+          "pc": 0.0004923304077237844,
+          "miss_distance_km": 327.0,
+          "time_to_tca_hours": 67.0
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.54,
+          "pc": 0.0002900926920119673,
+          "miss_distance_km": 306.0,
+          "time_to_tca_hours": 51.1
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.46,
+          "pc": 0.0003500315942801535,
+          "miss_distance_km": 60.0,
+          "time_to_tca_hours": 43.5
+        }
+      ],
+      "predicted_max_pc": 0.0005113567839396016,
+      "predicted_max_log10_pc": -3.291,
+      "predicted_min_miss_km": 110.05,
+      "lstm_escalation_prob": 0.5375,
+      "attention_weights": [
+        0.12204695492982864,
+        0.1575130820274353,
+        0.1870327591896057,
+        0.16337475180625916,
+        0.18819433450698853,
+        0.18183808028697968
+      ]
+    },
+    {
+      "sat1_name": "NIMBUS 6",
+      "sat2_name": "CZ-6A DEB",
+      "sat1_norad": 7924,
+      "sat2_norad": 54263,
+      "tca": "2026-03-20T07:00:36.867000",
+      "current_pc": 0.000716124,
+      "forecast_pc": 0.9980990290641785,
+      "exceedance_probability": 0.8915,
+      "current_miss_km": 209.0,
+      "forecast_miss_km": 467.9,
+      "risk_direction": "escalating",
+      "pc_trend": 0.0561,
+      "confidence": 0.59,
+      "action_recommended": true,
+      "n_updates": 3,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.71,
+          "pc": 0.00019671529298648238,
+          "miss_distance_km": 181.0,
+          "time_to_tca_hours": 66.2
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.71,
+          "pc": 0.00019671529298648238,
+          "miss_distance_km": 181.0,
+          "time_to_tca_hours": 66.0
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.15,
+          "pc": 0.0007161240209825337,
+          "miss_distance_km": 209.0,
+          "time_to_tca_hours": 56.1
+        }
+      ],
+      "predicted_max_pc": 0.0006058675881989114,
+      "predicted_max_log10_pc": -3.218,
+      "predicted_min_miss_km": 127.97,
+      "lstm_escalation_prob": 0.6917,
+      "attention_weights": [
+        0.22648338973522186,
+        0.25230228900909424,
+        0.5212144255638123
+      ]
+    },
+    {
+      "sat1_name": "SL-16 DEB",
+      "sat2_name": "UNKNOWN",
+      "sat1_norad": 19656,
+      "sat2_norad": 270330,
+      "tca": "2026-03-18T20:19:34.203000",
+      "current_pc": 0.0007171057,
+      "forecast_pc": 0.0008019338711164892,
+      "exceedance_probability": 0.7983,
+      "current_miss_km": 176.0,
+      "forecast_miss_km": 156.5,
+      "risk_direction": "stable",
+      "pc_trend": 0.0023,
+      "confidence": 0.44,
+      "action_recommended": true,
+      "n_updates": 2,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.17,
+          "pc": 0.0006802764837630093,
+          "miss_distance_km": 186.0,
+          "time_to_tca_hours": 31.5
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.14,
+          "pc": 0.0007171056931838393,
+          "miss_distance_km": 176.0,
+          "time_to_tca_hours": 21.4
+        }
+      ],
+      "predicted_max_pc": 0.0006877777469539114,
+      "predicted_max_log10_pc": -3.163,
+      "predicted_min_miss_km": 149.67,
+      "lstm_escalation_prob": 0.8641,
+      "attention_weights": [
+        0.3943662941455841,
+        0.6056336760520935
+      ]
+    },
+    {
+      "sat1_name": "DELTA 1 DEB",
+      "sat2_name": "UNKNOWN",
+      "sat1_norad": 12198,
+      "sat2_norad": 81123,
+      "tca": "2026-03-18T12:26:29.903000",
+      "current_pc": 0.0004230659,
+      "forecast_pc": 0.00033337241620756686,
+      "exceedance_probability": 0.7128,
+      "current_miss_km": 201.0,
+      "forecast_miss_km": 236.4,
+      "risk_direction": "stable",
+      "pc_trend": 0.0027,
+      "confidence": 0.5,
+      "action_recommended": true,
+      "n_updates": 6,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.63,
+          "pc": 0.00023524519929196686,
+          "miss_distance_km": 330.0,
+          "time_to_tca_hours": 62.9
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.57,
+          "pc": 0.0002681690966710448,
+          "miss_distance_km": 302.0,
+          "time_to_tca_hours": 54.5
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.59,
+          "pc": 0.0002557674888521433,
+          "miss_distance_km": 306.0,
+          "time_to_tca_hours": 38.6
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.64,
+          "pc": 0.00022781860025133938,
+          "miss_distance_km": 326.0,
+          "time_to_tca_hours": 31.0
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.65,
+          "pc": 0.00022311210341285914,
+          "miss_distance_km": 329.0,
+          "time_to_tca_hours": 23.6
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -3.37,
+          "pc": 0.00042306591058149934,
+          "miss_distance_km": 201.0,
+          "time_to_tca_hours": 13.5
+        }
+      ],
+      "predicted_max_pc": 0.0003926551579584507,
+      "predicted_max_log10_pc": -3.406,
+      "predicted_min_miss_km": 167.37,
+      "lstm_escalation_prob": 0.2302,
+      "attention_weights": [
+        0.11885911971330643,
+        0.14574971795082092,
+        0.18082380294799805,
+        0.1746302843093872,
+        0.16216948628425598,
+        0.217767596244812
+      ]
+    },
+    {
+      "sat1_name": "DMSP 5D-3 F16 DEB",
+      "sat2_name": "CZ-6A DEB",
+      "sat1_norad": 28080,
+      "sat2_norad": 61355,
+      "tca": "2026-03-18T17:54:34.742000",
+      "current_pc": 0.0003513431,
+      "forecast_pc": 0.002454390050843358,
+      "exceedance_probability": 0.5941,
+      "current_miss_km": 77.0,
+      "forecast_miss_km": 23.5,
+      "risk_direction": "stable",
+      "pc_trend": 0.0323,
+      "confidence": 0.31,
+      "action_recommended": false,
+      "n_updates": 5,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.99,
+          "pc": 0.00010293669765815139,
+          "miss_distance_km": 190.0,
+          "time_to_tca_hours": 44.0
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.99,
+          "pc": 0.00010293669765815139,
+          "miss_distance_km": 190.0,
+          "time_to_tca_hours": 43.8
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.87,
+          "pc": 0.00013498490443453193,
+          "miss_distance_km": 194.0,
+          "time_to_tca_hours": 36.5
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.87,
+          "pc": 0.00013498490443453193,
+          "miss_distance_km": 194.0,
+          "time_to_tca_hours": 36.2
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.45,
+          "pc": 0.0003513431001920253,
+          "miss_distance_km": 77.0,
+          "time_to_tca_hours": 28.7
+        }
+      ],
+      "predicted_max_pc": 0.0005036188139190705,
+      "predicted_max_log10_pc": -3.298,
+      "predicted_min_miss_km": 64.5,
+      "lstm_escalation_prob": 0.4802,
+      "attention_weights": [
+        0.11605069041252136,
+        0.11954391747713089,
+        0.15925846993923187,
+        0.19378028810024261,
+        0.41136667132377625
+      ]
+    },
+    {
+      "sat1_name": "SCOUT A DEB",
+      "sat2_name": "SL-3 R/B",
+      "sat1_norad": 2777,
+      "sat2_norad": 5732,
+      "tca": "2026-03-19T22:08:51.888000",
+      "current_pc": 0.0002844195,
+      "forecast_pc": 0.0013496766332536936,
+      "exceedance_probability": 0.4516,
+      "current_miss_km": 101.0,
+      "forecast_miss_km": 7.6,
+      "risk_direction": "stable",
+      "pc_trend": 0.0143,
+      "confidence": 0.3,
       "action_recommended": false,
       "n_updates": 6,
       "time_series": [
         {
           "update_idx": 1,
-          "log10_pc": -3.72,
-          "pc": 0.00018908269703388214,
-          "miss_distance_km": 295.0,
-          "time_to_tca_hours": 42.1
+          "log10_pc": -3.8,
+          "pc": 0.00015960029850248247,
+          "miss_distance_km": 263.0,
+          "time_to_tca_hours": 64.8
         },
         {
           "update_idx": 2,
-          "log10_pc": -3.88,
-          "pc": 0.00013109249994158745,
-          "miss_distance_km": 64.0,
-          "time_to_tca_hours": 27.1
+          "log10_pc": -3.68,
+          "pc": 0.00020672210666816682,
+          "miss_distance_km": 132.0,
+          "time_to_tca_hours": 57.3
         },
         {
           "update_idx": 3,
-          "log10_pc": -3.84,
-          "pc": 0.0001436849997844547,
-          "miss_distance_km": 144.0,
-          "time_to_tca_hours": 17.8
+          "log10_pc": -3.55,
+          "pc": 0.00028441951144486666,
+          "miss_distance_km": 101.0,
+          "time_to_tca_hours": 47.2
+        }
+      ],
+      "predicted_max_pc": 0.00039263985353491995,
+      "predicted_max_log10_pc": -3.406,
+      "predicted_min_miss_km": 62.83,
+      "lstm_escalation_prob": 0.2559,
+      "attention_weights": [
+        0.10447901487350464,
+        0.11153208464384079,
+        0.1576998084783554,
+        0.1775912344455719,
+        0.22411075234413147,
+        0.22458714246749878
+      ]
+    },
+    {
+      "sat1_name": "CZ-6A DEB",
+      "sat2_name": "OBJECT E",
+      "sat1_norad": 64643,
+      "sat2_norad": 49047,
+      "tca": "2026-03-20T08:23:52.108000",
+      "current_pc": 0.000487159,
+      "forecast_pc": 0.00048715900629758835,
+      "exceedance_probability": 0.4348,
+      "current_miss_km": 287.0,
+      "forecast_miss_km": 287.0,
+      "risk_direction": "stable",
+      "pc_trend": 0.0,
+      "confidence": 0.12,
+      "action_recommended": false,
+      "n_updates": 1,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.31,
+          "pc": 0.00048715900629758835,
+          "miss_distance_km": 287.0,
+          "time_to_tca_hours": 67.1
+        }
+      ],
+      "predicted_max_pc": 0.0003382252586129556,
+      "predicted_max_log10_pc": -3.471,
+      "predicted_min_miss_km": 255.96,
+      "lstm_escalation_prob": 0.0842,
+      "attention_weights": [
+        1.0
+      ]
+    },
+    {
+      "sat1_name": "THOR ABLESTAR DEB",
+      "sat2_name": "COSMOS 2251 DEB",
+      "sat1_norad": 335,
+      "sat2_norad": 34589,
+      "tca": "2026-03-18T06:08:48.674000",
+      "current_pc": 0.0002404588,
+      "forecast_pc": 0.0002920169790741056,
+      "exceedance_probability": 0.4012,
+      "current_miss_km": 83.0,
+      "forecast_miss_km": 66.2,
+      "risk_direction": "stable",
+      "pc_trend": 0.0105,
+      "confidence": 0.44,
+      "action_recommended": false,
+      "n_updates": 8,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.89,
+          "pc": 0.00013006939843762666,
+          "miss_distance_km": 80.0,
+          "time_to_tca_hours": 32.3
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.89,
+          "pc": 0.00013006939843762666,
+          "miss_distance_km": 80.0,
+          "time_to_tca_hours": 32.2
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.78,
+          "pc": 0.00016703219444025308,
+          "miss_distance_km": 52.0,
+          "time_to_tca_hours": 24.8
         },
         {
           "update_idx": 4,
-          "log10_pc": -3.84,
-          "pc": 0.0001436849997844547,
-          "miss_distance_km": 144.0,
-          "time_to_tca_hours": 17.7
+          "log10_pc": -3.78,
+          "pc": 0.00016703219444025308,
+          "miss_distance_km": 52.0,
+          "time_to_tca_hours": 24.7
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.71,
+          "pc": 0.00019591039745137095,
+          "miss_distance_km": 47.0,
+          "time_to_tca_hours": 17.3
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -3.71,
+          "pc": 0.00019591039745137095,
+          "miss_distance_km": 47.0,
+          "time_to_tca_hours": 17.2
+        },
+        {
+          "update_idx": 7,
+          "log10_pc": -3.62,
+          "pc": 0.00024045880127232522,
+          "miss_distance_km": 83.0,
+          "time_to_tca_hours": 7.2
         }
       ],
-      "predicted_max_pc": 0.0002367574094303286,
-      "predicted_max_log10_pc": -3.626,
-      "predicted_min_miss_km": 57.39,
-      "lstm_escalation_prob": 0.0461,
+      "predicted_max_pc": 0.0004481953261194714,
+      "predicted_max_log10_pc": -3.349,
+      "predicted_min_miss_km": 26.26,
+      "lstm_escalation_prob": 0.3468,
       "attention_weights": [
-        0.12039464712142944,
-        0.13294827938079834,
-        0.1890127807855606,
-        0.18805332481861115,
-        0.1847706288099289,
-        0.1848202645778656
+        0.06979744881391525,
+        0.07652857899665833,
+        0.10914415866136551,
+        0.12924329936504364,
+        0.153070330619812,
+        0.15334263443946838,
+        0.15671950578689575,
+        0.15215405821800232
+      ]
+    },
+    {
+      "sat1_name": "CZ-6A DEB",
+      "sat2_name": "CZ-6A DEB",
+      "sat1_norad": 60691,
+      "sat2_norad": 54943,
+      "tca": "2026-03-19T00:12:28.385000",
+      "current_pc": 0.0002398374,
+      "forecast_pc": 0.00035787487286143005,
+      "exceedance_probability": 0.3643,
+      "current_miss_km": 84.0,
+      "forecast_miss_km": 85.3,
+      "risk_direction": "stable",
+      "pc_trend": 0.0078,
+      "confidence": 0.4,
+      "action_recommended": false,
+      "n_updates": 6,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.89,
+          "pc": 0.00012997460726182908,
+          "miss_distance_km": 98.0,
+          "time_to_tca_hours": 66.0
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.87,
+          "pc": 0.00013615499483421445,
+          "miss_distance_km": 131.0,
+          "time_to_tca_hours": 50.1
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.9,
+          "pc": 0.0001266945037059486,
+          "miss_distance_km": 125.0,
+          "time_to_tca_hours": 42.6
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.9,
+          "pc": 0.0001266945037059486,
+          "miss_distance_km": 125.0,
+          "time_to_tca_hours": 42.5
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.62,
+          "pc": 0.0002398374053882435,
+          "miss_distance_km": 84.0,
+          "time_to_tca_hours": 35.1
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -3.62,
+          "pc": 0.0002398374053882435,
+          "miss_distance_km": 84.0,
+          "time_to_tca_hours": 35.2
+        }
+      ],
+      "predicted_max_pc": 0.00029468431037977383,
+      "predicted_max_log10_pc": -3.531,
+      "predicted_min_miss_km": 54.44,
+      "lstm_escalation_prob": 0.1132,
+      "attention_weights": [
+        0.11882863938808441,
+        0.13478440046310425,
+        0.14323587715625763,
+        0.1434733122587204,
+        0.2114105522632599,
+        0.24826717376708984
       ]
     },
     {
@@ -1938,16 +1110,16 @@
       "sat1_norad": 42155,
       "sat2_norad": 87042,
       "tca": "2026-03-18T03:39:26.998000",
-      "current_pc": 0.000283487,
-      "forecast_pc": 0.00048317763139493763,
-      "exceedance_probability": 0.3178,
-      "current_miss_km": 134.0,
-      "forecast_miss_km": 76.3,
+      "current_pc": 0.0002471693,
+      "forecast_pc": 0.00039401769754476845,
+      "exceedance_probability": 0.3342,
+      "current_miss_km": 133.0,
+      "forecast_miss_km": 87.3,
       "risk_direction": "stable",
-      "pc_trend": 0.0087,
-      "confidence": 0.34,
+      "pc_trend": 0.0071,
+      "confidence": 0.36,
       "action_recommended": false,
-      "n_updates": 3,
+      "n_updates": 4,
       "time_series": [
         {
           "update_idx": 1,
@@ -1969,16 +1141,24 @@
           "pc": 0.00028348699561320245,
           "miss_distance_km": 134.0,
           "time_to_tca_hours": 29.7
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.61,
+          "pc": 0.00024716928601264954,
+          "miss_distance_km": 133.0,
+          "time_to_tca_hours": 22.1
         }
       ],
-      "predicted_max_pc": 0.0002979955545997023,
-      "predicted_max_log10_pc": -3.526,
-      "predicted_min_miss_km": 85.98,
-      "lstm_escalation_prob": 0.0777,
+      "predicted_max_pc": 0.00034236201874341684,
+      "predicted_max_log10_pc": -3.466,
+      "predicted_min_miss_km": 73.14,
+      "lstm_escalation_prob": 0.1487,
       "attention_weights": [
-        0.2461523562669754,
-        0.3340786099433899,
-        0.4197690784931183
+        0.17009805142879486,
+        0.23354420065879822,
+        0.2960769534111023,
+        0.30028077960014343
       ]
     },
     {
@@ -1987,16 +1167,16 @@
       "sat1_norad": 21782,
       "sat2_norad": 30404,
       "tca": "2026-03-18T20:43:19.528000",
-      "current_pc": 0.0001711176,
-      "forecast_pc": 0.00016619949019514024,
-      "exceedance_probability": 0.3004,
-      "current_miss_km": 125.0,
-      "forecast_miss_km": 153.1,
+      "current_pc": 0.0001696933,
+      "forecast_pc": 0.00017646170454099774,
+      "exceedance_probability": 0.3028,
+      "current_miss_km": 150.0,
+      "forecast_miss_km": 134.5,
       "risk_direction": "stable",
-      "pc_trend": 0.0003,
-      "confidence": 0.56,
+      "pc_trend": 0.0007,
+      "confidence": 0.64,
       "action_recommended": false,
-      "n_updates": 8,
+      "n_updates": 11,
       "time_series": [
         {
           "update_idx": 1,
@@ -2032,21 +1212,38 @@
           "pc": 0.0001711176009848714,
           "miss_distance_km": 125.0,
           "time_to_tca_hours": 46.8
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -3.78,
+          "pc": 0.00016608310397714376,
+          "miss_distance_km": 129.0,
+          "time_to_tca_hours": 39.3
+        },
+        {
+          "update_idx": 7,
+          "log10_pc": -3.77,
+          "pc": 0.00016969330317806453,
+          "miss_distance_km": 150.0,
+          "time_to_tca_hours": 31.9
         }
       ],
-      "predicted_max_pc": 0.00024306084745649375,
-      "predicted_max_log10_pc": -3.614,
-      "predicted_min_miss_km": 74.71,
-      "lstm_escalation_prob": 0.0506,
+      "predicted_max_pc": 0.0002906574967012188,
+      "predicted_max_log10_pc": -3.537,
+      "predicted_min_miss_km": 70.84,
+      "lstm_escalation_prob": 0.1255,
       "attention_weights": [
-        0.09492427110671997,
-        0.10324617475271225,
-        0.11954318732023239,
-        0.1250397264957428,
-        0.12761789560317993,
-        0.12710776925086975,
-        0.15103109180927277,
-        0.15148988366127014
+        0.0633801817893982,
+        0.06915602833032608,
+        0.08074505627155304,
+        0.084980309009552,
+        0.0872189924120903,
+        0.08719736337661743,
+        0.10446920245885849,
+        0.10443489998579025,
+        0.10684280842542648,
+        0.10362698882818222,
+        0.1079481765627861
       ]
     },
     {
@@ -2057,12 +1254,12 @@
       "tca": "2026-03-18T04:54:25.360000",
       "current_pc": 0.000396447,
       "forecast_pc": 0.000396446994272992,
-      "exceedance_probability": 0.2558,
+      "exceedance_probability": 0.2709,
       "current_miss_km": 702.0,
       "forecast_miss_km": 702.0,
       "risk_direction": "stable",
       "pc_trend": 0.0,
-      "confidence": 0.33,
+      "confidence": 0.31,
       "action_recommended": false,
       "n_updates": 1,
       "time_series": [
@@ -2074,203 +1271,289 @@
           "time_to_tca_hours": 71.5
         }
       ],
-      "predicted_max_pc": 0.0002946933699480124,
-      "predicted_max_log10_pc": -3.531,
-      "predicted_min_miss_km": 439.07,
-      "lstm_escalation_prob": 0.0309,
+      "predicted_max_pc": 0.0002935208587920075,
+      "predicted_max_log10_pc": -3.532,
+      "predicted_min_miss_km": 449.61,
+      "lstm_escalation_prob": 0.0297,
       "attention_weights": [
         1.0
       ]
     },
     {
-      "sat1_name": "DELTA 1 DEB",
-      "sat2_name": "UNKNOWN",
-      "sat1_norad": 12198,
-      "sat2_norad": 81123,
-      "tca": "2026-03-18T12:26:29.903000",
-      "current_pc": 0.0002557675,
-      "forecast_pc": 0.0002892151242122054,
-      "exceedance_probability": 0.2307,
-      "current_miss_km": 306.0,
-      "forecast_miss_km": 273.1,
+      "sat1_name": "CZ-4 DEB",
+      "sat2_name": "COSMOS 2251 DEB",
+      "sat1_norad": 27677,
+      "sat2_norad": 34061,
+      "tca": "2026-03-18T23:05:04.003000",
+      "current_pc": 0.0001060197,
+      "forecast_pc": 0.00014647230273112655,
+      "exceedance_probability": 0.1896,
+      "current_miss_km": 60.0,
+      "forecast_miss_km": 104.4,
       "risk_direction": "stable",
-      "pc_trend": 0.0011,
-      "confidence": 0.44,
+      "pc_trend": 0.0003,
+      "confidence": 0.65,
+      "action_recommended": false,
+      "n_updates": 7,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.92,
+          "pc": 0.00012095129932276905,
+          "miss_distance_km": 23.0,
+          "time_to_tca_hours": 58.6
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.92,
+          "pc": 0.00012095129932276905,
+          "miss_distance_km": 23.0,
+          "time_to_tca_hours": 58.5
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.85,
+          "pc": 0.00013995790504850447,
+          "miss_distance_km": 36.0,
+          "time_to_tca_hours": 49.2
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.71,
+          "pc": 0.00019639779930002987,
+          "miss_distance_km": 32.0,
+          "time_to_tca_hours": 41.6
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.97,
+          "pc": 0.00010601970279822126,
+          "miss_distance_km": 60.0,
+          "time_to_tca_hours": 24.1
+        }
+      ],
+      "predicted_max_pc": 0.00026387871571598485,
+      "predicted_max_log10_pc": -3.579,
+      "predicted_min_miss_km": 18.71,
+      "lstm_escalation_prob": 0.087,
+      "attention_weights": [
+        0.10266312956809998,
+        0.11354099959135056,
+        0.13102160394191742,
+        0.1403169482946396,
+        0.17063455283641815,
+        0.180399090051651,
+        0.1614236980676651
+      ]
+    },
+    {
+      "sat1_name": "DELTA 1 DEB",
+      "sat2_name": "SPOT 2",
+      "sat1_norad": 39100,
+      "sat2_norad": 20436,
+      "tca": "2026-03-20T11:14:06.803000",
+      "current_pc": 0.0002637948,
+      "forecast_pc": 0.01719113625586033,
+      "exceedance_probability": 0.1809,
+      "current_miss_km": 247.0,
+      "forecast_miss_km": 5171124.1,
+      "risk_direction": "stable",
+      "pc_trend": 0.0301,
+      "confidence": 0.5,
       "action_recommended": false,
       "n_updates": 3,
       "time_series": [
         {
           "update_idx": 1,
-          "log10_pc": -3.63,
-          "pc": 0.00023524519929196686,
-          "miss_distance_km": 330.0,
-          "time_to_tca_hours": 62.9
+          "log10_pc": -3.88,
+          "pc": 0.0001314428955083713,
+          "miss_distance_km": 47.0,
+          "time_to_tca_hours": 70.3
         },
         {
           "update_idx": 2,
-          "log10_pc": -3.57,
-          "pc": 0.0002681690966710448,
-          "miss_distance_km": 302.0,
-          "time_to_tca_hours": 54.5
+          "log10_pc": -3.88,
+          "pc": 0.0001314428955083713,
+          "miss_distance_km": 47.0,
+          "time_to_tca_hours": 70.4
         },
         {
           "update_idx": 3,
-          "log10_pc": -3.59,
-          "pc": 0.0002557674888521433,
-          "miss_distance_km": 306.0,
-          "time_to_tca_hours": 38.6
+          "log10_pc": -3.58,
+          "pc": 0.00026379479095339775,
+          "miss_distance_km": 247.0,
+          "time_to_tca_hours": 60.3
         }
       ],
-      "predicted_max_pc": 0.0003442378008857319,
-      "predicted_max_log10_pc": -3.463,
-      "predicted_min_miss_km": 196.3,
-      "lstm_escalation_prob": 0.0987,
+      "predicted_max_pc": 0.00022333281077636921,
+      "predicted_max_log10_pc": -3.651,
+      "predicted_min_miss_km": 54.17,
+      "lstm_escalation_prob": 0.0292,
       "attention_weights": [
-        0.2695308327674866,
-        0.3280709683895111,
-        0.40239816904067993
+        0.2877899706363678,
+        0.3132290244102478,
+        0.398980975151062
       ]
     },
     {
-      "sat1_name": "COSMOS 1244",
-      "sat2_name": "DELTA 1 DEB",
-      "sat1_norad": 12297,
-      "sat2_norad": 27578,
-      "tca": "2026-03-17T03:58:14.082000",
-      "current_pc": 0.0001943577,
-      "forecast_pc": 0.0003571755369193852,
-      "exceedance_probability": 0.2269,
-      "current_miss_km": 497.0,
-      "forecast_miss_km": 169.2,
+      "sat1_name": "FUSE 1",
+      "sat2_name": "DMSP 5D-2 F11 DEB",
+      "sat1_norad": 25791,
+      "sat2_norad": 28329,
+      "tca": "2026-03-19T01:31:36.477000",
+      "current_pc": 0.0002249034,
+      "forecast_pc": 0.00023668658104725182,
+      "exceedance_probability": 0.1806,
+      "current_miss_km": 958.0,
+      "forecast_miss_km": 18449.7,
       "risk_direction": "stable",
-      "pc_trend": 0.0049,
-      "confidence": 0.57,
-      "action_recommended": false,
-      "n_updates": 6,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.79,
-          "pc": 0.00016263830184470862,
-          "miss_distance_km": 680.0,
-          "time_to_tca_hours": 70.1
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.77,
-          "pc": 0.0001696877006907016,
-          "miss_distance_km": 672.0,
-          "time_to_tca_hours": 63.5
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.71,
-          "pc": 0.00019435769354458898,
-          "miss_distance_km": 497.0,
-          "time_to_tca_hours": 54.2
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.71,
-          "pc": 0.00019435769354458898,
-          "miss_distance_km": 497.0,
-          "time_to_tca_hours": 54.1
-        }
-      ],
-      "predicted_max_pc": 0.00025937352703612717,
-      "predicted_max_log10_pc": -3.586,
-      "predicted_min_miss_km": 343.82,
-      "lstm_escalation_prob": 0.0272,
-      "attention_weights": [
-        0.1265093833208084,
-        0.1311444193124771,
-        0.15862229466438293,
-        0.17503616213798523,
-        0.2082059383392334,
-        0.20048178732395172
-      ]
-    },
-    {
-      "sat1_name": "PEGASUS R/B",
-      "sat2_name": "DMSP 5D-2 F13 DEB",
-      "sat1_norad": 25506,
-      "sat2_norad": 40601,
-      "tca": "2026-03-17T04:10:07.840000",
-      "current_pc": 0.000169064,
-      "forecast_pc": 0.00017949126777239144,
-      "exceedance_probability": 0.2041,
-      "current_miss_km": 418.0,
-      "forecast_miss_km": 500.3,
-      "risk_direction": "stable",
-      "pc_trend": 0.0041,
-      "confidence": 0.52,
+      "pc_trend": 0.0005,
+      "confidence": 0.54,
       "action_recommended": false,
       "n_updates": 4,
       "time_series": [
         {
           "update_idx": 1,
-          "log10_pc": -3.87,
-          "pc": 0.0001340042072115466,
-          "miss_distance_km": 208.0,
-          "time_to_tca_hours": 30.6
+          "log10_pc": -3.65,
+          "pc": 0.00022294340305961668,
+          "miss_distance_km": 577.0,
+          "time_to_tca_hours": 51.7
         },
         {
           "update_idx": 2,
-          "log10_pc": -3.77,
-          "pc": 0.0001690640056040138,
-          "miss_distance_km": 418.0,
-          "time_to_tca_hours": 6.3
+          "log10_pc": -3.65,
+          "pc": 0.00022294340305961668,
+          "miss_distance_km": 577.0,
+          "time_to_tca_hours": 51.6
         },
         {
           "update_idx": 3,
-          "log10_pc": -3.77,
-          "pc": 0.0001690640056040138,
-          "miss_distance_km": 418.0,
-          "time_to_tca_hours": 6.2
+          "log10_pc": -3.65,
+          "pc": 0.00022490340052172542,
+          "miss_distance_km": 958.0,
+          "time_to_tca_hours": 44.1
         }
       ],
-      "predicted_max_pc": 0.00028678109962837744,
-      "predicted_max_log10_pc": -3.542,
-      "predicted_min_miss_km": 171.33,
-      "lstm_escalation_prob": 0.0509,
+      "predicted_max_pc": 0.0003596241404676597,
+      "predicted_max_log10_pc": -3.444,
+      "predicted_min_miss_km": 582.55,
+      "lstm_escalation_prob": 0.094,
       "attention_weights": [
-        0.1897267997264862,
-        0.2030325084924698,
-        0.29308369755744934,
-        0.31415706872940063
+        0.19848252832889557,
+        0.2195228934288025,
+        0.2743375599384308,
+        0.30765703320503235
       ]
     },
     {
-      "sat1_name": "CZ-6A DEB",
-      "sat2_name": "OBJECT F",
-      "sat1_norad": 61327,
-      "sat2_norad": 57585,
-      "tca": "2026-03-17T09:46:18.694000",
-      "current_pc": 0.0003356667,
-      "forecast_pc": 0.00033566670026630163,
-      "exceedance_probability": 0.1967,
-      "current_miss_km": 86.0,
-      "forecast_miss_km": 86.0,
+      "sat1_name": "COSMOS 1275 DEB",
+      "sat2_name": "OSCAR 19 (LUSAT)",
+      "sat1_norad": 12730,
+      "sat2_norad": 20442,
+      "tca": "2026-03-20T19:51:00.782000",
+      "current_pc": 0.0002624584,
+      "forecast_pc": 0.00026245840126648545,
+      "exceedance_probability": 0.1784,
+      "current_miss_km": 376.0,
+      "forecast_miss_km": 376.0,
       "risk_direction": "stable",
-      "pc_trend": 0.0,
-      "confidence": 0.4,
+      "pc_trend": -0.0,
+      "confidence": 0.47,
       "action_recommended": false,
-      "n_updates": 1,
+      "n_updates": 2,
       "time_series": [
         {
           "update_idx": 1,
-          "log10_pc": -3.47,
-          "pc": 0.00033566670026630163,
-          "miss_distance_km": 86.0,
-          "time_to_tca_hours": 11.7
+          "log10_pc": -3.58,
+          "pc": 0.00026245840126648545,
+          "miss_distance_km": 376.0,
+          "time_to_tca_hours": 68.9
         }
       ],
-      "predicted_max_pc": 0.0002338731729300082,
-      "predicted_max_log10_pc": -3.631,
-      "predicted_min_miss_km": 116.23,
-      "lstm_escalation_prob": 0.0238,
+      "predicted_max_pc": 0.0002761673682772902,
+      "predicted_max_log10_pc": -3.559,
+      "predicted_min_miss_km": 332.27,
+      "lstm_escalation_prob": 0.0234,
       "attention_weights": [
-        1.0
+        0.46734684705734253,
+        0.5326532125473022
+      ]
+    },
+    {
+      "sat1_name": "CHUANG XIN 1 (CZ-1)",
+      "sat2_name": "FENGYUN 1C DEB",
+      "sat1_norad": 28058,
+      "sat2_norad": 30102,
+      "tca": "2026-03-18T05:15:33.262000",
+      "current_pc": 0.0002657907,
+      "forecast_pc": 0.0002657907025422901,
+      "exceedance_probability": 0.1606,
+      "current_miss_km": 614.0,
+      "forecast_miss_km": 614.0,
+      "risk_direction": "stable",
+      "pc_trend": -0.0,
+      "confidence": 0.49,
+      "action_recommended": false,
+      "n_updates": 2,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.58,
+          "pc": 0.0002657907025422901,
+          "miss_distance_km": 614.0,
+          "time_to_tca_hours": 65.0
+        }
+      ],
+      "predicted_max_pc": 0.0002757079174433212,
+      "predicted_max_log10_pc": -3.56,
+      "predicted_min_miss_km": 529.83,
+      "lstm_escalation_prob": 0.0167,
+      "attention_weights": [
+        0.47016745805740356,
+        0.5298325419425964
+      ]
+    },
+    {
+      "sat1_name": "SACI 1",
+      "sat2_name": "CZ-4 DEB",
+      "sat1_norad": 25941,
+      "sat2_norad": 26236,
+      "tca": "2026-03-19T14:21:39.298000",
+      "current_pc": 0.0001260422,
+      "forecast_pc": 3.3899057143571554e-06,
+      "exceedance_probability": 0.1546,
+      "current_miss_km": 171.0,
+      "forecast_miss_km": 1202.3,
+      "risk_direction": "stable",
+      "pc_trend": -0.0276,
+      "confidence": 0.57,
+      "action_recommended": false,
+      "n_updates": 4,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.69,
+          "pc": 0.00020367880642879754,
+          "miss_distance_km": 132.0,
+          "time_to_tca_hours": 64.5
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.9,
+          "pc": 0.00012604219955392182,
+          "miss_distance_km": 171.0,
+          "time_to_tca_hours": 56.9
+        }
+      ],
+      "predicted_max_pc": 0.00022069085248965418,
+      "predicted_max_log10_pc": -3.656,
+      "predicted_min_miss_km": 97.03,
+      "lstm_escalation_prob": 0.0237,
+      "attention_weights": [
+        0.21973159909248352,
+        0.2485557496547699,
+        0.26646241545677185,
+        0.26525020599365234
       ]
     },
     {
@@ -2281,12 +1564,12 @@
       "tca": "2026-03-18T15:18:13.179000",
       "current_pc": 0.0002199862,
       "forecast_pc": 0.0016737753758206964,
-      "exceedance_probability": 0.1579,
+      "exceedance_probability": 0.1442,
       "current_miss_km": 339.0,
       "forecast_miss_km": 37.3,
       "risk_direction": "stable",
       "pc_trend": 0.0154,
-      "confidence": 0.57,
+      "confidence": 0.59,
       "action_recommended": false,
       "n_updates": 4,
       "time_series": [
@@ -2319,215 +1602,49 @@
           "time_to_tca_hours": 57.3
         }
       ],
-      "predicted_max_pc": 0.000280549648804973,
-      "predicted_max_log10_pc": -3.552,
-      "predicted_min_miss_km": 247.61,
-      "lstm_escalation_prob": 0.0358,
+      "predicted_max_pc": 0.0002882804980818247,
+      "predicted_max_log10_pc": -3.54,
+      "predicted_min_miss_km": 245.88,
+      "lstm_escalation_prob": 0.0493,
       "attention_weights": [
-        0.19524537026882172,
-        0.20518052577972412,
-        0.2815913259983063,
-        0.31798285245895386
+        0.1932690590620041,
+        0.20345111191272736,
+        0.28252139687538147,
+        0.3207584321498871
       ]
     },
     {
-      "sat1_name": "CHUANG XIN 1 (CZ-1)",
-      "sat2_name": "FENGYUN 1C DEB",
-      "sat1_norad": 28058,
-      "sat2_norad": 30102,
-      "tca": "2026-03-18T05:15:33.262000",
-      "current_pc": 0.0002657907,
-      "forecast_pc": 0.0002657907025422901,
-      "exceedance_probability": 0.1555,
-      "current_miss_km": 614.0,
-      "forecast_miss_km": 614.0,
+      "sat1_name": "COSMOS 968",
+      "sat2_name": "COSMOS 886 DEB",
+      "sat1_norad": 10520,
+      "sat2_norad": 14503,
+      "tca": "2026-03-19T18:26:11.560000",
+      "current_pc": 0.0001868631,
+      "forecast_pc": 0.0001868630643002689,
+      "exceedance_probability": 0.0813,
+      "current_miss_km": 306.0,
+      "forecast_miss_km": 306.0,
       "risk_direction": "stable",
       "pc_trend": -0.0,
-      "confidence": 0.49,
+      "confidence": 0.58,
       "action_recommended": false,
       "n_updates": 2,
       "time_series": [
         {
           "update_idx": 1,
-          "log10_pc": -3.58,
-          "pc": 0.0002657907025422901,
-          "miss_distance_km": 614.0,
-          "time_to_tca_hours": 65.0
+          "log10_pc": -3.73,
+          "pc": 0.00018686309340409935,
+          "miss_distance_km": 306.0,
+          "time_to_tca_hours": 43.5
         }
       ],
-      "predicted_max_pc": 0.00027631204219788437,
-      "predicted_max_log10_pc": -3.559,
-      "predicted_min_miss_km": 523.59,
-      "lstm_escalation_prob": 0.0157,
-      "attention_weights": [
-        0.47102224826812744,
-        0.5289776921272278
-      ]
-    },
-    {
-      "sat1_name": "SL-16 DEB",
-      "sat2_name": "CZ-6A DEB",
-      "sat1_norad": 22343,
-      "sat2_norad": 61365,
-      "tca": "2026-03-17T19:30:38.112000",
-      "current_pc": 0.0001617406,
-      "forecast_pc": 0.0002670265384949744,
-      "exceedance_probability": 0.1314,
-      "current_miss_km": 233.0,
-      "forecast_miss_km": 217423.2,
-      "risk_direction": "stable",
-      "pc_trend": 0.0058,
-      "confidence": 0.6,
-      "action_recommended": false,
-      "n_updates": 4,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.84,
-          "pc": 0.00014448340516537428,
-          "miss_distance_km": 50.0,
-          "time_to_tca_hours": 46.0
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.84,
-          "pc": 0.00014448340516537428,
-          "miss_distance_km": 50.0,
-          "time_to_tca_hours": 45.7
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.79,
-          "pc": 0.00016174059419427067,
-          "miss_distance_km": 233.0,
-          "time_to_tca_hours": 37.6
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.79,
-          "pc": 0.00016174059419427067,
-          "miss_distance_km": 233.0,
-          "time_to_tca_hours": 37.3
-        }
-      ],
-      "predicted_max_pc": 0.00023041104317255486,
-      "predicted_max_log10_pc": -3.637,
-      "predicted_min_miss_km": 62.55,
-      "lstm_escalation_prob": 0.0305,
-      "attention_weights": [
-        0.21028174459934235,
-        0.2343193143606186,
-        0.262870192527771,
-        0.2925286889076233
-      ]
-    },
-    {
-      "sat1_name": "FUSE 1",
-      "sat2_name": "DMSP 5D-2 F11 DEB",
-      "sat1_norad": 25791,
-      "sat2_norad": 28329,
-      "tca": "2026-03-19T01:31:36.477000",
-      "current_pc": 0.0002229434,
-      "forecast_pc": 0.00022294338850770146,
-      "exceedance_probability": 0.1135,
-      "current_miss_km": 577.0,
-      "forecast_miss_km": 577.0,
-      "risk_direction": "stable",
-      "pc_trend": -0.0,
-      "confidence": 0.54,
-      "action_recommended": false,
-      "n_updates": 2,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.65,
-          "pc": 0.00022294340305961668,
-          "miss_distance_km": 577.0,
-          "time_to_tca_hours": 51.7
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.65,
-          "pc": 0.00022294340305961668,
-          "miss_distance_km": 577.0,
-          "time_to_tca_hours": 51.6
-        }
-      ],
-      "predicted_max_pc": 0.0002308550738482272,
-      "predicted_max_log10_pc": -3.637,
-      "predicted_min_miss_km": 506.4,
-      "lstm_escalation_prob": 0.0063,
-      "attention_weights": [
-        0.4754749536514282,
-        0.5245251059532166
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 1538",
-      "sat2_name": "FENGYUN 1C DEB",
-      "sat1_norad": 14759,
-      "sat2_norad": 30310,
-      "tca": "2026-03-17T16:13:19.622000",
-      "current_pc": 0.0002191042,
-      "forecast_pc": 0.0002191042440244928,
-      "exceedance_probability": 0.1112,
-      "current_miss_km": 743.0,
-      "forecast_miss_km": 743.0,
-      "risk_direction": "stable",
-      "pc_trend": -0.0,
-      "confidence": 0.55,
-      "action_recommended": false,
-      "n_updates": 2,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.66,
-          "pc": 0.00021910420036874712,
-          "miss_distance_km": 743.0,
-          "time_to_tca_hours": 66.4
-        }
-      ],
-      "predicted_max_pc": 0.00023061883477075527,
-      "predicted_max_log10_pc": -3.637,
-      "predicted_min_miss_km": 616.08,
+      "predicted_max_pc": 0.00019363068937749327,
+      "predicted_max_log10_pc": -3.713,
+      "predicted_min_miss_km": 276.64,
       "lstm_escalation_prob": 0.0054,
       "attention_weights": [
-        0.48032641410827637,
-        0.5196735858917236
-      ]
-    },
-    {
-      "sat1_name": "SACI 1",
-      "sat2_name": "CZ-4 DEB",
-      "sat1_norad": 25941,
-      "sat2_norad": 26236,
-      "tca": "2026-03-19T14:21:39.298000",
-      "current_pc": 0.0002036788,
-      "forecast_pc": 0.000203678835532628,
-      "exceedance_probability": 0.1065,
-      "current_miss_km": 132.0,
-      "forecast_miss_km": 132.0,
-      "risk_direction": "stable",
-      "pc_trend": -0.0,
-      "confidence": 0.55,
-      "action_recommended": false,
-      "n_updates": 2,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.69,
-          "pc": 0.00020367880642879754,
-          "miss_distance_km": 132.0,
-          "time_to_tca_hours": 64.5
-        }
-      ],
-      "predicted_max_pc": 0.00021287820466558028,
-      "predicted_max_log10_pc": -3.672,
-      "predicted_min_miss_km": 123.81,
-      "lstm_escalation_prob": 0.0136,
-      "attention_weights": [
-        0.47021999955177307,
-        0.5297799706459045
+        0.47557374835014343,
+        0.5244261622428894
       ]
     },
     {
@@ -2538,12 +1655,12 @@
       "tca": "2026-03-18T07:42:59.474000",
       "current_pc": 0.0001575467,
       "forecast_pc": 0.0005999726708978415,
-      "exceedance_probability": 0.0785,
+      "exceedance_probability": 0.0707,
       "current_miss_km": 110.0,
       "forecast_miss_km": 276.2,
       "risk_direction": "stable",
       "pc_trend": 0.01,
-      "confidence": 0.67,
+      "confidence": 0.68,
       "action_recommended": false,
       "n_updates": 4,
       "time_series": [
@@ -2569,15 +1686,427 @@
           "time_to_tca_hours": 58.1
         }
       ],
-      "predicted_max_pc": 0.00019095487821452724,
-      "predicted_max_log10_pc": -3.719,
-      "predicted_min_miss_km": 63.03,
-      "lstm_escalation_prob": 0.0162,
+      "predicted_max_pc": 0.00020067403723085864,
+      "predicted_max_log10_pc": -3.698,
+      "predicted_min_miss_km": 62.46,
+      "lstm_escalation_prob": 0.0228,
       "attention_weights": [
-        0.20880074799060822,
-        0.22164209187030792,
-        0.2712135910987854,
-        0.2983435392379761
+        0.20680387318134308,
+        0.2200802117586136,
+        0.271817147731781,
+        0.30129876732826233
+      ]
+    },
+    {
+      "sat1_name": "COSMOS 1110",
+      "sat2_name": "METEOR 2-8 DEB",
+      "sat1_norad": 11425,
+      "sat2_norad": 36350,
+      "tca": "2026-03-19T04:19:11.870000",
+      "current_pc": 0.0001204487,
+      "forecast_pc": 9.716753265820444e-05,
+      "exceedance_probability": 0.0658,
+      "current_miss_km": 927.0,
+      "forecast_miss_km": 47492.1,
+      "risk_direction": "stable",
+      "pc_trend": -0.0019,
+      "confidence": 0.76,
+      "action_recommended": false,
+      "n_updates": 6,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.89,
+          "pc": 0.0001291585067519918,
+          "miss_distance_km": 249.0,
+          "time_to_tca_hours": 63.8
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.92,
+          "pc": 0.0001196626981254667,
+          "miss_distance_km": 866.0,
+          "time_to_tca_hours": 54.5
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.92,
+          "pc": 0.0001196626981254667,
+          "miss_distance_km": 866.0,
+          "time_to_tca_hours": 54.4
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.92,
+          "pc": 0.0001204486979986541,
+          "miss_distance_km": 927.0,
+          "time_to_tca_hours": 46.9
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.92,
+          "pc": 0.0001204486979986541,
+          "miss_distance_km": 927.0,
+          "time_to_tca_hours": 46.8
+        }
+      ],
+      "predicted_max_pc": 0.0002375339802882051,
+      "predicted_max_log10_pc": -3.624,
+      "predicted_min_miss_km": 337.0,
+      "lstm_escalation_prob": 0.0256,
+      "attention_weights": [
+        0.13444004952907562,
+        0.13969524204730988,
+        0.15916641056537628,
+        0.17500880360603333,
+        0.1981613039970398,
+        0.19352814555168152
+      ]
+    },
+    {
+      "sat1_name": "COSMOS 1275 DEB",
+      "sat2_name": "UNKNOWN",
+      "sat1_norad": 12766,
+      "sat2_norad": 82484,
+      "tca": "2026-03-19T05:58:30.339000",
+      "current_pc": 0.0002325134,
+      "forecast_pc": 0.000232513397349976,
+      "exceedance_probability": 0.0645,
+      "current_miss_km": 696.0,
+      "forecast_miss_km": 696.0,
+      "risk_direction": "stable",
+      "pc_trend": 0.0,
+      "confidence": 0.56,
+      "action_recommended": false,
+      "n_updates": 1,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.63,
+          "pc": 0.000232513397349976,
+          "miss_distance_km": 696.0,
+          "time_to_tca_hours": 56.1
+        }
+      ],
+      "predicted_max_pc": 0.00020332557759630422,
+      "predicted_max_log10_pc": -3.692,
+      "predicted_min_miss_km": 446.68,
+      "lstm_escalation_prob": 0.0051,
+      "attention_weights": [
+        1.0
+      ]
+    },
+    {
+      "sat1_name": "COSMOS 1275 DEB",
+      "sat2_name": "UNKNOWN",
+      "sat1_norad": 12732,
+      "sat2_norad": 81427,
+      "tca": "2026-03-19T20:00:38.334000",
+      "current_pc": 0.0001048112,
+      "forecast_pc": 6.141841731732711e-05,
+      "exceedance_probability": 0.0589,
+      "current_miss_km": 217.0,
+      "forecast_miss_km": 217.7,
+      "risk_direction": "stable",
+      "pc_trend": -0.0051,
+      "confidence": 0.69,
+      "action_recommended": false,
+      "n_updates": 4,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.84,
+          "pc": 0.00014414380711968988,
+          "miss_distance_km": 215.0,
+          "time_to_tca_hours": 70.2
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.91,
+          "pc": 0.00012212300498504192,
+          "miss_distance_km": 218.0,
+          "time_to_tca_hours": 62.6
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.92,
+          "pc": 0.00011986299796262756,
+          "miss_distance_km": 214.0,
+          "time_to_tca_hours": 55.2
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.98,
+          "pc": 0.00010481120261829346,
+          "miss_distance_km": 217.0,
+          "time_to_tca_hours": 45.1
+        }
+      ],
+      "predicted_max_pc": 0.00015974764603283258,
+      "predicted_max_log10_pc": -3.797,
+      "predicted_min_miss_km": 133.7,
+      "lstm_escalation_prob": 0.0067,
+      "attention_weights": [
+        0.22520138323307037,
+        0.23679514229297638,
+        0.25974348187446594,
+        0.27825993299484253
+      ]
+    },
+    {
+      "sat1_name": "SL-8 R/B",
+      "sat2_name": "CZ-6A DEB",
+      "sat1_norad": 21131,
+      "sat2_norad": 54432,
+      "tca": "2026-03-20T10:46:43.755000",
+      "current_pc": 0.000141533,
+      "forecast_pc": 0.00014153298980090767,
+      "exceedance_probability": 0.0425,
+      "current_miss_km": 337.0,
+      "forecast_miss_km": 337.0,
+      "risk_direction": "stable",
+      "pc_trend": -0.0,
+      "confidence": 0.63,
+      "action_recommended": false,
+      "n_updates": 2,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.85,
+          "pc": 0.0001415330043528229,
+          "miss_distance_km": 337.0,
+          "time_to_tca_hours": 69.9
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.85,
+          "pc": 0.0001415330043528229,
+          "miss_distance_km": 337.0,
+          "time_to_tca_hours": 69.8
+        }
+      ],
+      "predicted_max_pc": 0.00015498306741357174,
+      "predicted_max_log10_pc": -3.81,
+      "predicted_min_miss_km": 294.62,
+      "lstm_escalation_prob": 0.0022,
+      "attention_weights": [
+        0.49028828740119934,
+        0.5097116231918335
+      ]
+    },
+    {
+      "sat1_name": "CZ-6A DEB",
+      "sat2_name": "UNKNOWN",
+      "sat1_norad": 60961,
+      "sat2_norad": 81678,
+      "tca": "2026-03-18T16:06:05.901000",
+      "current_pc": 0.0001292095,
+      "forecast_pc": 0.00013553418102674186,
+      "exceedance_probability": 0.0194,
+      "current_miss_km": 485.0,
+      "forecast_miss_km": 434.1,
+      "risk_direction": "stable",
+      "pc_trend": 0.0006,
+      "confidence": 0.66,
+      "action_recommended": false,
+      "n_updates": 2,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.89,
+          "pc": 0.00012785480066668242,
+          "miss_distance_km": 497.0,
+          "time_to_tca_hours": 42.0
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.89,
+          "pc": 0.000129209496662952,
+          "miss_distance_km": 485.0,
+          "time_to_tca_hours": 34.4
+        }
+      ],
+      "predicted_max_pc": 0.00014467531284774031,
+      "predicted_max_log10_pc": -3.84,
+      "predicted_min_miss_km": 385.97,
+      "lstm_escalation_prob": 0.0014,
+      "attention_weights": [
+        0.4814724028110504,
+        0.518527626991272
+      ]
+    },
+    {
+      "sat1_name": "COSMOS 1275 DEB",
+      "sat2_name": "OBJECT C",
+      "sat1_norad": 13809,
+      "sat2_norad": 62731,
+      "tca": "2026-03-19T04:24:20.624000",
+      "current_pc": 0.0001449978,
+      "forecast_pc": 0.00014499780081678182,
+      "exceedance_probability": 0.0178,
+      "current_miss_km": 976.0,
+      "forecast_miss_km": 976.0,
+      "risk_direction": "stable",
+      "pc_trend": 0.0,
+      "confidence": 0.62,
+      "action_recommended": false,
+      "n_updates": 1,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.84,
+          "pc": 0.00014499780081678182,
+          "miss_distance_km": 976.0,
+          "time_to_tca_hours": 70.5
+        }
+      ],
+      "predicted_max_pc": 0.00015693953269609246,
+      "predicted_max_log10_pc": -3.804,
+      "predicted_min_miss_km": 536.99,
+      "lstm_escalation_prob": 0.0015,
+      "attention_weights": [
+        1.0
+      ]
+    },
+    {
+      "sat1_name": "IRIDIUM 33 DEB",
+      "sat2_name": "CZ-6A DEB",
+      "sat1_norad": 34652,
+      "sat2_norad": 54951,
+      "tca": "2026-03-20T11:34:26.397000",
+      "current_pc": 0.0001195261,
+      "forecast_pc": 0.00011952609929721802,
+      "exceedance_probability": 0.0166,
+      "current_miss_km": 58.0,
+      "forecast_miss_km": 58.0,
+      "risk_direction": "stable",
+      "pc_trend": 0.0,
+      "confidence": 0.62,
+      "action_recommended": false,
+      "n_updates": 1,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.92,
+          "pc": 0.00011952609929721802,
+          "miss_distance_km": 58.0,
+          "time_to_tca_hours": 60.6
+        }
+      ],
+      "predicted_max_pc": 0.00014293504772213209,
+      "predicted_max_log10_pc": -3.845,
+      "predicted_min_miss_km": 88.77,
+      "lstm_escalation_prob": 0.0048,
+      "attention_weights": [
+        1.0
+      ]
+    },
+    {
+      "sat1_name": "CZ-6A DEB",
+      "sat2_name": "SL-8 R/B",
+      "sat1_norad": 54568,
+      "sat2_norad": 13028,
+      "tca": "2026-03-19T03:22:12.353000",
+      "current_pc": 0.0001195389,
+      "forecast_pc": 0.00011953889770666137,
+      "exceedance_probability": 0.0148,
+      "current_miss_km": 479.0,
+      "forecast_miss_km": 479.0,
+      "risk_direction": "stable",
+      "pc_trend": 0.0,
+      "confidence": 0.62,
+      "action_recommended": false,
+      "n_updates": 1,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.92,
+          "pc": 0.00011953889770666137,
+          "miss_distance_km": 479.0,
+          "time_to_tca_hours": 62.7
+        }
+      ],
+      "predicted_max_pc": 0.00013875827191162538,
+      "predicted_max_log10_pc": -3.858,
+      "predicted_min_miss_km": 341.94,
+      "lstm_escalation_prob": 0.0014,
+      "attention_weights": [
+        1.0
+      ]
+    },
+    {
+      "sat1_name": "THORAD AGENA D DEB",
+      "sat2_name": "SL-8 R/B",
+      "sat1_norad": 4774,
+      "sat2_norad": 13618,
+      "tca": "2026-03-18T17:20:36.551000",
+      "current_pc": 0.0001174634,
+      "forecast_pc": 0.00011746342352125794,
+      "exceedance_probability": 0.0142,
+      "current_miss_km": 784.0,
+      "forecast_miss_km": 784.0,
+      "risk_direction": "stable",
+      "pc_trend": -0.0,
+      "confidence": 0.66,
+      "action_recommended": false,
+      "n_updates": 2,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.93,
+          "pc": 0.0001174634016933851,
+          "miss_distance_km": 784.0,
+          "time_to_tca_hours": 67.8
+        }
+      ],
+      "predicted_max_pc": 0.00013056824719842597,
+      "predicted_max_log10_pc": -3.884,
+      "predicted_min_miss_km": 632.01,
+      "lstm_escalation_prob": 0.0006,
+      "attention_weights": [
+        0.5019228458404541,
+        0.4980771541595459
+      ]
+    },
+    {
+      "sat1_name": "COSMOS 886 DEB",
+      "sat2_name": "SCOUT G-1 R/B",
+      "sat1_norad": 14503,
+      "sat2_norad": 22699,
+      "tca": "2026-03-20T03:59:03.768000",
+      "current_pc": 0.0001121156,
+      "forecast_pc": 0.00011211557284696028,
+      "exceedance_probability": 0.0127,
+      "current_miss_km": 409.0,
+      "forecast_miss_km": 409.0,
+      "risk_direction": "stable",
+      "pc_trend": -0.0,
+      "confidence": 0.66,
+      "action_recommended": false,
+      "n_updates": 2,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.95,
+          "pc": 0.00011211560195079073,
+          "miss_distance_km": 409.0,
+          "time_to_tca_hours": 53.1
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.95,
+          "pc": 0.00011211560195079073,
+          "miss_distance_km": 409.0,
+          "time_to_tca_hours": 53.0
+        }
+      ],
+      "predicted_max_pc": 0.00012315362151133426,
+      "predicted_max_log10_pc": -3.91,
+      "predicted_min_miss_km": 359.78,
+      "lstm_escalation_prob": 0.0008,
+      "attention_weights": [
+        0.49691903591156006,
+        0.5030810236930847
       ]
     },
     {
@@ -2675,29 +2204,29 @@
           "time_to_tca_hours": 0.0
         }
       ],
-      "predicted_max_pc": 0.013175339795779444,
-      "predicted_max_log10_pc": -1.88,
-      "predicted_min_miss_km": 9.27,
+      "predicted_max_pc": 0.014627442668085128,
+      "predicted_max_log10_pc": -1.835,
+      "predicted_min_miss_km": 8.62,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.010144466534256935,
-        0.01423577219247818,
-        0.02230672538280487,
-        0.026350462809205055,
-        0.045928891748189926,
-        0.057078614830970764,
-        0.09126242250204086,
-        0.09525365382432938,
-        0.09249100089073181,
-        0.08147463202476501,
-        0.06589055061340332,
-        0.058165356516838074,
-        0.05786387249827385,
-        0.05942545086145401,
-        0.05743281543254852,
-        0.06274347007274628,
-        0.05181753635406494,
-        0.050134286284446716
+        0.010203025303781033,
+        0.01447285059839487,
+        0.022854771465063095,
+        0.026913324370980263,
+        0.046997521072626114,
+        0.057802554219961166,
+        0.09318718314170837,
+        0.09694604575634003,
+        0.09419287741184235,
+        0.08239468932151794,
+        0.0655665174126625,
+        0.05717766657471657,
+        0.056652817875146866,
+        0.0581834614276886,
+        0.056029267609119415,
+        0.06166064739227295,
+        0.050314903259277344,
+        0.048449818044900894
       ]
     },
     {
@@ -2795,159 +2324,27 @@
           "time_to_tca_hours": 10.5
         }
       ],
-      "predicted_max_pc": 0.0025623051408633396,
-      "predicted_max_log10_pc": -2.591,
-      "predicted_min_miss_km": 73.17,
-      "lstm_escalation_prob": 0.9998,
+      "predicted_max_pc": 0.002501831007387554,
+      "predicted_max_log10_pc": -2.602,
+      "predicted_min_miss_km": 74.61,
+      "lstm_escalation_prob": 0.9999,
       "attention_weights": [
-        0.029504066333174706,
-        0.04063539206981659,
-        0.05360369756817818,
-        0.0574592724442482,
-        0.07007136940956116,
-        0.064065121114254,
-        0.050446026027202606,
-        0.039612896740436554,
-        0.04475029185414314,
-        0.0447191447019577,
-        0.07156914472579956,
-        0.09330658614635468,
-        0.07661677151918411,
-        0.061817415058612823,
-        0.09198582917451859,
-        0.10983695089817047
-      ]
-    },
-    {
-      "sat1_name": "SL-8 R/B",
-      "sat2_name": "DELTA 1 DEB",
-      "sat1_norad": 21153,
-      "sat2_norad": 42566,
-      "tca": "2026-02-14T07:08:52.327000",
-      "current_pc": 0.002414228,
-      "forecast_pc": 0.0010679808910936117,
-      "exceedance_probability": 1.0,
-      "current_miss_km": 62.0,
-      "forecast_miss_km": 70.1,
-      "risk_direction": "stable",
-      "pc_trend": -0.0079,
-      "confidence": 1.0,
-      "action_recommended": true,
-      "n_updates": 16,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -2.46,
-          "pc": 0.0034900999162346125,
-          "miss_distance_km": 52.0,
-          "time_to_tca_hours": 65.3
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -2.46,
-          "pc": 0.0034900999162346125,
-          "miss_distance_km": 52.0,
-          "time_to_tca_hours": 65.2
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -2.39,
-          "pc": 0.004113938193768263,
-          "miss_distance_km": 46.0,
-          "time_to_tca_hours": 55.8
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -2.39,
-          "pc": 0.004113938193768263,
-          "miss_distance_km": 46.0,
-          "time_to_tca_hours": 55.7
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -2.42,
-          "pc": 0.0038345910143107176,
-          "miss_distance_km": 49.0,
-          "time_to_tca_hours": 49.3
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -2.42,
-          "pc": 0.0038345910143107176,
-          "miss_distance_km": 49.0,
-          "time_to_tca_hours": 49.2
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -3.05,
-          "pc": 0.0008897400111891329,
-          "miss_distance_km": 87.0,
-          "time_to_tca_hours": 41.3
-        },
-        {
-          "update_idx": 8,
-          "log10_pc": -3.05,
-          "pc": 0.0008897400111891329,
-          "miss_distance_km": 87.0,
-          "time_to_tca_hours": 41.4
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -2.51,
-          "pc": 0.003123513888567686,
-          "miss_distance_km": 53.0,
-          "time_to_tca_hours": 31.8
-        },
-        {
-          "update_idx": 10,
-          "log10_pc": -3.13,
-          "pc": 0.0007377860019914806,
-          "miss_distance_km": 70.0,
-          "time_to_tca_hours": 17.9
-        },
-        {
-          "update_idx": 11,
-          "log10_pc": -3.13,
-          "pc": 0.0007377860019914806,
-          "miss_distance_km": 70.0,
-          "time_to_tca_hours": 17.8
-        },
-        {
-          "update_idx": 12,
-          "log10_pc": -3.06,
-          "pc": 0.0008631548844277859,
-          "miss_distance_km": 69.0,
-          "time_to_tca_hours": 8.5
-        },
-        {
-          "update_idx": 13,
-          "log10_pc": -2.62,
-          "pc": 0.002414227928966284,
-          "miss_distance_km": 62.0,
-          "time_to_tca_hours": 1.5
-        }
-      ],
-      "predicted_max_pc": 0.004458585523545335,
-      "predicted_max_log10_pc": -2.351,
-      "predicted_min_miss_km": 32.83,
-      "lstm_escalation_prob": 1.0,
-      "attention_weights": [
-        0.03617201745510101,
-        0.07109963893890381,
-        0.1062508299946785,
-        0.11314751952886581,
-        0.10375136882066727,
-        0.09187709540128708,
-        0.0707339271903038,
-        0.054737720638513565,
-        0.056535542011260986,
-        0.05607624724507332,
-        0.04831939935684204,
-        0.0398079976439476,
-        0.034336626529693604,
-        0.030340416356921196,
-        0.03802724555134773,
-        0.04878639429807663
+        0.029721932485699654,
+        0.04135704040527344,
+        0.054806794971227646,
+        0.05856965854763985,
+        0.0718877911567688,
+        0.06510398536920547,
+        0.05060933902859688,
+        0.03969655930995941,
+        0.04501916095614433,
+        0.04477265477180481,
+        0.07148941606283188,
+        0.09249544888734818,
+        0.0749639943242073,
+        0.060555096715688705,
+        0.0907827764749527,
+        0.10816828161478043
       ]
     },
     {
@@ -3066,96 +2463,26 @@
           "time_to_tca_hours": 11.0
         }
       ],
-      "predicted_max_pc": 0.005471275802905926,
-      "predicted_max_log10_pc": -2.262,
-      "predicted_min_miss_km": 28.82,
+      "predicted_max_pc": 0.005662526832529707,
+      "predicted_max_log10_pc": -2.247,
+      "predicted_min_miss_km": 28.31,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.03628276661038399,
-        0.05955518037080765,
-        0.08434518426656723,
-        0.11443881690502167,
-        0.11784792691469193,
-        0.11536943167448044,
-        0.10405129939317703,
-        0.07869257777929306,
-        0.06365182995796204,
-        0.05306585133075714,
-        0.03686724230647087,
-        0.03743021562695503,
-        0.03518345579504967,
-        0.032546598464250565,
-        0.030671672895550728
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 792",
-      "sat2_name": "COSMOS 941",
-      "sat1_norad": 8608,
-      "sat2_norad": 10287,
-      "tca": "2026-02-16T22:51:38.675000",
-      "current_pc": 0.0004658762,
-      "forecast_pc": 1.869268817245029e-05,
-      "exceedance_probability": 1.0,
-      "current_miss_km": 107.0,
-      "forecast_miss_km": 99.2,
-      "risk_direction": "stable",
-      "pc_trend": -0.0287,
-      "confidence": 1.0,
-      "action_recommended": true,
-      "n_updates": 10,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -2.4,
-          "pc": 0.003998692147433758,
-          "miss_distance_km": 128.0,
-          "time_to_tca_hours": 65.2
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.36,
-          "pc": 0.00043858870049007237,
-          "miss_distance_km": 226.0,
-          "time_to_tca_hours": 57.7
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.73,
-          "pc": 0.00018701970111578703,
-          "miss_distance_km": 163.0,
-          "time_to_tca_hours": 48.8
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.76,
-          "pc": 0.0001741421001497656,
-          "miss_distance_km": 160.0,
-          "time_to_tca_hours": 40.5
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.33,
-          "pc": 0.0004658761899918318,
-          "miss_distance_km": 107.0,
-          "time_to_tca_hours": 33.6
-        }
-      ],
-      "predicted_max_pc": 0.0018774387146069768,
-      "predicted_max_log10_pc": -2.726,
-      "predicted_min_miss_km": 108.53,
-      "lstm_escalation_prob": 0.9994,
-      "attention_weights": [
-        0.0874200239777565,
-        0.1742725819349289,
-        0.18428057432174683,
-        0.1409846693277359,
-        0.09891446679830551,
-        0.06752578169107437,
-        0.05113016068935394,
-        0.04283614829182625,
-        0.06205756589770317,
-        0.09057798981666565
+        0.037046175450086594,
+        0.061682410538196564,
+        0.08745279908180237,
+        0.11784582585096359,
+        0.11923995614051819,
+        0.11544711142778397,
+        0.10285843163728714,
+        0.07640746980905533,
+        0.06174546852707863,
+        0.05128480866551399,
+        0.036090243607759476,
+        0.036599550396203995,
+        0.03436136618256569,
+        0.03184793144464493,
+        0.03009045124053955
       ]
     },
     {
@@ -3211,21 +2538,21 @@
           "time_to_tca_hours": 36.6
         }
       ],
-      "predicted_max_pc": 0.012060815441294956,
-      "predicted_max_log10_pc": -1.919,
-      "predicted_min_miss_km": 11.91,
+      "predicted_max_pc": 0.013750267519122826,
+      "predicted_max_log10_pc": -1.862,
+      "predicted_min_miss_km": 9.91,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.027604326605796814,
-        0.05831697955727577,
-        0.15688379108905792,
-        0.17804928123950958,
-        0.15028870105743408,
-        0.13570202887058258,
-        0.09932742267847061,
-        0.08270110934972763,
-        0.0645032674074173,
-        0.04662300646305084
+        0.027753585949540138,
+        0.05970848724246025,
+        0.1641473025083542,
+        0.18295572698116302,
+        0.15125390887260437,
+        0.13487125933170319,
+        0.09625855833292007,
+        0.07898110151290894,
+        0.060368407517671585,
+        0.04370163008570671
       ]
     },
     {
@@ -3281,19 +2608,19 @@
           "time_to_tca_hours": 46.4
         }
       ],
-      "predicted_max_pc": 0.010777508817537414,
-      "predicted_max_log10_pc": -1.967,
-      "predicted_min_miss_km": 53.84,
+      "predicted_max_pc": 0.010941702727183398,
+      "predicted_max_log10_pc": -1.961,
+      "predicted_min_miss_km": 47.5,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.06947490572929382,
-        0.17052704095840454,
-        0.18491871654987335,
-        0.16342487931251526,
-        0.13502104580402374,
-        0.11316633969545364,
-        0.09118162840604782,
-        0.07228552550077438
+        0.07050491124391556,
+        0.1760823279619217,
+        0.1868743747472763,
+        0.16262127459049225,
+        0.13296696543693542,
+        0.11088033765554428,
+        0.08909261971712112,
+        0.07097718864679337
       ]
     },
     {
@@ -3398,28 +2725,28 @@
           "time_to_tca_hours": 2.1
         }
       ],
-      "predicted_max_pc": 0.009978755150173692,
-      "predicted_max_log10_pc": -2.001,
+      "predicted_max_pc": 0.010581479254241502,
+      "predicted_max_log10_pc": -1.975,
       "predicted_min_miss_km": 9.33,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.021050242707133293,
-        0.04856479540467262,
-        0.07559124380350113,
-        0.07985033094882965,
-        0.0701737329363823,
-        0.061678577214479446,
-        0.06416696310043335,
-        0.06135427951812744,
-        0.059045687317848206,
-        0.0568980909883976,
-        0.04768093675374985,
-        0.06069885194301605,
-        0.061810433864593506,
-        0.06288938224315643,
-        0.061970002949237823,
-        0.05513309687376022,
-        0.05144331976771355
+        0.021884264424443245,
+        0.05140979215502739,
+        0.07955935597419739,
+        0.08268007636070251,
+        0.0715729296207428,
+        0.06215737387537956,
+        0.06447853893041611,
+        0.06111469864845276,
+        0.05845874920487404,
+        0.05602133274078369,
+        0.04606914892792702,
+        0.05915892496705055,
+        0.06012754514813423,
+        0.06133311241865158,
+        0.060464825481176376,
+        0.053570155054330826,
+        0.04993917793035507
       ]
     },
     {
@@ -3503,25 +2830,25 @@
           "time_to_tca_hours": 0.0
         }
       ],
-      "predicted_max_pc": 0.005730380751007567,
-      "predicted_max_log10_pc": -2.242,
-      "predicted_min_miss_km": 22.46,
+      "predicted_max_pc": 0.006027087523016534,
+      "predicted_max_log10_pc": -2.22,
+      "predicted_min_miss_km": 21.86,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.042350780218839645,
-        0.09389705210924149,
-        0.12633199989795685,
-        0.12905368208885193,
-        0.11798225343227386,
-        0.1054115816950798,
-        0.08456586301326752,
-        0.07269204407930374,
-        0.0634966567158699,
-        0.05413771793246269,
-        0.039982110261917114,
-        0.029936280101537704,
-        0.022673385217785835,
-        0.017488587647676468
+        0.04324127361178398,
+        0.09764666110277176,
+        0.13026881217956543,
+        0.13101349771022797,
+        0.11820952594280243,
+        0.10435499250888824,
+        0.08244630694389343,
+        0.07068119943141937,
+        0.06168675795197487,
+        0.05221152305603027,
+        0.038920652121305466,
+        0.029471823945641518,
+        0.022481851279735565,
+        0.017365114763379097
       ]
     },
     {
@@ -3591,18 +2918,18 @@
           "time_to_tca_hours": 7.3
         }
       ],
-      "predicted_max_pc": 0.009173708119960844,
-      "predicted_max_log10_pc": -2.037,
-      "predicted_min_miss_km": 20.88,
+      "predicted_max_pc": 0.010588251822527381,
+      "predicted_max_log10_pc": -1.975,
+      "predicted_min_miss_km": 16.92,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.023156123235821724,
-        0.04962213337421417,
-        0.14765103161334991,
-        0.18775798380374908,
-        0.14322982728481293,
-        0.2147018313407898,
-        0.23388105630874634
+        0.022501014173030853,
+        0.04867902025580406,
+        0.14860528707504272,
+        0.1892693191766739,
+        0.14157402515411377,
+        0.21534568071365356,
+        0.23402570188045502
       ]
     },
     {
@@ -3721,27 +3048,27 @@
           "time_to_tca_hours": 3.1
         }
       ],
-      "predicted_max_pc": 0.0034448620933197668,
-      "predicted_max_log10_pc": -2.463,
-      "predicted_min_miss_km": 38.88,
-      "lstm_escalation_prob": 0.9999,
+      "predicted_max_pc": 0.0035615913413758094,
+      "predicted_max_log10_pc": -2.448,
+      "predicted_min_miss_km": 38.47,
+      "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.01977492682635784,
-        0.02265065908432007,
-        0.028342101722955704,
-        0.03512532636523247,
-        0.05721448361873627,
-        0.057342492043972015,
-        0.06109212338924408,
-        0.060676589608192444,
-        0.0608881376683712,
-        0.05396508425474167,
-        0.06740574538707733,
-        0.07760991156101227,
-        0.09498022496700287,
-        0.10040587931871414,
-        0.10419211536645889,
-        0.0983341708779335
+        0.01964760385453701,
+        0.022596508264541626,
+        0.028526071459054947,
+        0.035639259964227676,
+        0.05875121429562569,
+        0.05807994678616524,
+        0.0617220513522625,
+        0.061169009655714035,
+        0.06152528151869774,
+        0.05425307899713516,
+        0.06771788001060486,
+        0.07751351594924927,
+        0.0946117416024208,
+        0.0993315652012825,
+        0.1026712954044342,
+        0.09624389559030533
       ]
     },
     {
@@ -3846,25 +3173,25 @@
           "time_to_tca_hours": 5.2
         }
       ],
-      "predicted_max_pc": 0.0037729838981741997,
-      "predicted_max_log10_pc": -2.423,
-      "predicted_min_miss_km": 20.81,
-      "lstm_escalation_prob": 0.9999,
+      "predicted_max_pc": 0.003867976999231053,
+      "predicted_max_log10_pc": -2.413,
+      "predicted_min_miss_km": 21.46,
+      "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.023903990164399147,
-        0.03381533548235893,
-        0.062963105738163,
-        0.064776211977005,
-        0.07544150948524475,
-        0.07837233692407608,
-        0.0964839905500412,
-        0.09740576893091202,
-        0.08593906462192535,
-        0.07869609445333481,
-        0.08194021880626678,
-        0.0780026987195015,
-        0.0729270949959755,
-        0.06933261454105377
+        0.024098780006170273,
+        0.03444968909025192,
+        0.06518521159887314,
+        0.06618878990411758,
+        0.07675836235284805,
+        0.07919946312904358,
+        0.0975949689745903,
+        0.09763991832733154,
+        0.08517424762248993,
+        0.07746399939060211,
+        0.08074376732110977,
+        0.07652115076780319,
+        0.07130765169858932,
+        0.06767400354146957
       ]
     },
     {
@@ -3969,27 +3296,27 @@
           "time_to_tca_hours": 2.3
         }
       ],
-      "predicted_max_pc": 0.004156859580039998,
-      "predicted_max_log10_pc": -2.381,
-      "predicted_min_miss_km": 32.05,
+      "predicted_max_pc": 0.004198199643951734,
+      "predicted_max_log10_pc": -2.377,
+      "predicted_min_miss_km": 33.05,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.03741869702935219,
-        0.07588440924882889,
-        0.08970818668603897,
-        0.07634175568819046,
-        0.06193491071462631,
-        0.05761608108878136,
-        0.05411933362483978,
-        0.05724271014332771,
-        0.059536222368478775,
-        0.058775048702955246,
-        0.05708978697657585,
-        0.0594671331346035,
-        0.06055305525660515,
-        0.06332037597894669,
-        0.06475914269685745,
-        0.06623312085866928
+        0.03825036808848381,
+        0.0790036991238594,
+        0.09247321635484695,
+        0.07758878171443939,
+        0.062430307269096375,
+        0.05789418891072273,
+        0.05416552722454071,
+        0.057082463055849075,
+        0.05899197608232498,
+        0.05798639357089996,
+        0.056192830204963684,
+        0.058487147092819214,
+        0.05942172929644585,
+        0.06205092370510101,
+        0.06330452859401703,
+        0.0646759420633316
       ]
     },
     {
@@ -4066,24 +3393,280 @@
           "time_to_tca_hours": 7.1
         }
       ],
-      "predicted_max_pc": 0.005342339288149287,
-      "predicted_max_log10_pc": -2.272,
-      "predicted_min_miss_km": 10.16,
+      "predicted_max_pc": 0.005620030768367235,
+      "predicted_max_log10_pc": -2.25,
+      "predicted_min_miss_km": 9.61,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.01946989633142948,
-        0.02792632393538952,
-        0.047905415296554565,
-        0.055354226380586624,
-        0.08335775882005692,
-        0.08347034454345703,
-        0.11509983241558075,
-        0.1176227554678917,
-        0.11857733130455017,
-        0.11031007021665573,
-        0.08337613195180893,
-        0.07311821728944778,
-        0.06441164016723633
+        0.019581735134124756,
+        0.02839742787182331,
+        0.049125541001558304,
+        0.056324075907468796,
+        0.08565866202116013,
+        0.08444827049970627,
+        0.11666137725114822,
+        0.11799078434705734,
+        0.11820116639137268,
+        0.1091289073228836,
+        0.08135426789522171,
+        0.07096562534570694,
+        0.06216217577457428
+      ]
+    },
+    {
+      "sat1_name": "GEOS 3",
+      "sat2_name": "SL-16 DEB",
+      "sat1_norad": 7734,
+      "sat2_norad": 22615,
+      "tca": "2026-03-17T11:46:22.516000",
+      "current_pc": 0.004287718,
+      "forecast_pc": 0.002927357330918312,
+      "exceedance_probability": 1.0,
+      "current_miss_km": 112.0,
+      "forecast_miss_km": 131.7,
+      "risk_direction": "stable",
+      "pc_trend": 0.0095,
+      "confidence": 1.0,
+      "action_recommended": true,
+      "n_updates": 19,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -2.91,
+          "pc": 0.001230099005624652,
+          "miss_distance_km": 287.0,
+          "time_to_tca_hours": 71.3
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.05,
+          "pc": 0.0008946211892180145,
+          "miss_distance_km": 148.0,
+          "time_to_tca_hours": 62.0
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -2.96,
+          "pc": 0.0010973609751090407,
+          "miss_distance_km": 216.0,
+          "time_to_tca_hours": 54.8
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -2.96,
+          "pc": 0.0010973609751090407,
+          "miss_distance_km": 216.0,
+          "time_to_tca_hours": 54.7
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.03,
+          "pc": 0.0009375400841236115,
+          "miss_distance_km": 293.0,
+          "time_to_tca_hours": 47.5
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -3.36,
+          "pc": 0.0004405957879498601,
+          "miss_distance_km": 331.0,
+          "time_to_tca_hours": 38.2
+        },
+        {
+          "update_idx": 7,
+          "log10_pc": -3.19,
+          "pc": 0.000644557410851121,
+          "miss_distance_km": 292.0,
+          "time_to_tca_hours": 29.9
+        },
+        {
+          "update_idx": 8,
+          "log10_pc": -3.19,
+          "pc": 0.000644557410851121,
+          "miss_distance_km": 292.0,
+          "time_to_tca_hours": 29.8
+        },
+        {
+          "update_idx": 9,
+          "log10_pc": -3.08,
+          "pc": 0.0008243551128543913,
+          "miss_distance_km": 270.0,
+          "time_to_tca_hours": 23.3
+        },
+        {
+          "update_idx": 10,
+          "log10_pc": -2.5,
+          "pc": 0.0031809979118406773,
+          "miss_distance_km": 121.0,
+          "time_to_tca_hours": 13.9
+        },
+        {
+          "update_idx": 11,
+          "log10_pc": -2.35,
+          "pc": 0.004507212899625301,
+          "miss_distance_km": 105.0,
+          "time_to_tca_hours": 6.4
+        },
+        {
+          "update_idx": 12,
+          "log10_pc": -2.35,
+          "pc": 0.004507212899625301,
+          "miss_distance_km": 105.0,
+          "time_to_tca_hours": 6.3
+        },
+        {
+          "update_idx": 13,
+          "log10_pc": -2.37,
+          "pc": 0.004287717863917351,
+          "miss_distance_km": 112.0,
+          "time_to_tca_hours": 0.0
+        }
+      ],
+      "predicted_max_pc": 0.00482536148919103,
+      "predicted_max_log10_pc": -2.316,
+      "predicted_min_miss_km": 49.7,
+      "lstm_escalation_prob": 1.0,
+      "attention_weights": [
+        0.02260487899184227,
+        0.03547872602939606,
+        0.04779362305998802,
+        0.04457399994134903,
+        0.04077236354351044,
+        0.03725225850939751,
+        0.03349301218986511,
+        0.03028636984527111,
+        0.02588985301554203,
+        0.021483568474650383,
+        0.021334897726774216,
+        0.021651117131114006,
+        0.02643563412129879,
+        0.06177167966961861,
+        0.09409832209348679,
+        0.12058338522911072,
+        0.11988329887390137,
+        0.10521199554204941,
+        0.08940104395151138
+      ]
+    },
+    {
+      "sat1_name": "COSMOS 1670",
+      "sat2_name": "CZ-4C R/B",
+      "sat1_norad": 15930,
+      "sat2_norad": 54250,
+      "tca": "2026-03-17T18:23:41.608000",
+      "current_pc": 0.002345577,
+      "forecast_pc": 0.0003154229198116809,
+      "exceedance_probability": 1.0,
+      "current_miss_km": 102.0,
+      "forecast_miss_km": 205.5,
+      "risk_direction": "stable",
+      "pc_trend": -0.0235,
+      "confidence": 1.0,
+      "action_recommended": true,
+      "n_updates": 12,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -1.93,
+          "pc": 0.011712949723005295,
+          "miss_distance_km": 35.0,
+          "time_to_tca_hours": 68.6
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -1.93,
+          "pc": 0.011712949723005295,
+          "miss_distance_km": 35.0,
+          "time_to_tca_hours": 68.5
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -1.94,
+          "pc": 0.011376069858670235,
+          "miss_distance_km": 93.0,
+          "time_to_tca_hours": 61.4
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -1.94,
+          "pc": 0.011376069858670235,
+          "miss_distance_km": 93.0,
+          "time_to_tca_hours": 61.2
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -1.99,
+          "pc": 0.010170940309762955,
+          "miss_distance_km": 109.0,
+          "time_to_tca_hours": 54.1
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -1.99,
+          "pc": 0.010170940309762955,
+          "miss_distance_km": 109.0,
+          "time_to_tca_hours": 54.0
+        },
+        {
+          "update_idx": 7,
+          "log10_pc": -2.8,
+          "pc": 0.0015906649641692638,
+          "miss_distance_km": 142.0,
+          "time_to_tca_hours": 44.9
+        },
+        {
+          "update_idx": 8,
+          "log10_pc": -2.8,
+          "pc": 0.0015906649641692638,
+          "miss_distance_km": 142.0,
+          "time_to_tca_hours": 44.7
+        },
+        {
+          "update_idx": 9,
+          "log10_pc": -2.89,
+          "pc": 0.0012974670389667153,
+          "miss_distance_km": 101.0,
+          "time_to_tca_hours": 36.5
+        },
+        {
+          "update_idx": 10,
+          "log10_pc": -2.84,
+          "pc": 0.001456315047107637,
+          "miss_distance_km": 105.0,
+          "time_to_tca_hours": 29.9
+        },
+        {
+          "update_idx": 11,
+          "log10_pc": -2.84,
+          "pc": 0.001456315047107637,
+          "miss_distance_km": 105.0,
+          "time_to_tca_hours": 29.7
+        },
+        {
+          "update_idx": 12,
+          "log10_pc": -2.63,
+          "pc": 0.0023455771151930094,
+          "miss_distance_km": 102.0,
+          "time_to_tca_hours": 20.5
+        }
+      ],
+      "predicted_max_pc": 0.010149481543285462,
+      "predicted_max_log10_pc": -1.994,
+      "predicted_min_miss_km": 33.69,
+      "lstm_escalation_prob": 1.0,
+      "attention_weights": [
+        0.04565683379769325,
+        0.10802089422941208,
+        0.13667461276054382,
+        0.13900136947631836,
+        0.12335382401943207,
+        0.10890456289052963,
+        0.08536245673894882,
+        0.06762728840112686,
+        0.056014932692050934,
+        0.04763493314385414,
+        0.041503265500068665,
+        0.040245022624731064
       ]
     },
     {
@@ -4111,10 +3694,10 @@
           "time_to_tca_hours": 0.8
         }
       ],
-      "predicted_max_pc": 0.001070562592813137,
-      "predicted_max_log10_pc": -2.97,
-      "predicted_min_miss_km": 120.13,
-      "lstm_escalation_prob": 0.9867,
+      "predicted_max_pc": 0.001106430990635215,
+      "predicted_max_log10_pc": -2.956,
+      "predicted_min_miss_km": 113.3,
+      "lstm_escalation_prob": 0.9916,
       "attention_weights": [
         1.0
       ]
@@ -4179,21 +3762,153 @@
           "time_to_tca_hours": 7.6
         }
       ],
-      "predicted_max_pc": 0.006822635795645534,
-      "predicted_max_log10_pc": -2.166,
-      "predicted_min_miss_km": 22.48,
+      "predicted_max_pc": 0.00727737835302147,
+      "predicted_max_log10_pc": -2.138,
+      "predicted_min_miss_km": 21.08,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.034507930278778076,
-        0.06362396478652954,
-        0.11698684096336365,
-        0.140671968460083,
-        0.13730581104755402,
-        0.12132337689399719,
-        0.1102893054485321,
-        0.0986289456486702,
-        0.0915500819683075,
-        0.08511178195476532
+        0.034945402294397354,
+        0.0655595138669014,
+        0.12083521485328674,
+        0.14341972768306732,
+        0.13822440803050995,
+        0.12053219228982925,
+        0.10865366458892822,
+        0.09634002298116684,
+        0.0890292152762413,
+        0.08246071636676788
+      ]
+    },
+    {
+      "sat1_name": "SL-8 R/B",
+      "sat2_name": "DELTA 1 DEB",
+      "sat1_norad": 21153,
+      "sat2_norad": 42566,
+      "tca": "2026-02-14T07:08:52.327000",
+      "current_pc": 0.002414228,
+      "forecast_pc": 0.0010679808910936117,
+      "exceedance_probability": 0.9999,
+      "current_miss_km": 62.0,
+      "forecast_miss_km": 70.1,
+      "risk_direction": "stable",
+      "pc_trend": -0.0079,
+      "confidence": 1.0,
+      "action_recommended": true,
+      "n_updates": 16,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -2.46,
+          "pc": 0.0034900999162346125,
+          "miss_distance_km": 52.0,
+          "time_to_tca_hours": 65.3
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -2.46,
+          "pc": 0.0034900999162346125,
+          "miss_distance_km": 52.0,
+          "time_to_tca_hours": 65.2
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -2.39,
+          "pc": 0.004113938193768263,
+          "miss_distance_km": 46.0,
+          "time_to_tca_hours": 55.8
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -2.39,
+          "pc": 0.004113938193768263,
+          "miss_distance_km": 46.0,
+          "time_to_tca_hours": 55.7
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -2.42,
+          "pc": 0.0038345910143107176,
+          "miss_distance_km": 49.0,
+          "time_to_tca_hours": 49.3
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -2.42,
+          "pc": 0.0038345910143107176,
+          "miss_distance_km": 49.0,
+          "time_to_tca_hours": 49.2
+        },
+        {
+          "update_idx": 7,
+          "log10_pc": -3.05,
+          "pc": 0.0008897400111891329,
+          "miss_distance_km": 87.0,
+          "time_to_tca_hours": 41.3
+        },
+        {
+          "update_idx": 8,
+          "log10_pc": -3.05,
+          "pc": 0.0008897400111891329,
+          "miss_distance_km": 87.0,
+          "time_to_tca_hours": 41.4
+        },
+        {
+          "update_idx": 9,
+          "log10_pc": -2.51,
+          "pc": 0.003123513888567686,
+          "miss_distance_km": 53.0,
+          "time_to_tca_hours": 31.8
+        },
+        {
+          "update_idx": 10,
+          "log10_pc": -3.13,
+          "pc": 0.0007377860019914806,
+          "miss_distance_km": 70.0,
+          "time_to_tca_hours": 17.9
+        },
+        {
+          "update_idx": 11,
+          "log10_pc": -3.13,
+          "pc": 0.0007377860019914806,
+          "miss_distance_km": 70.0,
+          "time_to_tca_hours": 17.8
+        },
+        {
+          "update_idx": 12,
+          "log10_pc": -3.06,
+          "pc": 0.0008631548844277859,
+          "miss_distance_km": 69.0,
+          "time_to_tca_hours": 8.5
+        },
+        {
+          "update_idx": 13,
+          "log10_pc": -2.62,
+          "pc": 0.002414227928966284,
+          "miss_distance_km": 62.0,
+          "time_to_tca_hours": 1.5
+        }
+      ],
+      "predicted_max_pc": 0.004572064841551889,
+      "predicted_max_log10_pc": -2.34,
+      "predicted_min_miss_km": 32.75,
+      "lstm_escalation_prob": 1.0,
+      "attention_weights": [
+        0.036759622395038605,
+        0.07357371598482132,
+        0.10978689044713974,
+        0.11527317762374878,
+        0.1041874885559082,
+        0.09116746485233307,
+        0.06914349645376205,
+        0.053579892963171005,
+        0.0554690957069397,
+        0.054951492697000504,
+        0.047291915863752365,
+        0.03917919099330902,
+        0.034005701541900635,
+        0.03017185814678669,
+        0.037624552845954895,
+        0.04783450812101364
       ]
     },
     {
@@ -4291,22 +4006,92 @@
           "time_to_tca_hours": 15.6
         }
       ],
-      "predicted_max_pc": 0.004719011255353301,
-      "predicted_max_log10_pc": -2.326,
-      "predicted_min_miss_km": 25.35,
+      "predicted_max_pc": 0.005067401865690957,
+      "predicted_max_log10_pc": -2.295,
+      "predicted_min_miss_km": 23.56,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.026897020637989044,
-        0.036431945860385895,
-        0.05080507695674896,
-        0.05002804473042488,
-        0.08485079556703568,
-        0.17033818364143372,
-        0.20279555022716522,
-        0.12912940979003906,
-        0.08460827171802521,
-        0.08650077134370804,
-        0.07761488109827042
+        0.026882056146860123,
+        0.036760684102773666,
+        0.051609694957733154,
+        0.05062233284115791,
+        0.08652427792549133,
+        0.17580586671829224,
+        0.2068328559398651,
+        0.12632817029953003,
+        0.08131201565265656,
+        0.08300909399986267,
+        0.07431293278932571
+      ]
+    },
+    {
+      "sat1_name": "COSMOS 792",
+      "sat2_name": "COSMOS 941",
+      "sat1_norad": 8608,
+      "sat2_norad": 10287,
+      "tca": "2026-02-16T22:51:38.675000",
+      "current_pc": 0.0004658762,
+      "forecast_pc": 1.869268817245029e-05,
+      "exceedance_probability": 0.9999,
+      "current_miss_km": 107.0,
+      "forecast_miss_km": 99.2,
+      "risk_direction": "stable",
+      "pc_trend": -0.0287,
+      "confidence": 1.0,
+      "action_recommended": true,
+      "n_updates": 10,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -2.4,
+          "pc": 0.003998692147433758,
+          "miss_distance_km": 128.0,
+          "time_to_tca_hours": 65.2
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.36,
+          "pc": 0.00043858870049007237,
+          "miss_distance_km": 226.0,
+          "time_to_tca_hours": 57.7
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.73,
+          "pc": 0.00018701970111578703,
+          "miss_distance_km": 163.0,
+          "time_to_tca_hours": 48.8
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.76,
+          "pc": 0.0001741421001497656,
+          "miss_distance_km": 160.0,
+          "time_to_tca_hours": 40.5
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.33,
+          "pc": 0.0004658761899918318,
+          "miss_distance_km": 107.0,
+          "time_to_tca_hours": 33.6
+        }
+      ],
+      "predicted_max_pc": 0.0018695726404043338,
+      "predicted_max_log10_pc": -2.728,
+      "predicted_min_miss_km": 107.26,
+      "lstm_escalation_prob": 0.9997,
+      "attention_weights": [
+        0.08853565901517868,
+        0.1797141134738922,
+        0.18493534624576569,
+        0.13980472087860107,
+        0.09769447147846222,
+        0.06678061932325363,
+        0.05063508450984955,
+        0.04234788194298744,
+        0.06091543659567833,
+        0.0886366218328476
       ]
     },
     {
@@ -4369,277 +4154,32 @@
           "time_to_tca_hours": 26.1
         }
       ],
-      "predicted_max_pc": 0.004302266128355915,
-      "predicted_max_log10_pc": -2.366,
-      "predicted_min_miss_km": 31.07,
+      "predicted_max_pc": 0.004375968434451464,
+      "predicted_max_log10_pc": -2.359,
+      "predicted_min_miss_km": 31.31,
       "lstm_escalation_prob": 1.0,
       "attention_weights": [
-        0.044203270226716995,
-        0.0836750790476799,
-        0.09924526512622833,
-        0.09369009733200073,
-        0.10433883219957352,
-        0.10552314668893814,
-        0.09114212542772293,
-        0.07937983423471451,
-        0.08318887650966644,
-        0.08348941802978516,
-        0.0721622034907341,
-        0.05996187403798103
-      ]
-    },
-    {
-      "sat1_name": "COSMOS 1323",
-      "sat2_name": "DELTA 1 DEB",
-      "sat1_norad": 12978,
-      "sat2_norad": 21339,
-      "tca": "2026-03-01T17:32:45.262000",
-      "current_pc": 0.003851644,
-      "forecast_pc": 0.0043854680843651295,
-      "exceedance_probability": 0.9999,
-      "current_miss_km": 105.0,
-      "forecast_miss_km": 92.0,
-      "risk_direction": "stable",
-      "pc_trend": 0.0049,
-      "confidence": 1.0,
-      "action_recommended": true,
-      "n_updates": 17,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -2.88,
-          "pc": 0.0013280160492286086,
-          "miss_distance_km": 191.0,
-          "time_to_tca_hours": 66.7
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -2.65,
-          "pc": 0.0022267780732363462,
-          "miss_distance_km": 173.0,
-          "time_to_tca_hours": 58.9
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -2.47,
-          "pc": 0.003352564061060548,
-          "miss_distance_km": 108.0,
-          "time_to_tca_hours": 52.5
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -2.43,
-          "pc": 0.0037433758843690157,
-          "miss_distance_km": 72.0,
-          "time_to_tca_hours": 42.9
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -2.52,
-          "pc": 0.003046466037631035,
-          "miss_distance_km": 107.0,
-          "time_to_tca_hours": 35.7
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -2.51,
-          "pc": 0.0030703910160809755,
-          "miss_distance_km": 115.0,
-          "time_to_tca_hours": 28.6
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -2.48,
-          "pc": 0.003278481075540185,
-          "miss_distance_km": 116.0,
-          "time_to_tca_hours": 19.7
-        },
-        {
-          "update_idx": 8,
-          "log10_pc": -2.46,
-          "pc": 0.0034491498954594135,
-          "miss_distance_km": 112.0,
-          "time_to_tca_hours": 11.8
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -2.41,
-          "pc": 0.0038516439963132143,
-          "miss_distance_km": 105.0,
-          "time_to_tca_hours": 4.3
-        }
-      ],
-      "predicted_max_pc": 0.005866885105086478,
-      "predicted_max_log10_pc": -2.232,
-      "predicted_min_miss_km": 46.57,
-      "lstm_escalation_prob": 1.0,
-      "attention_weights": [
-        0.024976857006549835,
-        0.0399138517677784,
-        0.06659300625324249,
-        0.07744491845369339,
-        0.09063249826431274,
-        0.08830917626619339,
-        0.08647587895393372,
-        0.07840930670499802,
-        0.06632459908723831,
-        0.05795816704630852,
-        0.0517994649708271,
-        0.04746851325035095,
-        0.04523524269461632,
-        0.044277120381593704,
-        0.04356357455253601,
-        0.04472780600190163,
-        0.04589002951979637
-      ]
-    },
-    {
-      "sat1_name": "FR 1",
-      "sat2_name": "FENGYUN 1C DEB",
-      "sat1_norad": 1814,
-      "sat2_norad": 31955,
-      "tca": "2026-03-15T16:05:27.614000",
-      "current_pc": 0.005396897,
-      "forecast_pc": 0.00408386904746294,
-      "exceedance_probability": 0.9999,
-      "current_miss_km": 71.0,
-      "forecast_miss_km": 82.9,
-      "risk_direction": "stable",
-      "pc_trend": 0.0226,
-      "confidence": 1.0,
-      "action_recommended": true,
-      "n_updates": 17,
-      "time_series": [
-        {
-          "update_idx": 1,
-          "log10_pc": -3.69,
-          "pc": 0.00020255509298294783,
-          "miss_distance_km": 198.0,
-          "time_to_tca_hours": 65.6
-        },
-        {
-          "update_idx": 2,
-          "log10_pc": -3.69,
-          "pc": 0.00020255509298294783,
-          "miss_distance_km": 198.0,
-          "time_to_tca_hours": 65.5
-        },
-        {
-          "update_idx": 3,
-          "log10_pc": -3.69,
-          "pc": 0.00020255660638213158,
-          "miss_distance_km": 198.0,
-          "time_to_tca_hours": 59.2
-        },
-        {
-          "update_idx": 4,
-          "log10_pc": -3.69,
-          "pc": 0.00020255660638213158,
-          "miss_distance_km": 198.0,
-          "time_to_tca_hours": 59.1
-        },
-        {
-          "update_idx": 5,
-          "log10_pc": -3.49,
-          "pc": 0.0003262080135755241,
-          "miss_distance_km": 340.0,
-          "time_to_tca_hours": 51.8
-        },
-        {
-          "update_idx": 6,
-          "log10_pc": -3.29,
-          "pc": 0.000508028082549572,
-          "miss_distance_km": 156.0,
-          "time_to_tca_hours": 42.1
-        },
-        {
-          "update_idx": 7,
-          "log10_pc": -3.29,
-          "pc": 0.000508028082549572,
-          "miss_distance_km": 156.0,
-          "time_to_tca_hours": 42.0
-        },
-        {
-          "update_idx": 8,
-          "log10_pc": -3.44,
-          "pc": 0.00036436860682442784,
-          "miss_distance_km": 276.0,
-          "time_to_tca_hours": 34.2
-        },
-        {
-          "update_idx": 9,
-          "log10_pc": -3.36,
-          "pc": 0.00044057730701752007,
-          "miss_distance_km": 227.0,
-          "time_to_tca_hours": 27.6
-        },
-        {
-          "update_idx": 10,
-          "log10_pc": -2.91,
-          "pc": 0.0012283530086278915,
-          "miss_distance_km": 103.0,
-          "time_to_tca_hours": 18.3
-        },
-        {
-          "update_idx": 11,
-          "log10_pc": -2.91,
-          "pc": 0.0012283530086278915,
-          "miss_distance_km": 103.0,
-          "time_to_tca_hours": 18.2
-        },
-        {
-          "update_idx": 12,
-          "log10_pc": -2.42,
-          "pc": 0.003827921114861965,
-          "miss_distance_km": 75.0,
-          "time_to_tca_hours": 11.1
-        },
-        {
-          "update_idx": 13,
-          "log10_pc": -2.42,
-          "pc": 0.003827921114861965,
-          "miss_distance_km": 75.0,
-          "time_to_tca_hours": 11.0
-        },
-        {
-          "update_idx": 14,
-          "log10_pc": -2.27,
-          "pc": 0.0053968969732522964,
-          "miss_distance_km": 71.0,
-          "time_to_tca_hours": 3.8
-        }
-      ],
-      "predicted_max_pc": 0.003411683691934609,
-      "predicted_max_log10_pc": -2.467,
-      "predicted_min_miss_km": 33.99,
-      "lstm_escalation_prob": 0.9999,
-      "attention_weights": [
-        0.017974253743886948,
-        0.019989702850580215,
-        0.024016404524445534,
-        0.025864819064736366,
-        0.03123687393963337,
-        0.046653326600790024,
-        0.04737984016537666,
-        0.039165861904621124,
-        0.03244181349873543,
-        0.03212863579392433,
-        0.03095885179936886,
-        0.054754190146923065,
-        0.07007789611816406,
-        0.11711683124303818,
-        0.1375052034854889,
-        0.14359170198440552,
-        0.12914372980594635
+        0.04493790864944458,
+        0.08658480644226074,
+        0.10193523019552231,
+        0.09523820132017136,
+        0.10537061095237732,
+        0.10533459484577179,
+        0.08996227383613586,
+        0.07809454947710037,
+        0.08180844783782959,
+        0.08176882565021515,
+        0.07030855864286423,
+        0.058656126260757446
       ]
     }
   ],
   "regression_metrics": {
-    "mae_log10_pc": 0.1165,
-    "rmse_log10_pc": 0.1835,
-    "mae_log10_miss": 0.1372,
-    "correlation_pc": 0.9384,
-    "esc_f1": 0.8696,
-    "n": 180
+    "mae_log10_pc": 0.1157,
+    "rmse_log10_pc": 0.1746,
+    "mae_log10_miss": 0.131,
+    "correlation_pc": 0.9436,
+    "esc_f1": 0.9149,
+    "n": 183
   }
 }
