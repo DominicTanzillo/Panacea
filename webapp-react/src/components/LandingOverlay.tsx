@@ -8,151 +8,132 @@ interface LandingOverlayProps {
   onEnter: () => void;
 }
 
-const FEATURES = [
-  { icon: '\u{1F6F0}', label: 'Real-Time Tracking', desc: '25,000+ objects tracked via CelesTrak & Space-Track' },
-  { icon: '\u{1F9E0}', label: '6 ML Models', desc: 'LogReg, BiLSTM, GNN, Ensemble, Conformal, Autoregressive' },
-  { icon: '\u{1F4CA}', label: 'Calibrated Uncertainty', desc: 'Conformal prediction with 90% coverage guarantee' },
-  { icon: '\u{1F310}', label: 'Graph Intelligence', desc: 'GNN captures congested orbital neighborhoods' },
+const MODELS = [
+  { name: 'Logistic Regression', metric: 'F1 0.854', role: 'Production baseline' },
+  { name: 'BiLSTM Ensemble', metric: '98.7% recall', role: 'Transfer learning + focal loss' },
+  { name: 'Graph Neural Net', metric: 'F1 0.783', role: 'Conjunction network topology' },
+  { name: 'Autoregressive', metric: 'r=0.931', role: 'Next-CDM forecasting' },
+  { name: 'Conformal', metric: '90% coverage', role: 'Distribution-free UQ' },
+  { name: 'Event Summarizer', metric: 'NLP', role: 'Human-readable risk reports' },
 ];
 
 export function LandingOverlay({ loading, nSatellites, onEnter }: LandingOverlayProps) {
   const [show, setShow] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
-  const [typedText, setTypedText] = useState('');
-  const [statsVisible, setStatsVisible] = useState(false);
+  const [phase, setPhase] = useState(0); // 0=title, 1=stats, 2=models
 
-  const fullText = 'Orbital Debris Collision Prediction System';
-
-  // Typing animation
   useEffect(() => {
     if (!show) return;
-    let i = 0;
-    const timer = setInterval(() => {
-      if (i < fullText.length) {
-        setTypedText(fullText.slice(0, i + 1));
-        i++;
-      } else {
-        clearInterval(timer);
-        setTimeout(() => setStatsVisible(true), 300);
-      }
-    }, 35);
-    return () => clearInterval(timer);
+    const t1 = setTimeout(() => setPhase(1), 800);
+    const t2 = setTimeout(() => setPhase(2), 1400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [show]);
 
   const handleEnter = () => {
     setFadeOut(true);
-    setTimeout(() => {
-      setShow(false);
-      onEnter();
-    }, 600);
+    setTimeout(() => { setShow(false); onEnter(); }, 500);
   };
 
   if (!show) return null;
 
   return (
     <div
-      className={`fixed inset-0 flex flex-col items-center justify-center
-        transition-opacity duration-700 ${fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+      className={`fixed inset-0 flex flex-col items-center justify-center transition-opacity duration-500
+        ${fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       style={{
         zIndex: 9999,
-        background: 'radial-gradient(ellipse at 50% 50%, rgba(10,10,15,0.85) 0%, rgba(10,10,15,0.97) 70%)',
-        backdropFilter: 'blur(4px)',
+        background: 'linear-gradient(180deg, rgba(10,10,15,0.92) 0%, rgba(10,10,15,0.88) 50%, rgba(10,10,15,0.95) 100%)',
+        backdropFilter: 'blur(6px)',
       }}
     >
-      {/* Glow effect behind logo */}
-      <div
-        className="absolute"
-        style={{
-          width: 400,
-          height: 400,
-          background: 'radial-gradient(circle, rgba(79,138,255,0.08) 0%, transparent 70%)',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -60%)',
-          pointerEvents: 'none',
-        }}
-      />
+      {/* Ambient glow */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: 'radial-gradient(ellipse 600px 400px at 50% 40%, rgba(79,138,255,0.06) 0%, transparent 100%)',
+      }} />
 
-      {/* Logo + Title */}
-      <div className="relative flex flex-col items-center mb-8">
-        <div className="mb-4 animate-pulse">
-          <PanaceaLogo size={56} />
-        </div>
-        <h1
-          className="text-4xl sm:text-5xl font-extrabold tracking-tighter mb-2"
-          style={{
-            background: 'linear-gradient(135deg, #e0e0e8 0%, #4f8aff 50%, #8b5cf6 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          PANACEA
-        </h1>
-        <p className="text-[var(--color-text-muted)] text-sm sm:text-base font-mono h-6">
-          {typedText}
-          <span className="animate-pulse">|</span>
-        </p>
-      </div>
-
-      {/* Stats row */}
-      <div
-        className={`flex gap-8 mb-10 transition-all duration-500
-          ${statsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-      >
-        <Stat value={nSatellites > 0 ? `${(nSatellites / 1000).toFixed(0)}K+` : '...'} label="Objects Tracked" />
-        <Stat value="670" label="Conjunction Pairs" />
-        <Stat value="90%" label="Conformal Coverage" />
-        <Stat value="98.7%" label="Ensemble Recall" />
-      </div>
-
-      {/* Feature grid */}
-      <div
-        className={`grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mb-10 transition-all duration-500 delay-200
-          ${statsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
-      >
-        {FEATURES.map((f, i) => (
-          <div
-            key={i}
-            className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/60 backdrop-blur-sm
-              p-3 text-center hover:border-[var(--color-accent)]/50 transition-colors"
-          >
-            <div className="text-2xl mb-1">{f.icon}</div>
-            <div className="text-[11px] font-semibold text-[var(--color-text)] mb-0.5">{f.label}</div>
-            <div className="text-[9px] text-[var(--color-text-muted)] leading-tight">{f.desc}</div>
+      <div className="relative max-w-2xl w-full px-6">
+        {/* Title block */}
+        <div className="text-center mb-10">
+          <div className="inline-block mb-5">
+            <PanaceaLogo size={44} />
           </div>
-        ))}
+          <h1
+            className="text-5xl sm:text-6xl font-extrabold tracking-tight mb-3"
+            style={{
+              background: 'linear-gradient(135deg, #e0e0e8 20%, #4f8aff 60%, #8b5cf6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              lineHeight: 1.1,
+            }}
+          >
+            PANACEA
+          </h1>
+          <p className="text-sm text-[var(--color-text-muted)] tracking-wide">
+            Predictive Assessment Network for Automated Conjunction Evaluation & Avoidance
+          </p>
+        </div>
+
+        {/* Stats strip */}
+        <div className={`flex justify-center gap-10 mb-10 transition-all duration-600
+          ${phase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+          <StatBlock value={nSatellites > 0 ? `${(nSatellites / 1000).toFixed(0)}K` : '--'} label="Objects" />
+          <div className="w-px bg-[var(--color-border)]" />
+          <StatBlock value="670" label="CDM Pairs" />
+          <div className="w-px bg-[var(--color-border)]" />
+          <StatBlock value="6" label="Models" />
+          <div className="w-px bg-[var(--color-border)]" />
+          <StatBlock value="90%" label="Coverage" />
+        </div>
+
+        {/* Model grid */}
+        <div className={`grid grid-cols-3 gap-px mb-10 overflow-hidden transition-all duration-600
+          ${phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+          style={{ borderRadius: 6, border: '1px solid var(--color-border)' }}
+        >
+          {MODELS.map((m, i) => (
+            <div
+              key={i}
+              className="bg-[var(--color-surface)]/80 px-4 py-3 hover:bg-[var(--color-surface-2)] transition-colors"
+            >
+              <div className="text-[11px] font-semibold text-[var(--color-text)] mb-0.5">{m.name}</div>
+              <div className="text-[10px] font-mono text-[var(--color-accent)]">{m.metric}</div>
+              <div className="text-[9px] text-[var(--color-text-muted)] mt-0.5">{m.role}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className={`text-center transition-all duration-500
+          ${phase >= 2 ? 'opacity-100' : 'opacity-0'}`}>
+          <button
+            onClick={handleEnter}
+            disabled={loading}
+            className={`group px-7 py-2.5 text-sm font-medium tracking-wide transition-all duration-200
+              ${loading
+                ? 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] cursor-wait'
+                : 'bg-[var(--color-accent)] text-white hover:brightness-110 active:brightness-95'
+              }`}
+            style={{ borderRadius: 4 }}
+          >
+            {loading ? 'Loading orbital data...' : 'Enter Dashboard'}
+            {!loading && (
+              <span className="ml-2 inline-block group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+            )}
+          </button>
+          <p className="mt-5 text-[9px] text-[var(--color-text-muted)]/50 tracking-wider uppercase">
+            AIPI 540 &middot; Duke University &middot; Space-Track CDMs + CelesTrak TLEs
+          </p>
+        </div>
       </div>
-
-      {/* Enter button */}
-      <button
-        onClick={handleEnter}
-        disabled={loading}
-        className={`group relative px-8 py-3 rounded-full font-semibold text-sm tracking-wide
-          transition-all duration-300 ${statsVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}
-          ${loading
-            ? 'bg-[var(--color-surface-2)] text-[var(--color-text-muted)] cursor-wait'
-            : 'bg-[var(--color-accent)] text-white hover:shadow-lg hover:shadow-[var(--color-accent)]/25 hover:scale-105 active:scale-100'
-          }`}
-      >
-        {loading ? 'Loading orbital data...' : 'Launch Dashboard'}
-        {!loading && (
-          <span className="ml-2 inline-block group-hover:translate-x-1 transition-transform">&rarr;</span>
-        )}
-      </button>
-
-      {/* Credit line */}
-      <p className="mt-6 text-[10px] text-[var(--color-text-muted)]/60">
-        AIPI 540 &middot; Duke University &middot; Built with Space-Track CDMs + CelesTrak TLEs
-      </p>
     </div>
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function StatBlock({ value, label }: { value: string; label: string }) {
   return (
-    <div className="text-center">
-      <div className="text-xl sm:text-2xl font-bold text-[var(--color-text)]">{value}</div>
-      <div className="text-[10px] text-[var(--color-text-muted)] tracking-wide uppercase">{label}</div>
+    <div className="text-center min-w-[60px]">
+      <div className="text-2xl font-bold text-[var(--color-text)] tabular-nums">{value}</div>
+      <div className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wider mt-0.5">{label}</div>
     </div>
   );
 }

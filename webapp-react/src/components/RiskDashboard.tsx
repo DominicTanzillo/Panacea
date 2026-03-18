@@ -15,16 +15,97 @@ interface RiskDashboardProps {
   onClose: () => void;
 }
 
-function DensityTab({ satellites }: { satellites: SatellitePosition[] }) {
-  const BIN_WIDTH = 50; // km
+/* ── Model Zoo tab ──────────────────────────────────────────── */
 
+const MODEL_ZOO = [
+  {
+    name: 'Logistic Regression',
+    tag: 'Production',
+    color: '#4fff8a',
+    metrics: { f1: '0.854', 'auc-pr': '0.705', accuracy: '93.2%' },
+    desc: '20 engineered features from CDM sequences. Retrained daily on resolved pairs.',
+  },
+  {
+    name: 'BiLSTM Ensemble',
+    tag: 'Deep Learning',
+    color: '#4f8aff',
+    metrics: { f1: '0.847', recall: '98.7%', ece: '0.056' },
+    desc: 'Bidirectional LSTM with Kelvins transfer learning, focal loss, temperature calibration.',
+  },
+  {
+    name: 'Graph Neural Network',
+    tag: 'Graph ML',
+    color: '#8b5cf6',
+    metrics: { f1: '0.783', accuracy: '89.8%', nodes: '1,212' },
+    desc: 'GraphSAGE on conjunction network. Captures congested orbital neighborhoods.',
+  },
+  {
+    name: 'Autoregressive Forecaster',
+    tag: 'Seq-to-Seq',
+    color: '#ff9f43',
+    metrics: { mae: '0.094', correlation: '0.931', steps: '3' },
+    desc: 'Predicts next CDM updates with MC dropout uncertainty. Multi-step rollouts.',
+  },
+  {
+    name: 'Conformal Prediction',
+    tag: 'Uncertainty',
+    color: '#a29bfe',
+    metrics: { coverage: '90.8%', target: '90%', 'q-hat': '1.9' },
+    desc: 'Distribution-free prediction intervals. Guaranteed coverage without assumptions.',
+  },
+  {
+    name: 'Event Summarizer',
+    tag: 'NLP',
+    color: '#fd79a8',
+    metrics: { mode: 'Template', llm: 'Claude' },
+    desc: 'Generates human-readable risk assessments from model predictions + attention.',
+  },
+];
+
+function ModelsTab() {
+  return (
+    <div className="p-4 space-y-3">
+      <div className="text-xs text-[var(--color-text-muted)] mb-1">
+        6 models trained on 670 conjunction pairs from Space-Track CDMs
+      </div>
+      {MODEL_ZOO.map((m, i) => (
+        <div key={i} className="bg-[var(--color-surface-2)] p-3" style={{ borderRadius: 4 }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-1 h-5 shrink-0" style={{ background: m.color, borderRadius: 1 }} />
+              <span className="text-xs font-semibold text-[var(--color-text)]">{m.name}</span>
+            </div>
+            <span
+              className="text-[9px] font-medium px-2 py-0.5 uppercase tracking-wider"
+              style={{ color: m.color, background: `${m.color}12`, borderRadius: 3 }}
+            >
+              {m.tag}
+            </span>
+          </div>
+          <div className="flex gap-4 mb-1.5">
+            {Object.entries(m.metrics).map(([k, v]) => (
+              <div key={k}>
+                <span className="text-sm font-bold font-mono" style={{ color: m.color }}>{v}</span>
+                <span className="text-[9px] text-[var(--color-text-muted)] ml-1 uppercase">{k}</span>
+              </div>
+            ))}
+          </div>
+          <div className="text-[10px] text-[var(--color-text-muted)] leading-relaxed">{m.desc}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Density tab ────────────────────────────────────────────── */
+
+function DensityTab({ satellites }: { satellites: SatellitePosition[] }) {
+  const BIN_WIDTH = 50;
   const chartData = useMemo(() => {
     const bins: Record<number, number> = {};
     for (const sat of satellites) {
       const bin = Math.round(sat.alt / BIN_WIDTH) * BIN_WIDTH;
-      if (bin >= 0 && bin <= 2000) {
-        bins[bin] = (bins[bin] || 0) + 1;
-      }
+      if (bin >= 0 && bin <= 2000) bins[bin] = (bins[bin] || 0) + 1;
     }
     return Object.entries(bins)
       .map(([alt, count]) => ({ altitude: `${alt}`, count }))
@@ -32,30 +113,27 @@ function DensityTab({ satellites }: { satellites: SatellitePosition[] }) {
   }, [satellites]);
 
   return (
-    <div className="p-3">
-      <div className="text-xs text-[var(--color-text-muted)] mb-2">
-        Object density by altitude ({BIN_WIDTH}km bins, LEO only)
+    <div className="p-4">
+      <div className="text-xs text-[var(--color-text-muted)] mb-3">
+        Object density by altitude ({BIN_WIDTH}km bins, LEO)
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis
-            dataKey="altitude"
-            tick={{ fill: '#aaa', fontSize: 9 }}
-            interval={3}
-            label={{ value: 'Altitude (km)', position: 'insideBottom', offset: -2, fill: '#666', fontSize: 10 }}
-          />
-          <YAxis tick={{ fill: '#aaa', fontSize: 11 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+          <XAxis dataKey="altitude" tick={{ fill: '#666', fontSize: 9 }} interval={3} />
+          <YAxis tick={{ fill: '#666', fontSize: 10 }} />
           <Tooltip
-            contentStyle={{ background: '#1a1a2e', border: '1px solid #333', borderRadius: 8 }}
+            contentStyle={{ background: '#14141e', border: '1px solid #2a2a3a', borderRadius: 4, fontSize: 11 }}
             labelFormatter={(val) => `${val} km`}
           />
-          <Bar dataKey="count" fill="#8b5cf6" radius={[2, 2, 0, 0]} />
+          <Bar dataKey="count" fill="#8b5cf6" radius={[1, 1, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
   );
 }
+
+/* ── Pipeline tab ───────────────────────────────────────────── */
 
 function PipelineTab() {
   const [stats, setStats] = useState<PipelineStats | null>(null);
@@ -69,25 +147,18 @@ function PipelineTab() {
 
   if (!stats) {
     return (
-      <div className="p-4 text-xs text-[var(--color-text-muted)] text-center">
+      <div className="p-6 text-xs text-[var(--color-text-muted)] text-center">
         Pipeline stats not yet generated. Runs daily at 00:00 UTC.
       </div>
     );
   }
 
-  // Fine-tune progress chart
-  const finetuneData = stats.finetune_history.map(ft => ({
-    date: ft.date.slice(5, 10),
-    'Before': parseFloat(ft.pre_auc_pr.toFixed(3)),
-    'After': parseFloat(ft.post_auc_pr.toFixed(3)),
-    kept: ft.keep_new_model,
-  }));
+  const fm = stats.forecast_model;
+  const testMetrics = fm?.test;
 
-  // Daily pipeline chart (last 14 days) — deduplicate by date, keep last entry per day
   const deduped = Object.values(
     stats.daily_history.reduce<Record<string, typeof stats.daily_history[0]>>((acc, d) => {
-      acc[d.date] = d;
-      return acc;
+      acc[d.date] = d; return acc;
     }, {})
   ).sort((a, b) => a.date.localeCompare(b.date));
 
@@ -97,195 +168,162 @@ function PipelineTab() {
     predictions: d.n_predictions_logged ?? 0,
   }));
 
-  const fm = stats.forecast_model;
-  const testMetrics = fm?.test;
-
   return (
-    <div className="p-3 space-y-4">
-      {/* Generated timestamp */}
+    <div className="p-4 space-y-5">
       {stats.generated_at && (
-        <div className="text-[10px] text-[var(--color-text-muted)] text-right">
-          Last updated: {new Date(stats.generated_at).toLocaleString()}
+        <div className="text-[9px] text-[var(--color-text-muted)] text-right uppercase tracking-wider">
+          Updated {new Date(stats.generated_at).toLocaleDateString()}
         </div>
       )}
 
-      {/* Forecast model accuracy */}
+      {/* Forecast model card */}
       {fm && (
-        <div className="rounded-lg bg-[var(--color-surface-2)] p-3 space-y-2">
-          <div className="text-xs font-semibold text-[var(--color-text)]">
-            Pc Escalation Forecast Model
+        <div className="bg-[var(--color-surface-2)] p-4" style={{ borderRadius: 4 }}>
+          <div className="text-xs font-semibold text-[var(--color-text)] mb-1">
+            Pc Escalation Forecast
           </div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">
-            Task: Predict whether Pc will exceed 5e-4 (maneuver threshold) before TCA
+          <div className="text-[10px] text-[var(--color-text-muted)] mb-3">
+            Predict Pc &gt; 5e-4 before TCA
           </div>
           {testMetrics ? (
-            <div className="grid grid-cols-4 gap-2 mt-1">
-              <div className="text-center">
-                <div className="text-sm font-bold text-[#4fff8a]">{(testMetrics.accuracy * 100).toFixed(1)}%</div>
-                <div className="text-[9px] text-[var(--color-text-muted)]">Accuracy</div>
+            <>
+              <div className="grid grid-cols-4 gap-4">
+                <MetricCell value={`${(testMetrics.accuracy * 100).toFixed(0)}%`} label="Accuracy" color="#4fff8a" />
+                <MetricCell value={testMetrics.f1.toFixed(3)} label="F1" color="#4f8aff" />
+                <MetricCell value={testMetrics.auc_pr.toFixed(3)} label="AUC-PR" color="#8b5cf6" />
+                <MetricCell value={`${fm.n_test ?? 0}`} label="Test Pairs" color="var(--color-text)" />
               </div>
-              <div className="text-center">
-                <div className="text-sm font-bold text-[#4f8aff]">{testMetrics.f1.toFixed(3)}</div>
-                <div className="text-[9px] text-[var(--color-text-muted)]">F1</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm font-bold text-[#8b5cf6]">{testMetrics.auc_pr.toFixed(3)}</div>
-                <div className="text-[9px] text-[var(--color-text-muted)]">AUC-PR</div>
-              </div>
-              <div className="text-center">
-                <div className="text-sm font-bold text-[var(--color-text)]">{fm.n_test ?? 0}</div>
-                <div className="text-[9px] text-[var(--color-text-muted)]">Test Pairs</div>
-              </div>
-            </div>
+              {/* Confusion matrix */}
+              {testMetrics.tp != null && (
+                <div className="mt-4 pt-3 border-t border-[var(--color-border)]/20">
+                  <div className="text-[9px] text-[var(--color-text-muted)] mb-2 uppercase tracking-wider">Confusion Matrix</div>
+                  <div className="grid grid-cols-2 gap-1 max-w-[140px]">
+                    <CMCell value={testMetrics.tp ?? 0} label="TP" good />
+                    <CMCell value={testMetrics.fp ?? 0} label="FP" good={false} />
+                    <CMCell value={testMetrics.fn ?? 0} label="FN" good={false} />
+                    <CMCell value={testMetrics.tn ?? 0} label="TN" good />
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-[10px] text-[var(--color-text-muted)]">
-              Mode: {fm.mode} &middot; {fm.n_pairs_total ?? 0} pairs &middot;
-              Metrics available when more CDM data accumulates
-            </div>
-          )}
-
-          {/* Confusion matrix mini-visualization */}
-          {testMetrics && testMetrics.tp != null && testMetrics.fp != null && testMetrics.fn != null && testMetrics.tn != null && (
-            <div className="mt-2 pt-2 border-t border-[var(--color-border)]/30">
-              <div className="text-[9px] text-[var(--color-text-muted)] mb-1 font-semibold">Confusion Matrix</div>
-              <div className="grid grid-cols-2 gap-1 max-w-[160px]">
-                <div className="rounded p-1.5 text-center text-[10px]" style={{ background: 'rgba(79, 255, 138, 0.12)' }}>
-                  <div className="font-bold text-[#4fff8a]">{testMetrics.tp}</div>
-                  <div className="text-[8px] text-[var(--color-text-muted)]">TP</div>
-                </div>
-                <div className="rounded p-1.5 text-center text-[10px]" style={{ background: 'rgba(255, 79, 90, 0.12)' }}>
-                  <div className="font-bold text-[#ff4f5a]">{testMetrics.fp}</div>
-                  <div className="text-[8px] text-[var(--color-text-muted)]">FP</div>
-                </div>
-                <div className="rounded p-1.5 text-center text-[10px]" style={{ background: 'rgba(255, 79, 90, 0.12)' }}>
-                  <div className="font-bold text-[#ff4f5a]">{testMetrics.fn}</div>
-                  <div className="text-[8px] text-[var(--color-text-muted)]">FN</div>
-                </div>
-                <div className="rounded p-1.5 text-center text-[10px]" style={{ background: 'rgba(79, 255, 138, 0.12)' }}>
-                  <div className="font-bold text-[#4fff8a]">{testMetrics.tn}</div>
-                  <div className="text-[8px] text-[var(--color-text-muted)]">TN</div>
-                </div>
-              </div>
+              {fm.mode} mode &middot; {fm.n_pairs_total ?? 0} pairs
             </div>
           )}
         </div>
       )}
 
-      {/* CDM overview */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">
-          <div className="text-lg font-bold text-[#ff4f5a]">{stats.cdm_stats.pc_high}</div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">Pc &ge; 5e-4</div>
-        </div>
-        <div className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">
-          <div className="text-lg font-bold text-[#ffb84f]">{stats.cdm_stats.pc_moderate}</div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">1e-4 &le; Pc &lt; 5e-4</div>
-        </div>
-        <div className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">
-          <div className="text-lg font-bold text-[#8b5cf6]">{stats.cdm_stats.emergency_count}</div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">Emergency Reportable</div>
-        </div>
+      {/* CDM stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatCard value={stats.cdm_stats.pc_high} label="Pc >= 5e-4" color="#ff4f5a" />
+        <StatCard value={stats.cdm_stats.pc_moderate} label="1e-4 <= Pc < 5e-4" color="#ffb84f" />
+        <StatCard value={stats.cdm_stats.emergency_count} label="Emergency" color="#8b5cf6" />
       </div>
       <div className="text-[9px] text-[var(--color-text-muted)] text-center">
-        {stats.cdm_stats.total_cdms} total CDMs &middot; All public CDMs have Pc &ge; 1e-4 (Space-Track screening threshold)
+        {stats.cdm_stats.total_cdms.toLocaleString()} CDMs from Space-Track 18th SDS
       </div>
 
-      {/* Fine-tuning progress */}
-      {finetuneData.length > 0 && (
-        <>
-          <div className="text-xs text-[var(--color-text-muted)]">
-            Model Fine-Tuning Progress (AUC-PR)
-          </div>
-          <ResponsiveContainer width="100%" height={140}>
-            <BarChart data={finetuneData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="date" tick={{ fill: '#aaa', fontSize: 10 }} />
-              <YAxis domain={[0, 1]} tick={{ fill: '#aaa', fontSize: 10 }} />
-              <Tooltip
-                contentStyle={{ background: '#1a1a2e', border: '1px solid #333', borderRadius: 8 }}
-                labelStyle={{ color: '#fff' }}
-              />
-              <Bar dataKey="Before" fill="#666" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="After" fill="#4f8aff" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="text-[10px] text-[var(--color-text-muted)] text-center">
-            Latest: {stats.finetune_history.at(-1)?.post_auc_pr.toFixed(3)} AUC-PR
-            ({stats.finetune_history.at(-1)?.n_outcomes} outcomes)
-          </div>
-        </>
-      )}
-
-      {/* Daily pipeline activity */}
+      {/* Activity chart */}
       {dailyData.length > 0 && (
-        <>
-          <div className="text-xs text-[var(--color-text-muted)]">
-            Daily Pipeline Activity (14 days)
+        <div>
+          <div className="text-[10px] text-[var(--color-text-muted)] mb-2 uppercase tracking-wider">
+            14-Day Pipeline Activity
           </div>
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={dailyData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="date" tick={{ fill: '#aaa', fontSize: 9 }} />
-              <YAxis tick={{ fill: '#aaa', fontSize: 10 }} />
+          <ResponsiveContainer width="100%" height={100}>
+            <BarChart data={dailyData} margin={{ top: 2, right: 4, left: -12, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+              <XAxis dataKey="date" tick={{ fill: '#555', fontSize: 8 }} />
+              <YAxis tick={{ fill: '#555', fontSize: 8 }} />
               <Tooltip
-                contentStyle={{ background: '#1a1a2e', border: '1px solid #333', borderRadius: 8 }}
-                labelStyle={{ color: '#fff' }}
+                contentStyle={{ background: '#14141e', border: '1px solid #2a2a3a', borderRadius: 4, fontSize: 10 }}
               />
-              <Bar dataKey="screened" fill="#4f8aff" radius={[2, 2, 0, 0]} name="Satellites (×1000)" />
-              <Bar dataKey="predictions" fill="#4fff8a" radius={[2, 2, 0, 0]} name="Predictions Logged" />
+              <Bar dataKey="screened" fill="#4f8aff" radius={[1, 1, 0, 0]} name="Sats (K)" />
+              <Bar dataKey="predictions" fill="#4fff8a" radius={[1, 1, 0, 0]} name="Predictions" />
             </BarChart>
           </ResponsiveContainer>
-        </>
+        </div>
       )}
     </div>
   );
 }
 
+function MetricCell({ value, label, color }: { value: string; label: string; color: string }) {
+  return (
+    <div>
+      <div className="text-lg font-bold font-mono" style={{ color }}>{value}</div>
+      <div className="text-[9px] text-[var(--color-text-muted)] uppercase tracking-wider">{label}</div>
+    </div>
+  );
+}
+
+function CMCell({ value, label, good }: { value: number; label: string; good: boolean }) {
+  return (
+    <div
+      className="p-2 text-center text-[10px]"
+      style={{ background: good ? 'rgba(79,255,138,0.08)' : 'rgba(255,79,90,0.08)', borderRadius: 3 }}
+    >
+      <div className="font-bold" style={{ color: good ? '#4fff8a' : '#ff4f5a' }}>{value}</div>
+      <div className="text-[8px] text-[var(--color-text-muted)]">{label}</div>
+    </div>
+  );
+}
+
+function StatCard({ value, label, color }: { value: number; label: string; color: string }) {
+  return (
+    <div className="bg-[var(--color-surface-2)] p-3 text-center" style={{ borderRadius: 4 }}>
+      <div className="text-xl font-bold font-mono" style={{ color }}>{value}</div>
+      <div className="text-[9px] text-[var(--color-text-muted)] mt-0.5">{label}</div>
+    </div>
+  );
+}
+
+/* ── Main Dashboard ─────────────────────────────────────────── */
+
 export function RiskDashboard({
-  modelComparison: _modelComparison,
-  experimentResults: _experimentResults,
+  modelComparison: _mc,
+  experimentResults: _er,
   satellites,
   visible,
   onClose,
 }: RiskDashboardProps) {
-  void _modelComparison; void _experimentResults; // Reserved for future backend integration
+  void _mc; void _er;
   if (!visible) return null;
 
-  const tabs = ['pipeline', 'density'];
-
   return (
-    <div className="absolute bottom-12 left-4 right-4 max-h-[45vh] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)]">
-        <h3 className="font-semibold text-sm">Risk Dashboard</h3>
+    <div
+      className="absolute bottom-14 left-4 right-4 max-h-[55vh] border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col"
+      style={{ borderRadius: 6 }}
+    >
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-border)]">
+        <h3 className="font-semibold text-sm tracking-tight">AI Dashboard</h3>
         <button
           onClick={onClose}
-          className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors text-lg leading-none"
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors text-base leading-none"
         >
-          x
+          &times;
         </button>
       </div>
 
-      <Tabs.Root defaultValue="pipeline" className="flex-1 overflow-hidden flex flex-col">
-        <Tabs.List className="flex gap-6 border-b border-[var(--color-border)] px-4">
-          {tabs.map(tab => (
+      <Tabs.Root defaultValue="models" className="flex-1 overflow-hidden flex flex-col">
+        <Tabs.List className="flex border-b border-[var(--color-border)] px-5">
+          {['models', 'pipeline', 'density'].map(tab => (
             <Tabs.Trigger
               key={tab}
               value={tab}
-              className="px-4 py-2.5 text-sm font-medium text-[var(--color-text-muted)] border-b-2 border-transparent data-[state=active]:text-[var(--color-text)] data-[state=active]:border-[var(--color-accent)] transition-colors capitalize"
+              className="px-4 py-2.5 text-xs font-medium text-[var(--color-text-muted)] border-b-2 border-transparent
+                data-[state=active]:text-[var(--color-text)] data-[state=active]:border-[var(--color-accent)]
+                transition-colors capitalize tracking-wide"
             >
-              {tab}
+              {tab === 'models' ? 'Model Zoo' : tab}
             </Tabs.Trigger>
           ))}
         </Tabs.List>
 
         <div className="flex-1 overflow-y-auto">
-          <Tabs.Content value="pipeline">
-            <PipelineTab />
-          </Tabs.Content>
-
-          <Tabs.Content value="density">
-            <DensityTab satellites={satellites} />
-          </Tabs.Content>
+          <Tabs.Content value="models"><ModelsTab /></Tabs.Content>
+          <Tabs.Content value="pipeline"><PipelineTab /></Tabs.Content>
+          <Tabs.Content value="density"><DensityTab satellites={satellites} /></Tabs.Content>
         </div>
       </Tabs.Root>
     </div>
