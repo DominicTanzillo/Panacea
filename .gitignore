@@ -48,3 +48,18 @@ CLAUDE.md
 
 # Private writeup — track snapshots for longitudinal model comparison
 # /writeup/drafts/ can be added back if needed for private content
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.nav
+*.snm
+*.vrb
