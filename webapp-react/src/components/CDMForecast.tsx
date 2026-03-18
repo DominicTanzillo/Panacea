@@ -157,6 +157,7 @@ function ModelMetricsBanner({ metrics, task, regressionMetrics }: { metrics: Mod
 function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: boolean; onToggle: () => void }) {
   const level = riskLevel(pair);
   const color = RISK_COLORS[level];
+  const isResolved = pair.tca ? pair.tca < new Date().toISOString() : false;
 
   // Chart data: use hours-to-TCA as X axis (descending = time moves right toward TCA)
   const chartData = useMemo(() => {
@@ -194,7 +195,8 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
 
         {/* Names */}
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-medium truncate">
+          <div className="text-[11px] font-medium truncate" style={{ opacity: isResolved ? 0.6 : 1 }}>
+            {isResolved && <span className="text-[8px] text-[var(--color-text-muted)] mr-1">[RESOLVED]</span>}
             {shortName(pair.sat1_name)} vs {shortName(pair.sat2_name)}
           </div>
           <div className="text-[9px] text-[var(--color-text-muted)] font-mono">
@@ -398,11 +400,15 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
       .catch(() => setData(null));
   }, [visible]);
 
-  // Filter out expired events (TCA in the past)
+  // Show all pairs — active (future TCA) first, then resolved (past TCA).
+  // Pipeline now prioritizes future-TCA pairs in the export, but we keep
+  // resolved ones visible too so the dashboard isn't empty between events.
   const activePairs = useMemo(() => {
     if (!data) return [];
     const now = new Date().toISOString();
-    return data.pairs.filter(p => !p.tca || p.tca > now);
+    const future = data.pairs.filter(p => !p.tca || p.tca > now);
+    const past = data.pairs.filter(p => p.tca && p.tca <= now);
+    return [...future, ...past];
   }, [data]);
 
   const counts = useMemo(() => {
