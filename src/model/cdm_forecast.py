@@ -206,7 +206,7 @@ def compute_trend_features(sequence: np.ndarray) -> dict:
 def _build_feature_vector(sequence: np.ndarray, static: dict) -> np.ndarray:
     """Build a fixed-size feature vector from a variable-length CDM sequence.
 
-    Features (12 total):
+    Features (20 total):
       0: latest log10(Pc)
       1: latest log10(miss_km)
       2: latest time_to_tca_hours
@@ -219,25 +219,74 @@ def _build_feature_vector(sequence: np.ndarray, static: dict) -> np.ndarray:
       9: sat1_rcs
      10: sat2_rcs
      11: has_debris (either object is debris)
+     -- NEW derivative/rate features --
+     12: pc_range (max - min log10 Pc) — volatility indicator
+     13: miss_range (max - min log10 miss)
+     14: pc_last_delta — change in log10(Pc) between last two updates
+     15: miss_last_delta — change in log10(miss) between last two updates
+     16: max_pc_rate — maximum d(log10_pc)/d(hours) in sequence
+     17: time_coverage — fraction of pre-TCA window covered by CDM updates
+     18: first_log10_pc — initial Pc (how the conjunction started)
+     19: emergency — emergency reportable flag
     """
+    n_features = 20
     if len(sequence) == 0:
-        return np.zeros(12, dtype=np.float32)
+        return np.zeros(n_features, dtype=np.float32)
 
     trends = compute_trend_features(sequence)
 
+    log_pcs = sequence[:, 0]
+    log_miss = sequence[:, 1]
+    ttca = sequence[:, 2]
+    n = len(sequence)
+
+    # Derivative features
+    pc_range = float(log_pcs.max() - log_pcs.min())
+    miss_range = float(log_miss.max() - log_miss.min())
+
+    if n >= 2:
+        pc_last_delta = float(log_pcs[-1] - log_pcs[-2])
+        miss_last_delta = float(log_miss[-1] - log_miss[-2])
+    else:
+        pc_last_delta = 0.0
+        miss_last_delta = 0.0
+
+    # Max Pc rate: steepest change per hour across any adjacent pair
+    max_pc_rate = 0.0
+    if n >= 2:
+        for i in range(1, n):
+            dt = ttca[i - 1] - ttca[i]  # hours elapsed (ttca decreases over time)
+            if dt > 0.01:
+                rate = abs(float(log_pcs[i] - log_pcs[i - 1])) / dt
+                max_pc_rate = max(max_pc_rate, rate)
+
+    # Time coverage: what fraction of the pre-TCA window do our CDMs span?
+    if n >= 2 and ttca[0] > 0:
+        time_coverage = float((ttca[0] - ttca[-1]) / ttca[0])
+    else:
+        time_coverage = 0.0
+
     return np.array([
-        float(sequence[-1, 0]),              # latest log10(Pc)
-        float(sequence[-1, 1]),              # latest log10(miss_km)
-        float(sequence[-1, 2]),              # latest time_to_tca
-        trends["pc_trend"],
-        trends["miss_trend"],
-        trends["pc_acceleration"],
-        float(sequence[:, 0].max()),         # max log10(Pc)
-        float(sequence[:, 0].min()),         # min log10(Pc)
-        math.log1p(len(sequence)),           # n_updates (log)
-        static.get("sat1_rcs", 1),
-        static.get("sat2_rcs", 1),
-        max(static.get("sat1_is_debris", 0), static.get("sat2_is_debris", 0)),
+        float(log_pcs[-1]),                  # 0: latest log10(Pc)
+        float(log_miss[-1]),                 # 1: latest log10(miss_km)
+        float(ttca[-1]),                     # 2: latest time_to_tca
+        trends["pc_trend"],                  # 3
+        trends["miss_trend"],                # 4
+        trends["pc_acceleration"],           # 5
+        float(log_pcs.max()),                # 6: max log10(Pc)
+        float(log_pcs.min()),                # 7: min log10(Pc)
+        math.log1p(n),                       # 8: n_updates (log)
+        static.get("sat1_rcs", 1),           # 9
+        static.get("sat2_rcs", 1),           # 10
+        max(static.get("sat1_is_debris", 0), static.get("sat2_is_debris", 0)),  # 11
+        pc_range,                            # 12: Pc volatility
+        miss_range,                          # 13: miss volatility
+        pc_last_delta,                       # 14: latest Pc jump
+        miss_last_delta,                     # 15: latest miss jump
+        max_pc_rate,                         # 16: max Pc change rate
+        time_coverage,                       # 17: CDM time coverage
+        float(log_pcs[0]),                   # 18: initial Pc
+        static.get("emergency_reportable", 0),  # 19: emergency flag
     ], dtype=np.float32)
 
 
