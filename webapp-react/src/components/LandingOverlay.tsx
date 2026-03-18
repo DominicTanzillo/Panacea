@@ -51,9 +51,10 @@ export function LandingOverlay({ loading, nSatellites, onEnter }: LandingOverlay
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center
-        transition-opacity duration-700 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
+      className={`fixed inset-0 flex flex-col items-center justify-center
+        transition-opacity duration-700 ${fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       style={{
+        zIndex: 9999,
         background: 'radial-gradient(ellipse at 50% 50%, rgba(10,10,15,0.85) 0%, rgba(10,10,15,0.97) 70%)',
         backdropFilter: 'blur(4px)',
       }}

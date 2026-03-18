@@ -138,17 +138,19 @@ function App() {
         onSelectSatellite={setSelectedSatellite}
       />
 
-      <SceneErrorBoundary>
-        <Suspense fallback={<LoadingScreen />}>
-          <Globe
-            satellites={satellites}
-            onSelectSatellite={setSelectedSatellite}
-            selectedSatellite={selectedSatellite}
-            projectedPair={projectedPair}
-            showBorders={showBorders}
-          />
-        </Suspense>
-      </SceneErrorBoundary>
+      <div className="absolute inset-0" style={{ zIndex: 0 }}>
+        <SceneErrorBoundary>
+          <Suspense fallback={<LoadingScreen />}>
+            <Globe
+              satellites={satellites}
+              onSelectSatellite={setSelectedSatellite}
+              selectedSatellite={selectedSatellite}
+              projectedPair={projectedPair}
+              showBorders={showBorders}
+            />
+          </Suspense>
+        </SceneErrorBoundary>
+      </div>
 
       {/* Hide individual info panel when pair projection is active */}
       {!projectedPair && (
