@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  LineChart, Line, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer,
 } from 'recharts';
 import type { ModelComparisonResult, StalenessResults, PipelineStats } from '../lib/api';
 import type { SatellitePosition } from '../lib/types';
@@ -13,95 +13,6 @@ interface RiskDashboardProps {
   satellites: SatellitePosition[];
   visible: boolean;
   onClose: () => void;
-}
-
-const MODEL_COLORS: Record<string, string> = {
-  'Orbital Shell Baseline': '#888888',
-  'XGBoost (Engineered Features)': '#4fff8a',
-  'PI-TFT (Physics-Informed Temporal Fusion Transformer)': '#4f8aff',
-};
-
-function shortModelName(name: string): string {
-  if (name.includes('Baseline')) return 'Baseline';
-  if (name.includes('XGBoost')) return 'XGBoost';
-  if (name.includes('PI-TFT') || name.includes('Temporal')) return 'PI-TFT';
-  return name;
-}
-
-function ModelsTab({ data }: { data: ModelComparisonResult[] }) {
-  const chartData = data.map(m => ({
-    name: shortModelName(m.model),
-    'AUC-PR': parseFloat(m.auc_pr.toFixed(3)),
-    'F1 (optimal)': parseFloat(m.f1.toFixed(3)),
-    'AUC-ROC': parseFloat(m.auc_roc.toFixed(3)),
-  }));
-
-  return (
-    <div className="p-3">
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis dataKey="name" tick={{ fill: '#aaa', fontSize: 11 }} />
-          <YAxis domain={[0, 1]} tick={{ fill: '#aaa', fontSize: 11 }} />
-          <Tooltip
-            contentStyle={{ background: '#1a1a2e', border: '1px solid #333', borderRadius: 8 }}
-            labelStyle={{ color: '#fff' }}
-          />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Bar dataKey="AUC-PR" fill="#4fff8a" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="F1 (optimal)" fill="#4f8aff" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="AUC-ROC" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-
-      {/* Metric cards */}
-      <div className="grid grid-cols-3 gap-2 mt-3">
-        {data.map(m => (
-          <div key={m.model} className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">
-            <div className="text-[10px] text-[var(--color-text-muted)] mb-1">
-              {shortModelName(m.model)}
-            </div>
-            <div className="text-lg font-bold" style={{ color: MODEL_COLORS[m.model] || '#fff' }}>
-              {(m.auc_pr * 100).toFixed(1)}%
-            </div>
-            <div className="text-[10px] text-[var(--color-text-muted)]">AUC-PR</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ExperimentsTab({ data }: { data: StalenessResults }) {
-  const chartData = data.cutoffs.map((cutoff, i) => ({
-    cutoff: `${cutoff}d`,
-    Baseline: parseFloat((data.baseline[i]?.auc_pr ?? 0).toFixed(3)),
-    XGBoost: parseFloat((data.xgboost[i]?.auc_pr ?? 0).toFixed(3)),
-    'PI-TFT': parseFloat((data.pitft[i]?.auc_pr ?? 0).toFixed(3)),
-  }));
-
-  return (
-    <div className="p-3">
-      <div className="text-xs text-[var(--color-text-muted)] mb-2">
-        AUC-PR vs Data Staleness (time-to-TCA cutoff)
-      </div>
-      <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis dataKey="cutoff" tick={{ fill: '#aaa', fontSize: 11 }} />
-          <YAxis domain={[0, 1]} tick={{ fill: '#aaa', fontSize: 11 }} />
-          <Tooltip
-            contentStyle={{ background: '#1a1a2e', border: '1px solid #333', borderRadius: 8 }}
-            labelStyle={{ color: '#fff' }}
-          />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Line type="monotone" dataKey="Baseline" stroke="#888888" strokeWidth={2} dot={{ r: 3 }} />
-          <Line type="monotone" dataKey="XGBoost" stroke="#4fff8a" strokeWidth={2} dot={{ r: 3 }} />
-          <Line type="monotone" dataKey="PI-TFT" stroke="#4f8aff" strokeWidth={2} dot={{ r: 3 }} />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
 }
 
 function DensityTab({ satellites }: { satellites: SatellitePosition[] }) {
@@ -191,6 +102,13 @@ function PipelineTab() {
 
   return (
     <div className="p-3 space-y-4">
+      {/* Generated timestamp */}
+      {stats.generated_at && (
+        <div className="text-[10px] text-[var(--color-text-muted)] text-right">
+          Last updated: {new Date(stats.generated_at).toLocaleString()}
+        </div>
+      )}
+
       {/* Forecast model accuracy */}
       {fm && (
         <div className="rounded-lg bg-[var(--color-surface-2)] p-3 space-y-2">
@@ -225,23 +143,51 @@ function PipelineTab() {
               Metrics available when more CDM data accumulates
             </div>
           )}
+
+          {/* Confusion matrix mini-visualization */}
+          {testMetrics && testMetrics.tp != null && testMetrics.fp != null && testMetrics.fn != null && testMetrics.tn != null && (
+            <div className="mt-2 pt-2 border-t border-[var(--color-border)]/30">
+              <div className="text-[9px] text-[var(--color-text-muted)] mb-1 font-semibold">Confusion Matrix</div>
+              <div className="grid grid-cols-2 gap-1 max-w-[160px]">
+                <div className="rounded p-1.5 text-center text-[10px]" style={{ background: 'rgba(79, 255, 138, 0.12)' }}>
+                  <div className="font-bold text-[#4fff8a]">{testMetrics.tp}</div>
+                  <div className="text-[8px] text-[var(--color-text-muted)]">TP</div>
+                </div>
+                <div className="rounded p-1.5 text-center text-[10px]" style={{ background: 'rgba(255, 79, 90, 0.12)' }}>
+                  <div className="font-bold text-[#ff4f5a]">{testMetrics.fp}</div>
+                  <div className="text-[8px] text-[var(--color-text-muted)]">FP</div>
+                </div>
+                <div className="rounded p-1.5 text-center text-[10px]" style={{ background: 'rgba(255, 79, 90, 0.12)' }}>
+                  <div className="font-bold text-[#ff4f5a]">{testMetrics.fn}</div>
+                  <div className="text-[8px] text-[var(--color-text-muted)]">FN</div>
+                </div>
+                <div className="rounded p-1.5 text-center text-[10px]" style={{ background: 'rgba(79, 255, 138, 0.12)' }}>
+                  <div className="font-bold text-[#4fff8a]">{testMetrics.tn}</div>
+                  <div className="text-[8px] text-[var(--color-text-muted)]">TN</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* CDM overview */}
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">
-          <div className="text-lg font-bold text-[#8b5cf6]">{stats.cdm_stats.total_cdms}</div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">Total CDMs</div>
-        </div>
-        <div className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">
           <div className="text-lg font-bold text-[#ff4f5a]">{stats.cdm_stats.pc_high}</div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">High Risk</div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">Pc &ge; 5e-4</div>
         </div>
         <div className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">
-          <div className="text-lg font-bold text-[#ffb84f]">{stats.cdm_stats.emergency_count}</div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">Emergency</div>
+          <div className="text-lg font-bold text-[#ffb84f]">{stats.cdm_stats.pc_moderate}</div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">1e-4 &le; Pc &lt; 5e-4</div>
         </div>
+        <div className="rounded-lg bg-[var(--color-surface-2)] p-2 text-center">
+          <div className="text-lg font-bold text-[#8b5cf6]">{stats.cdm_stats.emergency_count}</div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">Emergency Reportable</div>
+        </div>
+      </div>
+      <div className="text-[9px] text-[var(--color-text-muted)] text-center">
+        {stats.cdm_stats.total_cdms} total CDMs &middot; All public CDMs have Pc &ge; 1e-4 (Space-Track screening threshold)
       </div>
 
       {/* Fine-tuning progress */}
@@ -296,15 +242,16 @@ function PipelineTab() {
 }
 
 export function RiskDashboard({
-  modelComparison,
-  experimentResults,
+  modelComparison: _modelComparison,
+  experimentResults: _experimentResults,
   satellites,
   visible,
   onClose,
 }: RiskDashboardProps) {
+  void _modelComparison; void _experimentResults; // Reserved for future backend integration
   if (!visible) return null;
 
-  const tabs = ['models', 'experiments', 'density', 'pipeline'];
+  const tabs = ['pipeline', 'density'];
 
   return (
     <div className="absolute bottom-12 left-4 right-4 max-h-[45vh] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col">
@@ -318,7 +265,7 @@ export function RiskDashboard({
         </button>
       </div>
 
-      <Tabs.Root defaultValue="models" className="flex-1 overflow-hidden flex flex-col">
+      <Tabs.Root defaultValue="pipeline" className="flex-1 overflow-hidden flex flex-col">
         <Tabs.List className="flex gap-6 border-b border-[var(--color-border)] px-4">
           {tabs.map(tab => (
             <Tabs.Trigger
@@ -332,32 +279,12 @@ export function RiskDashboard({
         </Tabs.List>
 
         <div className="flex-1 overflow-y-auto">
-          <Tabs.Content value="models">
-            {modelComparison ? (
-              <ModelsTab data={modelComparison} />
-            ) : (
-              <div className="p-4 text-xs text-[var(--color-text-muted)] text-center">
-                No model comparison data available. Start the backend server.
-              </div>
-            )}
-          </Tabs.Content>
-
-          <Tabs.Content value="experiments">
-            {experimentResults ? (
-              <ExperimentsTab data={experimentResults} />
-            ) : (
-              <div className="p-4 text-xs text-[var(--color-text-muted)] text-center">
-                No experiment data. Run: python scripts/run_experiment.py
-              </div>
-            )}
+          <Tabs.Content value="pipeline">
+            <PipelineTab />
           </Tabs.Content>
 
           <Tabs.Content value="density">
             <DensityTab satellites={satellites} />
-          </Tabs.Content>
-
-          <Tabs.Content value="pipeline">
-            <PipelineTab />
           </Tabs.Content>
         </div>
       </Tabs.Root>
