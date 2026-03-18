@@ -6,6 +6,7 @@ interface LandingOverlayProps {
   nSatellites: number;
   nPairs: number;
   onEnter: () => void;
+  onExploreModels?: () => void;
 }
 
 const MODELS = [
@@ -17,7 +18,7 @@ const MODELS = [
   { name: 'Event Summarizer', metric: 'NLP', role: 'Human-readable risk reports' },
 ];
 
-export function LandingOverlay({ loading, nSatellites, onEnter }: LandingOverlayProps) {
+export function LandingOverlay({ loading, nSatellites, onEnter, onExploreModels }: LandingOverlayProps) {
   const [show, setShow] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [phase, setPhase] = useState(0); // 0=title, 1=stats, 2=models
@@ -86,18 +87,18 @@ export function LandingOverlay({ loading, nSatellites, onEnter }: LandingOverlay
         </div>
 
         {/* Model grid */}
-        <div className={`grid grid-cols-3 gap-px mb-10 overflow-hidden transition-all duration-600
+        <div className={`grid grid-cols-3 gap-2 mb-8 transition-all duration-600
           ${phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
-          style={{ borderRadius: 6, border: '1px solid var(--color-border)' }}
         >
           {MODELS.map((m, i) => (
             <div
               key={i}
-              className="bg-[var(--color-surface)]/80 px-4 py-3 hover:bg-[var(--color-surface-2)] transition-colors"
+              className="bg-[var(--color-surface)]/70 border border-[var(--color-border)]/60 px-4 py-3.5 hover:bg-[var(--color-surface-2)] hover:border-[var(--color-border)] transition-colors"
+              style={{ borderRadius: 4 }}
             >
-              <div className="text-[11px] font-semibold text-[var(--color-text)] mb-0.5">{m.name}</div>
+              <div className="text-[11px] font-semibold text-[var(--color-text)] mb-1">{m.name}</div>
               <div className="text-[10px] font-mono text-[var(--color-accent)]">{m.metric}</div>
-              <div className="text-[9px] text-[var(--color-text-muted)] mt-0.5">{m.role}</div>
+              <div className="text-[9px] text-[var(--color-text-muted)] mt-1 leading-snug">{m.role}</div>
             </div>
           ))}
         </div>
@@ -120,7 +121,16 @@ export function LandingOverlay({ loading, nSatellites, onEnter }: LandingOverlay
               <span className="ml-2 inline-block group-hover:translate-x-0.5 transition-transform">&rarr;</span>
             )}
           </button>
-          <p className="mt-5 text-[9px] text-[var(--color-text-muted)]/50 tracking-wider uppercase">
+          {onExploreModels && (
+            <button
+              onClick={onExploreModels}
+              className="ml-4 px-5 py-2.5 text-sm font-medium tracking-wide text-[var(--color-text-muted)] border border-[var(--color-border)] hover:text-[var(--color-text)] hover:border-[var(--color-text-muted)] transition-colors"
+              style={{ borderRadius: 4 }}
+            >
+              Explore Models
+            </button>
+          )}
+          <p className="mt-6 text-[9px] text-[var(--color-text-muted)]/50 tracking-wider uppercase">
             AIPI 540 &middot; Duke University &middot; Space-Track CDMs + CelesTrak TLEs
           </p>
         </div>

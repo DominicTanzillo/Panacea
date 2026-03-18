@@ -10,6 +10,7 @@ import { RiskDashboard } from './components/RiskDashboard';
 import { CDMForecast } from './components/CDMForecast';
 import { AboutPage } from './components/AboutPage';
 import { LandingOverlay } from './components/LandingOverlay';
+import { ModelZooPage } from './components/ModelZooPage';
 import { useSatellites } from './hooks/useSatellites';
 import { useApi } from './hooks/useApi';
 import type { SatellitePosition, ProjectedPair } from './lib/types';
@@ -102,6 +103,7 @@ function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showForecast, setShowForecast] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
+  const [showModelZoo, setShowModelZoo] = useState(false);
 
   // When a conjunction pair projection updates, deselect individual satellites
   const handleProjection = useCallback((pair: ProjectedPair | null) => {
@@ -191,6 +193,7 @@ function App() {
       />
 
       <AboutPage visible={showAbout} onClose={() => setShowAbout(false)} />
+      <ModelZooPage visible={showModelZoo} onClose={() => setShowModelZoo(false)} />
 
       {showLanding && (
         <LandingOverlay
@@ -198,6 +201,7 @@ function App() {
           nSatellites={totalTLEs}
           nPairs={screeningPairs.length}
           onEnter={() => setShowLanding(false)}
+          onExploreModels={() => { setShowLanding(false); setShowModelZoo(true); }}
         />
       )}
     </div>

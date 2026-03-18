@@ -138,7 +138,12 @@ const RISK_LABELS: Record<RiskLevel, string> = {
 };
 
 function formatPc(pc: number): string {
+  if (!pc || pc <= 0) return '--';
   if (pc >= 0.01) return `${(pc * 100).toFixed(1)}%`;
+  if (pc >= 1e-4) {
+    const ratio = Math.round(1 / pc);
+    return `1 in ${ratio.toLocaleString()}`;
+  }
   return pc.toExponential(1);
 }
 
