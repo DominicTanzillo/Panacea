@@ -23,7 +23,7 @@ export function formatPcHuman(pc: number): PcDisplay {
     return {
       primary: `${(pc * 100).toFixed(1)}%`,
       scientific: pc.toExponential(1),
-      color: '#ff4f5a',
+      color: '#ef4444',
       level: 'critical',
     };
   }
@@ -33,7 +33,7 @@ export function formatPcHuman(pc: number): PcDisplay {
     return {
       primary: `1 in ${ratio.toLocaleString()}`,
       scientific: pc.toExponential(1),
-      color: '#ff4f5a',
+      color: '#ef4444',
       level: 'high',
     };
   }
@@ -43,7 +43,7 @@ export function formatPcHuman(pc: number): PcDisplay {
     return {
       primary: `1 in ${ratio.toLocaleString()}`,
       scientific: pc.toExponential(1),
-      color: '#ffb84f',
+      color: '#f59e0b',
       level: 'moderate',
     };
   }
@@ -53,7 +53,7 @@ export function formatPcHuman(pc: number): PcDisplay {
     return {
       primary: `1 in ${ratio.toLocaleString()}`,
       scientific: pc.toExponential(1),
-      color: '#4f8aff',
+      color: '#3b82f6',
       level: 'low',
     };
   }
@@ -61,7 +61,7 @@ export function formatPcHuman(pc: number): PcDisplay {
   return {
     primary: '< 1 in 10M',
     scientific: pc.toExponential(1),
-    color: '#4fff8a',
+    color: '#22c55e',
     level: 'low',
   };
 }

@@ -12,10 +12,18 @@ interface HeaderProps {
 export function PanaceaLogo({ size = 28 }: { size?: number }) {
   return (
     <div
-      className="relative flex items-center justify-center overflow-hidden shrink-0"
-      style={{ width: size, height: size, background: '#3b82f6', borderRadius: 6 }}
+      style={{
+        width: size,
+        height: size,
+        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+        borderRadius: 6,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
     >
-      <span className="font-extrabold text-white" style={{ fontSize: size * 0.48 }}>P</span>
+      <span style={{ fontWeight: 800, color: '#fff', fontSize: size * 0.46, lineHeight: 1 }}>P</span>
     </div>
   );
 }
@@ -23,8 +31,8 @@ export function PanaceaLogo({ size = 28 }: { size?: number }) {
 const NAV_ITEMS: { key: Exclude<OverlayView, null>; label: string }[] = [
   { key: 'alerts', label: 'Alerts' },
   { key: 'forecast', label: 'Forecast' },
-  { key: 'dashboard', label: 'Dashboard' },
   { key: 'models', label: 'Models' },
+  { key: 'dashboard', label: 'Pipeline' },
   { key: 'about', label: 'About' },
 ];
 
@@ -32,39 +40,85 @@ export function Header({
   activeOverlay, onNavigate, healthy, alertCount, cdmAlertCount, dataDate,
 }: HeaderProps) {
   return (
-    <header
-      className="fixed top-0 left-0 right-0 flex items-center justify-between h-12 px-6 border-b"
-      style={{
-        zIndex: 100,
-        borderColor: '#2a2a3a',
-        background: '#0c0c14',
-      }}
-    >
-      {/* Left: Logo + name */}
-      <div className="flex items-center gap-3">
+    <header style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 100,
+      height: 56,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 32px',
+      background: 'rgba(8,8,12,0.82)',
+      backdropFilter: 'blur(20px)',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+    }}>
+      {/* Left: Logo + wordmark */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <PanaceaLogo />
-        <span className="text-sm font-semibold tracking-tight text-white">PANACEA</span>
+        <span style={{
+          fontSize: 15,
+          fontWeight: 700,
+          color: '#e8e8f0',
+          letterSpacing: '0.04em',
+        }}>
+          PANACEA
+        </span>
       </div>
 
-      {/* Center: Navigation */}
-      <nav className="flex items-center gap-1">
+      {/* Center: Nav */}
+      <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {NAV_ITEMS.map(item => {
           const isActive = activeOverlay === item.key;
+          const hasCount = item.key === 'alerts' && (cdmAlertCount > 0 || alertCount > 0);
           return (
             <button
               key={item.key}
               onClick={() => onNavigate(item.key)}
-              className="px-4 py-2 text-sm font-medium tracking-wide transition-colors"
               style={{
+                padding: '7px 16px',
+                fontSize: 13,
+                fontWeight: isActive ? 600 : 500,
                 color: isActive ? '#e8e8f0' : '#7c7c96',
-                borderBottom: isActive ? '2px solid #3b82f6' : '2px solid transparent',
+                background: isActive ? 'rgba(59,130,246,0.10)' : 'transparent',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                transition: 'all 150ms',
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                letterSpacing: '-0.005em',
               }}
-              onMouseEnter={e => { if (!isActive) (e.target as HTMLElement).style.color = '#b0b0c0'; }}
-              onMouseLeave={e => { if (!isActive) (e.target as HTMLElement).style.color = '#7c7c96'; }}
+              onMouseEnter={e => {
+                if (!isActive) {
+                  (e.currentTarget).style.color = '#b0b0c4';
+                  (e.currentTarget).style.background = 'rgba(255,255,255,0.04)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                  (e.currentTarget).style.color = '#7c7c96';
+                  (e.currentTarget).style.background = 'transparent';
+                }
+              }}
             >
               {item.label}
-              {item.key === 'alerts' && alertCount > 0 && (
-                <span className="ml-1.5" style={{ color: '#ef4444' }}>
+              {hasCount && (
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#ef4444',
+                  background: 'rgba(239,68,68,0.12)',
+                  padding: '1px 7px',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  textAlign: 'center',
+                  lineHeight: '18px',
+                }}>
                   {cdmAlertCount > 0 ? cdmAlertCount : alertCount}
                 </span>
               )}
@@ -74,14 +128,15 @@ export function Header({
       </nav>
 
       {/* Right: Status */}
-      <div className="flex items-center gap-2 text-xs" style={{ color: '#7c7c96' }}>
-        <span
-          className="w-2 h-2 rounded-full"
-          style={{
-            background: healthy ? '#22c55e' : cdmAlertCount > 0 ? '#3b82f6' : '#f59e0b',
-          }}
-        />
-        <span>{healthy ? 'Live' : dataDate ? dataDate : 'Static'}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#7c7c96' }}>
+        <div style={{
+          width: 7,
+          height: 7,
+          borderRadius: '50%',
+          background: healthy ? '#22c55e' : cdmAlertCount > 0 ? '#3b82f6' : '#f59e0b',
+          boxShadow: healthy ? '0 0 6px rgba(34,197,94,0.4)' : undefined,
+        }} />
+        <span style={{ fontWeight: 500 }}>{healthy ? 'Live' : dataDate || 'Static data'}</span>
       </div>
     </header>
   );

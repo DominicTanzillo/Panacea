@@ -50,8 +50,8 @@ export function SearchFilter({ satellites, onSelectSatellite }: SearchFilterProp
   );
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-full max-w-md px-4">
-      <div className="flex items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md px-3 py-2 shadow-lg">
+    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 w-full max-w-md px-4">
+      <div className="flex items-center gap-2 border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md px-3 py-2 shadow-lg" style={{ borderRadius: 8 }}>
         <svg
           className="w-4 h-4 text-[var(--color-text-muted)] shrink-0"
           fill="none"

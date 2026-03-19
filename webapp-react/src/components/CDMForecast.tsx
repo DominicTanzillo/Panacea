@@ -3,7 +3,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
-import { Overlay } from './Overlay';
+import { FullPagePanel } from './Overlay';
 
 interface CDMUpdate {
   update_idx: number;
@@ -127,9 +127,9 @@ function riskLevel(pair: ForecastPair): RiskLevel {
 }
 
 const RISK_COLORS: Record<RiskLevel, string> = {
-  critical: '#ff4f5a',
-  high: '#ffb84f',
-  moderate: '#4f8aff',
+  critical: '#ef4444',
+  high: '#f59e0b',
+  moderate: '#3b82f6',
 };
 
 const RISK_LABELS: Record<RiskLevel, string> = {
@@ -162,49 +162,49 @@ function ModelMetricsBanner({ metrics, task, regressionMetrics }: { metrics: Mod
 
   return (
     <div className="px-4 py-3 border-b border-[var(--color-border)]">
-      <div className="text-[11px] text-[var(--color-text-muted)] mb-2">
+      <div className="text-xs text-[var(--color-text-muted)] mb-2">
         <span className="font-semibold text-[var(--color-text)]">Task:</span>{' '}
         {task || 'Predict Pc exceeding maneuver threshold before TCA'}
       </div>
       {hasTest && (
         <div className="flex items-center gap-4 text-center">
           <div>
-            <span className="text-sm font-bold text-[#4fff8a]">{formatPct(metrics.test_accuracy)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1">Accuracy</span>
+            <span className="text-sm font-bold text-[#22c55e]">{formatPct(metrics.test_accuracy)}</span>
+            <span className="text-xs text-[var(--color-text-muted)] ml-1">Accuracy</span>
           </div>
           <div>
-            <span className="text-sm font-bold text-[#4f8aff]">{metrics.test_f1.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="F1 score: harmonic mean of precision and recall (1.0 = perfect)">F1</span>
+            <span className="text-sm font-bold text-[#3b82f6]">{metrics.test_f1.toFixed(3)}</span>
+            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="F1 score: harmonic mean of precision and recall (1.0 = perfect)">F1</span>
           </div>
           <div>
-            <span className="text-sm font-bold text-[#8b5cf6]">{metrics.test_auc_pr.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Area under precision-recall curve (higher = better at finding true positives)">AUC-PR</span>
+            <span className="text-sm font-bold text-[#3b82f6]">{metrics.test_auc_pr.toFixed(3)}</span>
+            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Area under precision-recall curve (higher = better at finding true positives)">AUC-PR</span>
           </div>
-          <div className="text-[9px] text-[var(--color-text-muted)]">
+          <div className="text-xs text-[var(--color-text-muted)]">
             {metrics.n_training_pairs} train / {metrics.n_test_pairs} test pairs
           </div>
         </div>
       )}
       {regressionMetrics && regressionMetrics.n > 0 && (
         <div className="flex items-center gap-4 text-center mt-2 pt-2 border-t border-[var(--color-border)]/30">
-          <div className="text-[9px] text-[var(--color-text-muted)] font-semibold">BiLSTM Ensemble</div>
+          <div className="text-xs text-[var(--color-text-muted)] font-semibold">BiLSTM Ensemble</div>
           <div>
-            <span className="text-sm font-bold text-[#ff9f43]">{regressionMetrics.mae_log10_pc.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Mean absolute error in log10(Pc) prediction">MAE(log Pc)</span>
+            <span className="text-sm font-bold text-[#f59e0b]">{regressionMetrics.mae_log10_pc.toFixed(3)}</span>
+            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Mean absolute error in log10(Pc) prediction">MAE(log Pc)</span>
           </div>
           <div>
-            <span className="text-sm font-bold text-[#00cec9]">{regressionMetrics.correlation_pc.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Pearson correlation between predicted and actual max Pc">Corr</span>
+            <span className="text-sm font-bold text-[#3b82f6]">{regressionMetrics.correlation_pc.toFixed(3)}</span>
+            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Pearson correlation between predicted and actual max Pc">Corr</span>
           </div>
           {regressionMetrics.ece != null && (
             <div>
-              <span className="text-sm font-bold text-[#a29bfe]">{regressionMetrics.ece.toFixed(3)}</span>
-              <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Expected Calibration Error — lower means predicted probabilities match actual outcomes (T={regressionMetrics.temperature?.toFixed(2)})">ECE</span>
+              <span className="text-sm font-bold text-[#3b82f6]">{regressionMetrics.ece.toFixed(3)}</span>
+              <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Expected Calibration Error — lower means predicted probabilities match actual outcomes (T={regressionMetrics.temperature?.toFixed(2)})">ECE</span>
             </div>
           )}
           <div>
-            <span className="text-sm font-bold text-[#fd79a8]">{regressionMetrics.esc_f1.toFixed(3)}</span>
-            <span className="text-[9px] text-[var(--color-text-muted)] ml-1" title="Escalation classification F1 score">Esc F1</span>
+            <span className="text-sm font-bold text-[#ef4444]">{regressionMetrics.esc_f1.toFixed(3)}</span>
+            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Escalation classification F1 score">Esc F1</span>
           </div>
         </div>
       )}
@@ -216,389 +216,142 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
   const level = riskLevel(pair);
   const color = RISK_COLORS[level];
   const isResolved = pair.tca ? pair.tca < new Date().toISOString() : false;
+  const ep = pair.ensemble_probability ?? pair.exceedance_probability ?? 0;
 
-  // Chart data: use hours-to-TCA as X axis (descending = time moves right toward TCA)
   const chartData = useMemo(() => {
     if (!expanded) return [];
-    const sorted = pair.time_series
-      .slice()
-      .sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
-    // Deduplicate by rounded hour value
+    const sorted = pair.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
     const seen = new Set<number>();
-    return sorted.filter(u => {
-      const h = -Math.round(u.time_to_tca_hours);
-      if (seen.has(h)) return false;
-      seen.add(h);
-      return true;
-    }).map(u => ({
-      hoursToTCA: -Math.round(u.time_to_tca_hours),
-      'log10(Pc)': u.log10_pc,
-      pc: u.pc,
-      miss_km: u.miss_distance_km,
-    }));
+    return sorted.filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
+      .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc }));
   }, [pair.time_series, expanded]);
 
+  // Build one-line assessment
+  const assessment = (() => {
+    if (pair.current_pc >= 5e-3) return 'Collision probability is extremely elevated. Maneuver recommended.';
+    if (pair.current_pc >= 5e-4) return 'Pc exceeds the maneuver planning threshold.';
+    if (ep >= 0.5) return 'Models predict likely escalation above threshold.';
+    if (pair.risk_direction === 'de-escalating') return 'Pc is decreasing — conjunction may resolve safely.';
+    return 'Below action threshold. Being monitored.';
+  })();
+
+  const trendColor = pair.risk_direction === 'escalating' ? '#ef4444' : pair.risk_direction === 'de-escalating' ? '#22c55e' : '#7c7c96';
+
   return (
-    <div className="bg-[var(--color-surface-2)] overflow-hidden" style={{ borderRadius: 4 }}>
-      {/* Compact row — always visible */}
+    <div style={{ background: '#111118', borderRadius: 8, border: '1px solid #1e1e2c', overflow: 'hidden' }}>
+      {/* Collapsed row */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-[var(--color-surface)]/30 transition-colors"
+        style={{
+          width: '100%', display: 'grid',
+          gridTemplateColumns: '4px 1fr 90px 90px 80px 80px 64px 24px',
+          gap: 8, alignItems: 'center', padding: '10px 16px',
+          background: 'transparent', border: 'none', cursor: 'pointer',
+          textAlign: 'left', fontFamily: 'inherit', transition: 'background 100ms',
+        }}
+        onMouseEnter={e => { (e.currentTarget).style.background = '#0e0e14'; }}
+        onMouseLeave={e => { (e.currentTarget).style.background = 'transparent'; }}
       >
-        {/* Risk badge */}
-        <div
-          className="w-1.5 h-8 rounded-full shrink-0"
-          style={{ background: color }}
-        />
-
-        {/* Names */}
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-medium truncate" style={{ opacity: isResolved ? 0.6 : 1 }}>
-            {isResolved && <span className="text-[8px] text-[var(--color-text-muted)] mr-1">[RESOLVED]</span>}
-            {shortName(pair.sat1_name)} vs {shortName(pair.sat2_name)}
-          </div>
-          <div className="text-[9px] text-[var(--color-text-muted)] font-mono">
-            {pair.sat1_norad} / {pair.sat2_norad}
+        <div style={{ width: 4, height: 28, borderRadius: 2, background: color }} />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: isResolved ? '#55556a' : '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {isResolved && <span style={{ color: '#55556a', marginRight: 4 }}>PAST</span>}
+            {shortName(pair.sat1_name)} <span style={{ color: '#3a3a4a' }}>vs</span> {shortName(pair.sat2_name)}
           </div>
         </div>
-
-        {/* Key metrics */}
-        <div className="flex items-center gap-3 shrink-0 text-[10px]">
-          <div className="text-right">
-            <div className="text-[var(--color-text-muted)]">Pc</div>
-            <div className="font-mono font-semibold" style={{ color }}>{formatPc(pair.current_pc)}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[var(--color-text-muted)]">Miss</div>
-            <div className="font-mono">{pair.current_miss_km.toFixed(0)} km</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[var(--color-text-muted)]">Updates</div>
-            <div className="font-mono">{pair.n_updates}</div>
-          </div>
-          <span
-            className="px-1.5 py-0.5 rounded text-[9px] font-bold"
-            style={{ background: `${color}15`, color }}
-          >
-            {RISK_LABELS[level]}
-          </span>
-          <span className="text-[var(--color-text-muted)] text-sm">
-            {expanded ? '\u25B2' : '\u25BC'}
-          </span>
+        <div style={{ textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color }}>{formatPc(pair.current_pc)}</div>
+        <div style={{ textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: ep >= 0.5 ? '#ef4444' : '#7c7c96' }}>{formatPct(ep)}</div>
+        <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 500, color: trendColor, textTransform: 'capitalize' }}>
+          {pair.risk_direction === 'de-escalating' ? 'De-esc' : pair.risk_direction === 'unknown' ? '--' : pair.risk_direction}
         </div>
+        <div style={{ textAlign: 'right', fontSize: 13, fontFamily: "'JetBrains Mono', monospace", color: '#7c7c96' }}>
+          {pair.tca ? pair.tca.slice(5, 10) : '--'}
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}12`, padding: '2px 8px', borderRadius: 6 }}>{RISK_LABELS[level]}</span>
+        </div>
+        <span style={{ color: '#3a3a4a', fontSize: 12, textAlign: 'center', transition: 'transform 150ms', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>&#9662;</span>
       </button>
 
-      {/* Expanded detail */}
+      {/* Expanded detail — clean 2-column layout */}
       {expanded && (
-        <div className="px-3 pb-3 space-y-2 border-t border-[var(--color-border)]/50">
-          {/* Metrics row */}
-          <div className="grid grid-cols-4 gap-3 pt-2 text-[10px]">
+        <div style={{ borderTop: '1px solid #1e1e2c', padding: '16px 20px', animation: 'fadeIn 150ms ease-out' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: chartData.length >= 2 ? '1fr 1fr' : '1fr', gap: 24 }}>
+            {/* Left: Assessment + metrics */}
             <div>
-              <div className="text-[var(--color-text-muted)]">Forecast Pc</div>
-              <div className="font-mono font-semibold" style={{ color: pair.forecast_pc >= 5e-4 ? '#ff4f5a' : '#4fff8a' }}>
-                {formatPc(pair.forecast_pc)}
+              {/* One-line assessment */}
+              <div style={{ padding: '10px 14px', borderLeft: `3px solid ${color}`, background: `${color}06`, borderRadius: '0 6px 6px 0', marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: '#e8e8f0', lineHeight: 1.5 }}>{assessment}</p>
+                {pair.n_updates <= 2 && (
+                  <p style={{ fontSize: 12, color: '#55556a', marginTop: 4 }}>Only {pair.n_updates} CDM update{pair.n_updates > 1 ? 's' : ''} — confidence will improve with more data.</p>
+                )}
               </div>
-            </div>
-            <div>
-              <div className="text-[var(--color-text-muted)]" title="Ensemble: 40% LR + 30% BiLSTM + 30% regression signal">
-                {pair.ensemble_probability != null ? 'Ensemble P(Exceed)' : 'P(Exceed 5e-4)'}
+
+              {/* Key metrics grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
+                <MetricRow label="Current Pc" value={formatPc(pair.current_pc)} color={color} />
+                <MetricRow label="Forecast Pc" value={formatPc(pair.forecast_pc)} color={pair.forecast_pc >= 5e-4 ? '#ef4444' : '#22c55e'} />
+                <MetricRow label="P(Exceed 5e-4)" value={formatPct(ep)} color={ep >= 0.5 ? '#ef4444' : '#22c55e'} />
+                <MetricRow label="Miss Distance" value={`${pair.current_miss_km.toFixed(0)} km`} />
+                <MetricRow label="CDM Updates" value={String(pair.n_updates)} />
+                <MetricRow label="TCA" value={pair.tca ? pair.tca.slice(0, 16).replace('T', ' ') : '--'} />
+                {pair.predicted_max_log10_pc != null && (
+                  <MetricRow label="BiLSTM Max Pc" value={`10^${pair.predicted_max_log10_pc.toFixed(1)}`} color={pair.predicted_max_log10_pc > -3.3 ? '#ef4444' : '#22c55e'} />
+                )}
+                {pair.lstm_escalation_prob != null && (
+                  <MetricRow label="LSTM P(Escalation)" value={formatPct(pair.lstm_escalation_prob)} color={(pair.lstm_escalation_prob) >= 0.5 ? '#ef4444' : '#22c55e'} />
+                )}
               </div>
-              <div className="font-mono font-semibold" style={{ color: ((pair.ensemble_probability ?? pair.exceedance_probability ?? 0)) >= 0.5 ? '#ff4f5a' : '#4fff8a' }}>
-                {formatPct(pair.ensemble_probability ?? pair.exceedance_probability ?? 0)}
-              </div>
-              {/* Uncertainty bar */}
-              {pair.exceedance_lower != null && pair.exceedance_upper != null && (
-                <div className="mt-0.5 h-1.5 rounded-full bg-[var(--color-surface)] relative" title={`Uncertainty: ${formatPct(pair.exceedance_lower)} — ${formatPct(pair.exceedance_upper)}`}>
-                  <div
-                    className="absolute h-full rounded-full"
-                    style={{
-                      left: `${pair.exceedance_lower * 100}%`,
-                      width: `${Math.max(2, (pair.exceedance_upper - pair.exceedance_lower) * 100)}%`,
-                      background: 'rgba(139, 92, 246, 0.5)',
-                    }}
-                  />
-                  <div
-                    className="absolute h-full w-0.5 rounded-full bg-white"
-                    style={{ left: `${(pair.ensemble_probability ?? 0) * 100}%` }}
-                  />
+
+              {/* AI summary if available */}
+              {pair.ai_summary && (
+                <div style={{ marginTop: 12, padding: '10px 14px', background: '#0c0c12', borderRadius: 6, border: '1px solid #1e1e2c' }}>
+                  <div style={{ fontSize: 12, color: '#55556a', fontWeight: 600, marginBottom: 4 }}>AI Summary</div>
+                  <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.5 }}>{pair.ai_summary}</p>
                 </div>
               )}
             </div>
-            <div>
-              <div className="text-[var(--color-text-muted)]">Trend</div>
-              <div className="font-semibold capitalize" style={{ color: pair.risk_direction === 'escalating' ? '#ff4f5a' : pair.risk_direction === 'de-escalating' ? '#4fff8a' : '#ffb84f' }}>
-                {pair.risk_direction === 'de-escalating' ? 'De-escalating' : pair.risk_direction}
+
+            {/* Right: Chart */}
+            {chartData.length >= 2 && (
+              <div>
+                <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>Pc Evolution (log scale)</div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -10, bottom: 4 }}>
+                    <defs>
+                      <linearGradient id={`pcG-${pair.sat1_norad}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={color} stopOpacity={0.2} />
+                        <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
+                    <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]} tick={{ fontSize: 12, fill: '#55556a' }} tickFormatter={(v: number) => `${v}h`} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: '#55556a' }} domain={['auto', 'auto']} tickFormatter={(v: number) => v.toFixed(1)} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 12 }} labelFormatter={(v) => `TCA ${v}h`} formatter={(v: unknown) => [`${Number(v).toFixed(2)}`, 'log\u2081\u2080(Pc)']} />
+                    <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.5} />
+                    {pair.predicted_max_log10_pc != null && (
+                      <ReferenceLine y={pair.predicted_max_log10_pc} stroke="#f59e0b" strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Pred Max', position: 'right', fill: '#f59e0b', fontSize: 12 }} />
+                    )}
+                    <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div style={{ fontSize: 12, color: '#3a3a4a', textAlign: 'center', marginTop: 4 }}>
+                  Red line = maneuver threshold (5e-4)
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-[var(--color-text-muted)]">TCA</div>
-              <div className="font-mono">
-                {pair.tca ? pair.tca.slice(5, 16).replace('T', ' ') : '—'}
-              </div>
-            </div>
+            )}
           </div>
-
-          {/* AI Risk Assessment Summary */}
-          {(() => {
-            const ep = pair.ensemble_probability ?? pair.exceedance_probability ?? 0;
-            const lines: string[] = [];
-
-            // Headline risk
-            if (pair.current_pc >= 5e-3) lines.push('CRITICAL: Collision probability is extremely elevated.');
-            else if (pair.current_pc >= 5e-4) lines.push('HIGH RISK: Pc already exceeds the maneuver planning threshold.');
-            else if (ep >= 0.5) lines.push('ELEVATED: Models predict likely threshold exceedance.');
-            else lines.push('Being monitored. Risk currently below action threshold.');
-
-            // Trend
-            if (pair.risk_direction === 'escalating') {
-              const pctStr = pair.pc_trend > 0 ? ` (+${(pair.pc_trend * 100).toFixed(0)}%/update)` : '';
-              lines.push(`Pc is escalating across ${pair.n_updates} CDM updates${pctStr}.`);
-            } else if (pair.risk_direction === 'de-escalating') {
-              lines.push('Pc trend is decreasing \u2014 conjunction may be resolving safely.');
-            }
-
-            // Deep learning insight
-            if (pair.predicted_max_log10_pc != null) {
-              const above = pair.predicted_max_log10_pc > -3.3;
-              lines.push(`BiLSTM predicts max Pc of 10^${pair.predicted_max_log10_pc.toFixed(1)} \u2014 ${above ? 'ABOVE' : 'below'} the 5e-4 threshold.`);
-            }
-            if (pair.lstm_escalation_prob != null && pair.lstm_escalation_prob > 0.4) {
-              lines.push(`Deep learning escalation confidence: ${(pair.lstm_escalation_prob * 100).toFixed(0)}%.`);
-            }
-
-            // Attention insight
-            if (pair.attention_weights && pair.attention_weights.length >= 2) {
-              const maxI = pair.attention_weights.indexOf(Math.max(...pair.attention_weights));
-              if (maxI === pair.attention_weights.length - 1) {
-                lines.push('Model attention focuses on the latest CDM \u2014 recent orbital data is most informative.');
-              } else if (pair.attention_weights[maxI] > 0.4) {
-                lines.push(`CDM #${maxI + 1} receives ${(pair.attention_weights[maxI] * 100).toFixed(0)}% attention \u2014 a significant state change occurred there.`);
-              }
-            }
-
-            // Data quality
-            if (pair.n_updates <= 2) {
-              lines.push(`Only ${pair.n_updates} CDM update${pair.n_updates > 1 ? 's' : ''} available \u2014 confidence will improve with more data.`);
-            }
-
-            // Recommendation
-            if (ep >= 0.5 || pair.current_pc >= 5e-4) {
-              lines.push('Recommend: active monitoring at 6-hour intervals.');
-            }
-
-            return (
-              <div
-                className="mt-2 pl-2 py-1.5 rounded-r"
-                style={{ borderLeft: `3px solid ${color}`, fontSize: '10px', background: `${color}08` }}
-              >
-                <div className="font-semibold text-[var(--color-text)] mb-1 flex items-center gap-1.5">
-                  <span style={{ fontSize: 12 }}>{'\u{1F916}'}</span> AI Risk Assessment
-                </div>
-                {lines.map((line, i) => (
-                  <div key={i} className="text-[var(--color-text-muted)] leading-relaxed">{line}</div>
-                ))}
-              </div>
-            );
-          })()}
-
-          {/* Regression predictions from CDMSequenceModel */}
-          {pair.predicted_max_pc != null && (
-            <div className="grid grid-cols-4 gap-3 text-[10px] pt-1 border-t border-[var(--color-border)]/30">
-              <div>
-                <div className="text-[var(--color-text-muted)]">Pred Max Pc</div>
-                <div className="font-mono font-semibold text-[#ff9f43]">
-                  {formatPc(pair.predicted_max_pc)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[var(--color-text-muted)]">Pred Min Miss</div>
-                <div className="font-mono font-semibold text-[#00cec9]">
-                  {pair.predicted_min_miss_km != null ? `${pair.predicted_min_miss_km.toFixed(1)} km` : '--'}
-                </div>
-              </div>
-              <div>
-                <div className="text-[var(--color-text-muted)]">LSTM P(Esc)</div>
-                <div className="font-mono font-semibold" style={{ color: (pair.lstm_escalation_prob ?? 0) >= 0.5 ? '#ff4f5a' : '#4fff8a' }}>
-                  {pair.lstm_escalation_prob != null ? formatPct(pair.lstm_escalation_prob) : '--'}
-                </div>
-              </div>
-              <div>
-                <div className="text-[var(--color-text-muted)]">log10(Max Pc)</div>
-                <div className="font-mono text-[#ff9f43]">
-                  {pair.predicted_max_log10_pc != null ? pair.predicted_max_log10_pc.toFixed(2) : '--'}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Attention weights — small bar visualization */}
-          {pair.attention_weights && pair.attention_weights.length > 0 && (
-            <div className="pt-1">
-              <div className="text-[9px] text-[var(--color-text-muted)] mb-1">Attention (CDM importance)</div>
-              <div className="flex items-end gap-px h-6">
-                {pair.attention_weights.map((w, i) => {
-                  const maxW = Math.max(...(pair.attention_weights ?? [1]));
-                  const pct = maxW > 0 ? (w / maxW) * 100 : 0;
-                  return (
-                    <div
-                      key={i}
-                      className="flex-1 rounded-t"
-                      style={{
-                        height: `${Math.max(pct, 4)}%`,
-                        background: `rgba(139, 92, 246, ${0.3 + 0.7 * (w / maxW)})`,
-                        minWidth: 2,
-                        maxWidth: 12,
-                      }}
-                      title={`CDM ${i + 1}: ${(w * 100).toFixed(1)}%`}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Pc evolution chart — X axis is hours to TCA */}
-          {chartData.length >= 2 && (
-            <div className="h-36 mt-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -10, bottom: 4 }}>
-                  <defs>
-                    <linearGradient id={`pcG-${pair.sat1_norad}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-                      <stop offset="100%" stopColor={color} stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis
-                    dataKey="hoursToTCA"
-                    type="number"
-                    domain={['dataMin', 0]}
-                    tick={{ fontSize: 9, fill: '#888' }}
-                    tickFormatter={(v: number) => `${v}h`}
-                    label={{ value: 'TCA \u2192', position: 'insideBottomRight', offset: -2, fill: '#666', fontSize: 9 }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 9, fill: '#888' }}
-                    domain={['auto', 'auto']}
-                    tickFormatter={(v: number) => v.toFixed(1)}
-                  />
-                  <Tooltip
-                    contentStyle={{ background: '#1a1a2e', border: '1px solid #444', borderRadius: 8, fontSize: 11, padding: '6px 10px' }}
-                    labelFormatter={(v) => `T${v}h`}
-                    formatter={(v: unknown, name?: string) => {
-                      if (name === 'log10(Pc)') return [`${Number(v).toFixed(2)}`, 'log\u2081\u2080(Pc)'];
-                      return [`${v}`, name ?? ''];
-                    }}
-                  />
-                  <ReferenceLine
-                    y={-3.3}
-                    stroke="#ff4f5a"
-                    strokeDasharray="4 3"
-                    strokeWidth={1.5}
-                  />
-                  {pair.predicted_max_log10_pc != null && (
-                    <ReferenceLine
-                      y={pair.predicted_max_log10_pc}
-                      stroke="#ff9f43"
-                      strokeDasharray="2 3"
-                      strokeWidth={1.5}
-                      label={{ value: 'Pred Max', position: 'right', fill: '#ff9f43', fontSize: 8 }}
-                    />
-                  )}
-                  <Area
-                    type="monotone"
-                    dataKey="log10(Pc)"
-                    stroke={color}
-                    strokeWidth={2}
-                    fill={`url(#pcG-${pair.sat1_norad})`}
-                    dot={{ r: 3, fill: color, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: color }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-              <div className="text-[9px] text-[var(--color-text-muted)] text-center -mt-1">
-                Red dashed line = maneuver planning threshold (Pc = 5e-4)
-              </div>
-            </div>
-          )}
-
-          {/* Autoregressive forecast — next CDM predictions */}
-          {pair.forecast_steps && pair.forecast_steps.length > 0 && (
-            <div className="pt-1.5">
-              <div className="text-[9px] font-semibold text-[var(--color-text-muted)] mb-1">
-                Predicted Next CDM Updates (Autoregressive)
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {pair.forecast_steps.map(fc => (
-                  <div key={fc.step} className="rounded-lg bg-[var(--color-surface)] p-1.5 text-center text-[9px]">
-                    <div className="text-[var(--color-text-muted)] mb-0.5">+{fc.hours_ahead}h</div>
-                    <div className="font-mono font-semibold" style={{
-                      color: fc.predicted_pc >= 5e-4 ? '#ff4f5a' : '#4fff8a'
-                    }}>
-                      {fc.predicted_pc >= 0.01 ? `${(fc.predicted_pc*100).toFixed(1)}%` : fc.predicted_pc.toExponential(1)}
-                    </div>
-                    <div className="text-[8px] text-[var(--color-text-muted)]">
-                      {'\u00b1'}{fc.uncertainty_log10_pc.toFixed(2)} log
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* AI-generated summary from pipeline */}
-          {pair.ai_summary && (
-            <div className="mt-1.5 rounded-lg bg-[var(--color-surface)]/50 p-2 text-[9px] text-[var(--color-text-muted)] leading-relaxed border border-[var(--color-border)]/30">
-              <span className="font-semibold text-[var(--color-text)]">{'\u{1F4DD}'} Event Summary: </span>
-              {pair.ai_summary}
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 }
 
-function TrackRecordSection({ record }: { record: TrackRecord }) {
-  const accuracy = record.total > 0 ? ((record.correct / record.total) * 100).toFixed(0) : '0';
+function MetricRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="px-4 py-2 border-b border-[var(--color-border)]">
-      <div className="text-[11px] text-[var(--color-text-muted)] mb-1.5">
-        Past predictions: {record.correct}/{record.total} correct ({accuracy}% accuracy)
-      </div>
-      <div className="grid grid-cols-4 gap-1 text-center text-[10px] mb-1.5">
-        <div className="rounded p-1" style={{ background: 'rgba(79, 255, 138, 0.12)' }}>
-          <div className="font-bold text-[#4fff8a]">{record.tp}</div>
-          <div className="text-[var(--color-text-muted)]">TP</div>
-        </div>
-        <div className="rounded p-1" style={{ background: 'rgba(255, 79, 90, 0.12)' }}>
-          <div className="font-bold text-[#ff4f5a]">{record.fp}</div>
-          <div className="text-[var(--color-text-muted)]">FP</div>
-        </div>
-        <div className="rounded p-1" style={{ background: 'rgba(255, 79, 90, 0.12)' }}>
-          <div className="font-bold text-[#ff4f5a]">{record.fn}</div>
-          <div className="text-[var(--color-text-muted)]">FN</div>
-        </div>
-        <div className="rounded p-1" style={{ background: 'rgba(79, 255, 138, 0.12)' }}>
-          <div className="font-bold text-[#4fff8a]">{record.tn}</div>
-          <div className="text-[var(--color-text-muted)]">TN</div>
-        </div>
-      </div>
-      {record.examples && record.examples.length > 0 && (
-        <div className="space-y-1">
-          {record.examples.slice(0, 3).map((ex, i) => (
-            <div key={i} className="text-[9px] text-[var(--color-text-muted)] rounded bg-[var(--color-surface-2)] px-2 py-1 flex items-center justify-between gap-1">
-              <span className="truncate">{ex.sat1_name} vs {ex.sat2_name}</span>
-              <span className="shrink-0">
-                Predicted: {ex.predicted} | Actual: {ex.actual} |{' '}
-                <span style={{ color: ex.correct ? '#4fff8a' : '#ff4f5a', fontWeight: 600 }}>
-                  {ex.correct ? 'CORRECT' : 'WRONG'}
-                </span>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+      <span style={{ fontSize: 13, color: '#55556a' }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: color ?? '#e8e8f0' }}>{value}</span>
     </div>
   );
 }
@@ -643,52 +396,102 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
   }, [activePairs, filter]);
 
   return (
-    <Overlay
+    <FullPagePanel
       visible={visible}
       onClose={onClose}
-      title="Pc Escalation Forecast"
-      subtitle={data ? `${data.n_pairs} pairs${data.generated_at ? ` \u00b7 ${data.generated_at.slice(0, 16).replace('T', ' ')} UTC` : ''}` : undefined}
-      maxWidth="800px"
+      title="Forecast"
+      subtitle={data ? `${data.n_pairs} conjunction pairs \u00b7 ${data.generated_at ? data.generated_at.slice(0, 16).replace('T', ' ') + ' UTC' : ''}` : undefined}
+      maxWidth={1000}
     >
       {!data ? (
-        <div className="p-8 text-sm text-[var(--color-text-muted)] text-center">
+        <div style={{ padding: 48, textAlign: 'center', fontSize: 14, color: '#7c7c96' }}>
           CDM forecast data not available. Run the daily pipeline to generate predictions.
         </div>
       ) : (
-        <div>
-          {/* Model metrics */}
+        <>
+          {/* ── Value proposition ───────────────────────────── */}
+          <div style={{ padding: '24px 0 20px', borderBottom: '1px solid #1e1e2c' }}>
+            <div style={{ fontSize: 13, color: '#55556a', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 8 }}>
+              What This Shows
+            </div>
+            <p style={{ fontSize: 15, color: '#e8e8f0', lineHeight: 1.5, maxWidth: 700, marginBottom: 16 }}>
+              The ensemble model monitors {data.n_pairs} active conjunction pairs daily. For each pair, it
+              predicts whether collision probability will escalate above the maneuver planning threshold,
+              giving operators early warning to plan avoidance.
+            </p>
+            {data.track_record && data.track_record.total > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+                <TrackStatCard
+                  value={`${data.track_record.correct}/${data.track_record.total}`}
+                  label="Correct Predictions"
+                  detail={`${((data.track_record.correct / data.track_record.total) * 100).toFixed(0)}% accuracy`}
+                />
+                <TrackStatCard value={String(data.track_record.tp)} label="True Positives" detail="Correctly flagged escalations" color="#22c55e" />
+                <TrackStatCard value={String(data.track_record.fn)} label="Missed Events" detail="False negatives" color={data.track_record.fn > 5 ? '#ef4444' : '#f59e0b'} />
+                <TrackStatCard value={String(data.track_record.fp)} label="False Alarms" detail="Acceptable cost of safety" />
+              </div>
+            )}
+          </div>
+
+          {/* ── Model metrics (compact) ────────────────────── */}
           {data.model_metrics && (
-            <ModelMetricsBanner metrics={data.model_metrics} task={data.prediction_task} regressionMetrics={data.regression_metrics} />
-          )}
-          {data.track_record && <TrackRecordSection record={data.track_record} />}
-          {data.conformal && (
-            <div className="px-6 py-3 border-b border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">
-              <span className="font-medium text-[var(--color-text)]">Conformal Guarantee:</span>{' '}
-              {(data.conformal.regression_coverage * 100).toFixed(0)}% coverage
-              (target: {((1 - data.conformal.alpha) * 100).toFixed(0)}%, n={data.conformal.n_calibration})
+            <div style={{ padding: '16px 0', borderBottom: '1px solid #1e1e2c', display: 'flex', gap: 24, alignItems: 'center', fontSize: 13 }}>
+              <span style={{ color: '#55556a', fontWeight: 600 }}>Model:</span>
+              <span style={{ color: '#7c7c96' }}>Accuracy <strong style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>{(data.model_metrics.test_accuracy * 100).toFixed(0)}%</strong></span>
+              <span style={{ color: '#7c7c96' }}>F1 <strong style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>{data.model_metrics.test_f1.toFixed(3)}</strong></span>
+              <span style={{ color: '#7c7c96' }}>AUC-PR <strong style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>{data.model_metrics.test_auc_pr.toFixed(3)}</strong></span>
+              {data.conformal && (
+                <span style={{ color: '#7c7c96' }}>Conformal <strong style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>{(data.conformal.regression_coverage * 100).toFixed(0)}%</strong> coverage</span>
+              )}
+              <span style={{ color: '#55556a', marginLeft: 'auto' }}>{data.model_metrics.n_training_pairs} train / {data.model_metrics.n_test_pairs} test</span>
             </div>
           )}
-          {/* Filters */}
-          <div className="flex items-center gap-2 px-6 py-3 border-b border-[var(--color-border-subtle)]">
+
+          {/* ── Filters ────────────────────────────────────── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid #1e1e2c' }}>
             {(['all', 'critical', 'high', 'moderate'] as const).map(f => {
               const count = f === 'all' ? activePairs.length : counts[f];
               const isActive = filter === f;
               return (
                 <button key={f} onClick={() => { setFilter(f); setExpandedIdx(null); }}
-                  className={`px-3 py-1.5 text-xs font-medium border transition-colors
-                    ${isActive
-                      ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
-                      : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-                  style={{ borderRadius: 6 }}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: 13,
+                    fontWeight: isActive ? 600 : 500,
+                    fontFamily: 'inherit',
+                    color: isActive ? '#e8e8f0' : '#55556a',
+                    background: isActive ? 'rgba(59,130,246,0.08)' : 'transparent',
+                    border: isActive ? '1px solid rgba(59,130,246,0.2)' : '1px solid #2a2a3a',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    transition: 'all 150ms',
+                  }}
                 >
-                  {f === 'all' ? 'All' : f === 'critical' ? 'Critical' : f === 'high' ? 'High' : 'Monitor'}
-                  {' '}({count})
+                  {f === 'all' ? 'All' : f === 'critical' ? 'Critical' : f === 'high' ? 'High' : 'Monitor'} ({count})
                 </button>
               );
             })}
           </div>
-          {/* Pair list */}
-          <div className="p-4 space-y-2">
+
+          {/* ── Column headers ─────────────────────────────── */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '4px 1fr 90px 90px 80px 80px 64px 24px',
+            gap: 8, padding: '12px 16px', fontSize: 12, fontWeight: 600,
+            color: '#3a3a4a', textTransform: 'uppercase', letterSpacing: '0.04em',
+          }}>
+            <span />
+            <span>Conjunction Pair</span>
+            <span style={{ textAlign: 'right' }}>Pc</span>
+            <span style={{ textAlign: 'right' }}>P(Exceed)</span>
+            <span style={{ textAlign: 'right' }}>Trend</span>
+            <span style={{ textAlign: 'right' }}>TCA</span>
+            <span style={{ textAlign: 'center' }}>Risk</span>
+            <span />
+          </div>
+
+          {/* ── Pair list ──────────────────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {filtered.map(pair => {
               const key = `${pair.sat1_norad}-${pair.sat2_norad}`;
               return (
@@ -697,9 +500,20 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
               );
             })}
           </div>
-        </div>
+        </>
       )}
-    </Overlay>
+    </FullPagePanel>
   );
+}
 
+function TrackStatCard({ value, label, detail, color }: { value: string; label: string; detail: string; color?: string }) {
+  return (
+    <div style={{ padding: '14px 16px', background: '#111118', borderRadius: 8, border: '1px solid #1e1e2c' }}>
+      <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: color ?? '#e8e8f0', lineHeight: 1.2 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#7c7c96', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 12, color: '#55556a', marginTop: 2 }}>{detail}</div>
+    </div>
+  );
 }

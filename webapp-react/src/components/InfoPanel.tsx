@@ -12,7 +12,7 @@ export function InfoPanel({ satellite, onClose }: InfoPanelProps) {
   const color = TYPE_COLORS[satellite.type];
 
   return (
-    <div className="absolute right-4 top-20 w-80 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md p-4 shadow-2xl z-20">
+    <div className="absolute right-4 top-20 w-80 border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md p-4 shadow-2xl z-20" style={{ borderRadius: 8 }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
@@ -48,7 +48,7 @@ export function InfoPanel({ satellite, onClose }: InfoPanelProps) {
       </div>
 
       <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
-        <div className="text-[10px] text-[var(--color-text-muted)] text-center">
+        <div className="text-xs text-[var(--color-text-muted)] text-center">
           Position computed via SGP4 propagation from CelesTrak TLEs
         </div>
       </div>
