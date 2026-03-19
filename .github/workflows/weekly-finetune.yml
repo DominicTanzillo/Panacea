@@ -87,10 +87,20 @@ jobs:
         run: |
           python scripts/weekly_finetune.py --max-epochs 5
 
-      - name: Commit fine-tune logs
+      - name: Run hyperparameter grid search & analysis
+        run: |
+          python scripts/tune_and_analyze.py || echo "Tuning analysis failed (non-critical)"
+
+      - name: Train supplementary models
+        run: |
+          python scripts/train_supplementary.py || echo "Supplementary training failed (non-critical)"
+
+      - name: Commit fine-tune logs and analysis
         run: |
           git config user.name "Panacea Bot"
           git config user.email "panacea-bot@users.noreply.github.com"
           git add -f data/prediction_logs/finetune_log.jsonl 2>/dev/null || true
-          git diff --staged --quiet || git commit -m ":brain: Weekly fine-tune results $(date -u +%Y-%m-%d)"
+          git add -f webapp-react/public/tuning_results.json 2>/dev/null || true
+          git add -f webapp-react/public/supplementary_models.json 2>/dev/null || true
+          git diff --staged --quiet || git commit -m ":brain: Weekly fine-tune + analysis $(date -u +%Y-%m-%d)"
           git push || echo "Push failed (non-critical)"

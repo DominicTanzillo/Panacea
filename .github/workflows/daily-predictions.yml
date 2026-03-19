@@ -95,6 +95,10 @@ jobs:
           PYEOF
           fi
 
+      - name: Train supplementary models (GNN, Autoregressive, Conformal)
+        run: |
+          python scripts/train_supplementary.py || echo "Supplementary model training failed (non-critical)"
+
       - name: Generate paper figures
         run: |
           pip install matplotlib seaborn 2>/dev/null || true
@@ -112,6 +116,8 @@ jobs:
           git add -f webapp-react/public/latest_tles.json 2>/dev/null || true
           git add -f webapp-react/public/pipeline_stats.json 2>/dev/null || true
           git add -f webapp-react/public/cdm_forecast.json 2>/dev/null || true
+          git add -f webapp-react/public/supplementary_models.json 2>/dev/null || true
+          git add -f webapp-react/public/tuning_results.json 2>/dev/null || true
           git add -f models/cdm_lstm.pt 2>/dev/null || true
           git add -f models/cdm_sequence_model.pt 2>/dev/null || true
           git add -f models/cdm_forecast.json 2>/dev/null || true
