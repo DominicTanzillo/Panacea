@@ -44,13 +44,13 @@ const TOOLTIP_STYLE = {
 
 export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
   const [cv, setCv] = useState<CVResults | null>(null);
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const [supp, setSupp] = useState<any>(null);
 
   useEffect(() => {
     if (!visible) return;
-    fetch('./cv_results.json')
-      .then(r => r.ok ? r.json() : null)
-      .then(setCv)
-      .catch(() => setCv(null));
+    fetch('./cv_results.json').then(r => r.ok ? r.json() : null).then(setCv).catch(() => setCv(null));
+    fetch('./supplementary_models.json').then(r => r.ok ? r.json() : null).then(setSupp).catch(() => setSupp(null));
   }, [visible]);
 
   return (
@@ -99,7 +99,7 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
           <EnsembleSection cv={cv} />
 
           {/* ── Section 5: Supplementary Models ──────────────── */}
-          <SupplementaryModels />
+          <SupplementaryModels supp={supp} />
 
     </FullPagePanel>
   );
@@ -381,30 +381,34 @@ function CMCell({ value, label, pct, good, critical }: {
 /* ══════════════════════════════════════════════════════════════
    Section 5: Supplementary models
    ══════════════════════════════════════════════════════════════ */
-function SupplementaryModels() {
+function SupplementaryModels({ supp }: { supp: any }) {
   const [expanded, setExpanded] = useState<string | null>(null);
+
+  const gnnMetric = supp?.gnn ? `F1 = ${supp.gnn.with_graph_features.f1.toFixed(3)}` : 'F1 = --';
+  const arMetric = supp?.autoregressive ? `r = ${supp.autoregressive.metrics.correlation_pc.toFixed(3)}` : 'r = --';
+  const confMetric = supp?.conformal?.classification_conformal?.[1] ? `${(supp.conformal.classification_conformal[1].empirical_coverage * 100).toFixed(1)}% coverage` : '-- coverage';
 
   const models = [
     {
       id: 'gnn',
       name: 'Graph Neural Network',
-      metric: 'F1 = 0.783',
-      desc: 'GraphSAGE on conjunction network — satellites as nodes, conjunctions as edges. Captures orbital neighborhood risk that per-pair models miss.',
-      detail: <GNNDetail />,
+      metric: gnnMetric,
+      desc: supp?.gnn ? `${supp.gnn.n_nodes.toLocaleString()} satellite nodes, ${supp.gnn.n_edges.toLocaleString()} conjunction edges. 1-hop message passing with risk aggregation from orbital neighborhood.` : 'GraphSAGE on conjunction network — satellites as nodes, conjunctions as edges.',
+      detail: <GNNDetail data={supp?.gnn} />,
     },
     {
       id: 'ar',
       name: 'Autoregressive Forecaster',
-      metric: 'r = 0.931',
-      desc: 'BiLSTM predicts next CDM update (Pc, miss distance, time-to-TCA). Multi-step rollouts with MC dropout uncertainty.',
-      detail: <AutoregressiveDetail />,
+      metric: arMetric,
+      desc: supp?.autoregressive ? `Trained on ${supp.autoregressive.n_training_samples.toLocaleString()} CDM transitions. Predicts next CDM update (Pc, miss distance). MAE = ${supp.autoregressive.metrics.mae_log10_pc.toFixed(3)} log\u2081\u2080(Pc).` : 'Predicts next CDM update. Multi-step rollouts with uncertainty.',
+      detail: <AutoregressiveDetail data={supp?.autoregressive} />,
     },
     {
       id: 'conformal',
       name: 'Conformal Prediction',
-      metric: '90.8% coverage',
-      desc: 'Split-conformal prediction with distribution-free coverage guarantees. Addresses NASA CARA\'s requirement for calibrated uncertainty.',
-      detail: <ConformalDetail />,
+      metric: confMetric,
+      desc: supp?.conformal ? `Split-conformal on ${supp.conformal.n_train + supp.conformal.n_calibration + supp.conformal.n_test} pairs (${supp.conformal.n_calibration} calibration). Distribution-free coverage guarantees.` : 'Split-conformal prediction with coverage guarantees.',
+      detail: <ConformalDetail data={supp?.conformal} />,
     },
     {
       id: 'summarizer',
@@ -468,123 +472,189 @@ function SupplementaryModels() {
 }
 
 /* ── GNN Detail ───────────────────────────────────────────── */
-function GNNDetail() {
-  const nodes = [
-    { x: 200, y: 50, label: 'COSMOS 2251', type: 'debris' },
-    { x: 80, y: 130, label: 'STARLINK-1234', type: 'payload' },
-    { x: 320, y: 130, label: 'FENGYUN 1C', type: 'debris' },
-    { x: 140, y: 220, label: 'CZ-6A R/B', type: 'rb' },
-    { x: 260, y: 220, label: 'STARLINK-5678', type: 'payload' },
-    { x: 200, y: 300, label: 'IRIDIUM 33', type: 'debris' },
-  ];
-  const edges = [
-    { from: 0, to: 1, risk: 0.82 }, { from: 0, to: 2, risk: 0.91 },
-    { from: 1, to: 3, risk: 0.35 }, { from: 2, to: 4, risk: 0.67 },
-    { from: 3, to: 5, risk: 0.44 }, { from: 4, to: 5, risk: 0.78 },
-  ];
-  const typeColor: Record<string, string> = { payload: '#22c55e', debris: '#ef4444', rb: '#f59e0b' };
+function GNNDetail({ data }: { data: any }) {
+  const degreeData = useMemo(() => {
+    if (!data?.degree_distribution) return [];
+    return Object.entries(data.degree_distribution)
+      .map(([d, count]) => ({ degree: d, count: count as number }))
+      .sort((a, b) => parseInt(a.degree) - parseInt(b.degree));
+  }, [data]);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
       <div>
-        <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 12 }}>
-          1,212 satellite nodes with conjunction pairs as edges. GraphSAGE message-passing
-          aggregates risk from orbital neighborhood — a satellite with many simultaneous
-          high-risk conjunctions gets elevated signal that per-pair models cannot capture.
+        <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 16 }}>
+          {data ? `${data.n_nodes.toLocaleString()} satellite nodes with ${data.n_edges.toLocaleString()} conjunction edges (${data.n_positive_edges} high-risk).` : 'Loading...'}{' '}
+          1-hop message passing aggregates risk from orbital neighborhood — a satellite
+          with many simultaneous high-risk conjunctions gets elevated signal.
         </p>
-        <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
-          <Stat label="Nodes" value="1,212" />
-          <Stat label="Edges" value="3,847" />
-          <Stat label="F1" value="0.783" />
+        <div style={{ display: 'flex', gap: 20, fontSize: 13, marginBottom: 16 }}>
+          <Stat label="Nodes" value={data ? data.n_nodes.toLocaleString() : '--'} />
+          <Stat label="Edges" value={data ? data.n_edges.toLocaleString() : '--'} />
+          <Stat label="Avg Degree" value={data ? data.avg_degree.toFixed(1) : '--'} />
+          <Stat label="Max Degree" value={data ? String(data.max_degree) : '--'} />
         </div>
+        {data && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
+              <div style={{ fontSize: 12, color: '#55556a', marginBottom: 4 }}>With Graph Features</div>
+              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>F1 = {data.with_graph_features.f1.toFixed(3)}</div>
+              <div style={{ fontSize: 12, color: '#55556a' }}>Recall: {(data.with_graph_features.recall * 100).toFixed(1)}%</div>
+            </div>
+            <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
+              <div style={{ fontSize: 12, color: '#55556a', marginBottom: 4 }}>Without Graph Features</div>
+              <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#7c7c96' }}>F1 = {data.without_graph_features.f1.toFixed(3)}</div>
+              <div style={{ fontSize: 12, color: '#55556a' }}>Recall: {(data.without_graph_features.recall * 100).toFixed(1)}%</div>
+            </div>
+          </div>
+        )}
+        {data && data.graph_improvement.f1_delta === 0 && (
+          <p style={{ fontSize: 12, color: '#55556a', marginTop: 8, fontStyle: 'italic' }}>
+            Sparse graph (avg degree {data.avg_degree}) limits message-passing benefit. With denser conjunction networks (mega-constellations), graph features would provide more signal.
+          </p>
+        )}
       </div>
-      <svg viewBox="0 0 400 340" style={{ width: '100%' }}>
-        {edges.map((e, i) => {
-          const a = nodes[e.from], b = nodes[e.to];
-          return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={e.risk > 0.7 ? '#ef4444' : e.risk > 0.4 ? '#f59e0b' : '#2a2a3a'} strokeWidth={e.risk > 0.7 ? 2 : 1.5} strokeOpacity={0.5} />;
-        })}
-        {nodes.map((n, i) => (
-          <g key={i}>
-            <circle cx={n.x} cy={n.y} r={16} fill={typeColor[n.type] + '15'} stroke={typeColor[n.type]} strokeWidth={1.2} />
-            <text x={n.x} y={n.y + 4} textAnchor="middle" fill="#7c7c96" fontSize={8} fontWeight="500">{n.label.split(' ')[0]}</text>
-          </g>
-        ))}
-      </svg>
+      {degreeData.length > 0 && (
+        <div>
+          <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>Degree Distribution</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={degreeData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
+              <XAxis dataKey="degree" tick={{ fill: '#55556a', fontSize: 12 }} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
+              <YAxis tick={{ fill: '#55556a', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={v => `Degree ${v}`} />
+              <Bar dataKey="count" fill="#3b82f6" radius={[2, 2, 0, 0]} opacity={0.6} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── Autoregressive Detail ────────────────────────────────── */
-function AutoregressiveDetail() {
-  const data = [
-    { cdm: 1, actual: -3.8, predicted: -3.9 }, { cdm: 2, actual: -3.6, predicted: -3.7 },
-    { cdm: 3, actual: -3.4, predicted: -3.5 }, { cdm: 4, actual: -3.2, predicted: -3.3 },
-    { cdm: 5, actual: -3.1, predicted: -3.2 }, { cdm: 6, actual: null, predicted: -3.0 },
-    { cdm: 7, actual: null, predicted: -2.9 }, { cdm: 8, actual: null, predicted: -2.85 },
-  ];
+function AutoregressiveDetail({ data }: { data: any }) {
+  const chartData = useMemo(() => {
+    if (!data?.example_forecasts?.[0]) return [];
+    const ex = data.example_forecasts[0];
+    return ex.actual.map((a: number, i: number) => ({
+      cdm: i + 1,
+      actual: a,
+      predicted: ex.predicted[i] ?? null,
+    }));
+  }, [data]);
+
+  const m = data?.metrics;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
       <div>
         <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 12 }}>
-          Given CDM updates 1...k, forecast CDM k+1. The dashed line shows predicted
-          future trajectory beyond observed data. Monte Carlo dropout provides uncertainty
-          estimates for each forecast step.
+          Trained on {data ? data.n_training_samples.toLocaleString() : '--'} CDM transitions.
+          Given CDM updates 1...k, forecast CDM k+1. Dashed line shows model predictions
+          starting from CDM 3 onward.
         </p>
-        <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
-          <Stat label="Correlation" value="0.931" />
-          <Stat label="MAE" value="0.094" />
+        <div style={{ display: 'flex', gap: 20, fontSize: 13, marginBottom: 12 }}>
+          <Stat label="Correlation" value={m ? m.correlation_pc.toFixed(3) : '--'} />
+          <Stat label="MAE (log Pc)" value={m ? m.mae_log10_pc.toFixed(3) : '--'} />
+          <Stat label="RMSE" value={m ? m.rmse_log10_pc.toFixed(3) : '--'} />
         </div>
+        {m && (
+          <div style={{ display: 'flex', gap: 20, fontSize: 13 }}>
+            <Stat label="Miss Corr" value={m.correlation_miss.toFixed(3)} />
+            <Stat label="Miss MAE" value={m.mae_log10_miss.toFixed(3)} />
+            <Stat label="Uncertainty" value={`\u00b1${m.uncertainty_std.toFixed(3)}`} />
+          </div>
+        )}
       </div>
-      <ResponsiveContainer width="100%" height={160}>
-        <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
-          <XAxis dataKey="cdm" tick={{ fill: '#55556a', fontSize: 12 }} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
-          <YAxis tick={{ fill: '#55556a', fontSize: 12 }} domain={[-4, -2.5]} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} />
-          <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeOpacity={0.5} />
-          <Line type="monotone" dataKey="actual" stroke="#e8e8f0" strokeWidth={2} dot={{ r: 3, fill: '#e8e8f0' }} name="Actual" connectNulls={false} />
-          <Line type="monotone" dataKey="predicted" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3, fill: '#3b82f6' }} name="Predicted" />
-        </LineChart>
-      </ResponsiveContainer>
+      {chartData.length > 0 && (
+        <div>
+          <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>Example: Actual vs Predicted log\u2081\u2080(Pc)</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
+              <XAxis dataKey="cdm" tick={{ fill: '#55556a', fontSize: 12 }} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
+              <YAxis tick={{ fill: '#55556a', fontSize: 12 }} domain={['auto', 'auto']} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeOpacity={0.3} />
+              <Line type="monotone" dataKey="actual" stroke="#e8e8f0" strokeWidth={2} dot={{ r: 3, fill: '#e8e8f0' }} name="Actual" connectNulls={false} />
+              <Line type="monotone" dataKey="predicted" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 3" dot={{ r: 3, fill: '#3b82f6' }} name="Predicted" connectNulls={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── Conformal Detail ─────────────────────────────────────── */
-function ConformalDetail() {
-  const data = [
-    { name: 'Target', coverage: 90 },
-    { name: 'Regression', coverage: 90.8 },
-    { name: 'Classification', coverage: 91.7 },
-  ];
+function ConformalDetail({ data }: { data: any }) {
+  const chartData = useMemo(() => {
+    if (!data?.classification_conformal) return [];
+    return data.classification_conformal.map((c: any) => ({
+      name: `\u03b1=${c.alpha}`,
+      target: c.target_coverage * 100,
+      actual: c.empirical_coverage * 100,
+    }));
+  }, [data]);
+
+  const regData = useMemo(() => {
+    if (!data?.regression_conformal) return [];
+    return data.regression_conformal.map((c: any) => ({
+      name: `\u03b1=${c.alpha}`,
+      target: c.target * 100,
+      actual: c.coverage * 100,
+      width: c.interval_width,
+    }));
+  }, [data]);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
-      <div>
-        <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 12 }}>
-          NASA CARA requires calibrated uncertainty before adopting ML operationally.
-          Conformal prediction guarantees that the true Pc falls within our prediction
-          interval at least 90% of the time — with no distributional assumptions.
-        </p>
-        <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
-          <Stat label="Coverage" value="90.8%" />
-          <Stat label="Target" value="90.0%" />
+    <div>
+      <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 16 }}>
+        Split-conformal prediction with {data ? data.n_calibration : '--'} calibration samples.
+        NASA CARA requires calibrated uncertainty before adopting ML operationally.
+        Conformal prediction guarantees that the true outcome falls within our prediction set — no distributional assumptions.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+        {/* Classification coverage */}
+        <div>
+          <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>Classification Coverage</div>
+          {chartData.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {data.classification_conformal.map((c: any, i: number) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
+                  <span style={{ color: '#55556a', width: 60, flexShrink: 0 }}>{(c.target_coverage * 100).toFixed(0)}% target</span>
+                  <div style={{ flex: 1, height: 8, background: '#1a1a24', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+                    <div style={{ height: '100%', width: `${Math.min(c.empirical_coverage * 100, 100)}%`, background: c.empirical_coverage >= c.target_coverage ? '#3b82f6' : '#ef4444', borderRadius: 4 }} />
+                  </div>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: c.empirical_coverage >= c.target_coverage ? '#22c55e' : '#ef4444', width: 50, textAlign: 'right', flexShrink: 0 }}>
+                    {(c.empirical_coverage * 100).toFixed(1)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : <div style={{ color: '#55556a', fontSize: 13 }}>No data</div>}
+        </div>
+        {/* Regression coverage */}
+        <div>
+          <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>Regression Intervals (log\u2081\u2080 Pc)</div>
+          {regData.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {data.regression_conformal.map((c: any, i: number) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
+                  <span style={{ color: '#55556a', width: 60, flexShrink: 0 }}>{(c.target * 100).toFixed(0)}% target</span>
+                  <div style={{ flex: 1, height: 8, background: '#1a1a24', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(c.coverage * 100, 100)}%`, background: c.coverage >= c.target ? '#3b82f6' : '#ef4444', borderRadius: 4 }} />
+                  </div>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: c.coverage >= c.target ? '#22c55e' : '#ef4444', width: 50, textAlign: 'right', flexShrink: 0 }}>
+                    {(c.coverage * 100).toFixed(1)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : <div style={{ color: '#55556a', fontSize: 13 }}>No data</div>}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={120}>
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 80, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
-          <XAxis type="number" domain={[85, 95]} tick={{ fill: '#55556a', fontSize: 12 }} tickFormatter={v => `${v}%`} axisLine={false} tickLine={false} />
-          <YAxis type="category" dataKey="name" tick={{ fill: '#7c7c96', fontSize: 12 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={TOOLTIP_STYLE} />
-          <Bar dataKey="coverage" radius={[0, 3, 3, 0]}>
-            <Cell fill="#55556a" />
-            <Cell fill="#3b82f6" />
-            <Cell fill="#3b82f6" />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
     </div>
   );
 }
