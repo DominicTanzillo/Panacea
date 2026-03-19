@@ -42,8 +42,8 @@ export function LandingOverlay({ loading, nSatellites, onEnter, onExploreModels 
       className={`fixed inset-0 flex flex-col items-center justify-center transition-opacity duration-500
         ${fadeOut ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
       style={{
-        zIndex: 9999,
-        background: 'linear-gradient(180deg, rgba(10,10,15,0.92) 0%, rgba(10,10,15,0.88) 50%, rgba(10,10,15,0.95) 100%)',
+        zIndex: 500,
+        background: 'linear-gradient(180deg, rgba(8,8,12,0.93) 0%, rgba(8,8,12,0.88) 50%, rgba(8,8,12,0.96) 100%)',
         backdropFilter: 'blur(6px)',
       }}
     >

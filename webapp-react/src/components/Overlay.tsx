@@ -11,7 +11,6 @@ interface OverlayProps {
 }
 
 export function Overlay({ visible, onClose, title, subtitle, maxWidth = '640px', children }: OverlayProps) {
-  // ESC to close
   const handleKey = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
   }, [onClose]);
@@ -23,45 +22,52 @@ export function Overlay({ visible, onClose, title, subtitle, maxWidth = '640px',
     }
   }, [visible, handleKey]);
 
+  // Don't render anything when not visible — prevents z-index stacking issues
+  if (!visible) return null;
+
   return (
     <div
-      className={`fixed inset-0 z-40 flex items-start justify-center
-        transition-all duration-300
-        ${visible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-      style={{ transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)' }}
+      className="fixed inset-0 flex items-start justify-center"
+      style={{ zIndex: 200 }}
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0"
+        style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
         onClick={onClose}
       />
 
       {/* Content panel */}
       <div
-        className={`relative mt-14 mb-12 w-full flex flex-col
-          bg-[var(--color-surface)] border border-[var(--color-border)]
-          shadow-2xl overflow-hidden
-          transition-transform duration-300
-          ${visible ? 'translate-y-0' : 'translate-y-4'}`}
+        className="relative w-full flex flex-col overflow-hidden"
         style={{
           maxWidth,
           maxHeight: 'calc(100vh - 104px)',
+          marginTop: 56,
+          marginBottom: 48,
+          marginLeft: 16,
+          marginRight: 16,
           borderRadius: 12,
-          transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)',
+          background: '#111118',
+          border: '1px solid #2a2a3a',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          animation: 'overlayIn 250ms ease-out',
         }}
       >
-        {/* Sticky header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border-subtle)] shrink-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 shrink-0" style={{ borderBottom: '1px solid #1e1e2c' }}>
           <div>
-            <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+            <h2 className="text-base font-semibold tracking-tight" style={{ color: '#e8e8f0' }}>{title}</h2>
             {subtitle && (
-              <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{subtitle}</p>
+              <p className="text-xs mt-0.5" style={{ color: '#7c7c96' }}>{subtitle}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] transition-colors"
-            style={{ borderRadius: 6 }}
+            className="w-8 h-8 flex items-center justify-center transition-colors"
+            style={{ borderRadius: 6, color: '#7c7c96' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#1a1a24'; (e.currentTarget as HTMLElement).style.color = '#e8e8f0'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#7c7c96'; }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M1 1l12 12M13 1L1 13" />
@@ -74,6 +80,13 @@ export function Overlay({ visible, onClose, title, subtitle, maxWidth = '640px',
           {children}
         </div>
       </div>
+
+      <style>{`
+        @keyframes overlayIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
