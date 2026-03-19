@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, LineChart, Line, ReferenceLine,
+  ResponsiveContainer, LineChart, Line, ReferenceLine,
 } from 'recharts';
 import { FullPagePanel } from './Overlay';
 

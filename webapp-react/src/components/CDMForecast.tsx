@@ -157,60 +157,6 @@ function shortName(name: string): string {
   return name.replace(/ DEB$/, '').replace(/ R\/B$/, ' R/B').slice(0, 22);
 }
 
-function ModelMetricsBanner({ metrics, task, regressionMetrics }: { metrics: ModelMetrics; task: string; regressionMetrics?: RegressionMetrics }) {
-  const hasTest = metrics.test_accuracy > 0;
-
-  return (
-    <div className="px-4 py-3 border-b border-[var(--color-border)]">
-      <div className="text-xs text-[var(--color-text-muted)] mb-2">
-        <span className="font-semibold text-[var(--color-text)]">Task:</span>{' '}
-        {task || 'Predict Pc exceeding maneuver threshold before TCA'}
-      </div>
-      {hasTest && (
-        <div className="flex items-center gap-4 text-center">
-          <div>
-            <span className="text-sm font-bold text-[#22c55e]">{formatPct(metrics.test_accuracy)}</span>
-            <span className="text-xs text-[var(--color-text-muted)] ml-1">Accuracy</span>
-          </div>
-          <div>
-            <span className="text-sm font-bold text-[#3b82f6]">{metrics.test_f1.toFixed(3)}</span>
-            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="F1 score: harmonic mean of precision and recall (1.0 = perfect)">F1</span>
-          </div>
-          <div>
-            <span className="text-sm font-bold text-[#3b82f6]">{metrics.test_auc_pr.toFixed(3)}</span>
-            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Area under precision-recall curve (higher = better at finding true positives)">AUC-PR</span>
-          </div>
-          <div className="text-xs text-[var(--color-text-muted)]">
-            {metrics.n_training_pairs} train / {metrics.n_test_pairs} test pairs
-          </div>
-        </div>
-      )}
-      {regressionMetrics && regressionMetrics.n > 0 && (
-        <div className="flex items-center gap-4 text-center mt-2 pt-2 border-t border-[var(--color-border)]/30">
-          <div className="text-xs text-[var(--color-text-muted)] font-semibold">BiLSTM Ensemble</div>
-          <div>
-            <span className="text-sm font-bold text-[#f59e0b]">{regressionMetrics.mae_log10_pc.toFixed(3)}</span>
-            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Mean absolute error in log10(Pc) prediction">MAE(log Pc)</span>
-          </div>
-          <div>
-            <span className="text-sm font-bold text-[#3b82f6]">{regressionMetrics.correlation_pc.toFixed(3)}</span>
-            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Pearson correlation between predicted and actual max Pc">Corr</span>
-          </div>
-          {regressionMetrics.ece != null && (
-            <div>
-              <span className="text-sm font-bold text-[#3b82f6]">{regressionMetrics.ece.toFixed(3)}</span>
-              <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Expected Calibration Error — lower means predicted probabilities match actual outcomes (T={regressionMetrics.temperature?.toFixed(2)})">ECE</span>
-            </div>
-          )}
-          <div>
-            <span className="text-sm font-bold text-[#ef4444]">{regressionMetrics.esc_f1.toFixed(3)}</span>
-            <span className="text-xs text-[var(--color-text-muted)] ml-1" title="Escalation classification F1 score">Esc F1</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: boolean; onToggle: () => void }) {
   const level = riskLevel(pair);
