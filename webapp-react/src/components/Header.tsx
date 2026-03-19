@@ -1,150 +1,95 @@
+import type { OverlayView } from '../App';
+
 interface HeaderProps {
+  activeOverlay: OverlayView;
+  onNavigate: (view: OverlayView) => void;
   healthy: boolean;
-  showBorders: boolean;
-  onToggleBorders: () => void;
-  showAlerts: boolean;
-  onToggleAlerts: () => void;
-  showDashboard: boolean;
-  onToggleDashboard: () => void;
-  showForecast: boolean;
-  onToggleForecast: () => void;
-  onShowAbout: () => void;
   alertCount: number;
   cdmAlertCount: number;
   dataDate?: string;
 }
 
-export function PanaceaLogo({ size = 32 }: { size?: number }) {
+export function PanaceaLogo({ size = 28 }: { size?: number }) {
   return (
     <div
-      className="relative flex items-center justify-center rounded-lg overflow-hidden shrink-0"
-      style={{ width: size, height: size, background: 'linear-gradient(135deg, #4f8aff, #8b5cf6)' }}
+      className="relative flex items-center justify-center overflow-hidden shrink-0"
+      style={{ width: size, height: size, background: 'var(--color-accent)', borderRadius: 6 }}
     >
       <span
-        className="font-extrabold text-white relative z-10"
-        style={{ fontSize: size * 0.44 }}
+        className="font-extrabold text-white"
+        style={{ fontSize: size * 0.48 }}
       >
         P
       </span>
-      <svg
-        className="absolute inset-0"
-        width={size}
-        height={size}
-        viewBox="0 0 32 32"
-        fill="none"
-      >
-        <path
-          d="M5 24 Q16 4, 28 14"
-          stroke="white"
-          strokeWidth="0.8"
-          opacity="0.35"
-          fill="none"
-          strokeLinecap="round"
-        />
-        <circle cx="27" cy="13" r="1.5" fill="white" opacity="0.55" />
-      </svg>
     </div>
   );
 }
 
-const pill =
-  'px-3 py-1.5 rounded-full text-xs font-medium border transition-all backdrop-blur-md';
-const pillOn =
-  'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]';
-const pillOff =
-  'border-[var(--color-border)] bg-[var(--color-surface)]/90 text-[var(--color-text-muted)] hover:text-[var(--color-text)]';
+const NAV_ITEMS: { key: OverlayView; label: string }[] = [
+  { key: 'alerts', label: 'Alerts' },
+  { key: 'forecast', label: 'Forecast' },
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'models', label: 'Models' },
+  { key: 'about', label: 'About' },
+];
 
 export function Header({
-  healthy,
-  showBorders,
-  onToggleBorders,
-  showAlerts,
-  onToggleAlerts,
-  showDashboard,
-  onToggleDashboard,
-  showForecast,
-  onToggleForecast,
-  onShowAbout,
-  alertCount,
-  cdmAlertCount,
-  dataDate,
+  activeOverlay, onNavigate, healthy, alertCount, cdmAlertCount, dataDate,
 }: HeaderProps) {
   return (
     <header className="absolute top-0 left-0 right-0 z-30 pointer-events-none">
-      {/* Gradient fade behind header */}
-      <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[var(--color-bg)] to-transparent" />
-
-      <div className="relative flex items-start justify-between px-4 py-3 gap-6">
-        {/* Left: Branding */}
-        <div className="flex items-center gap-3 pointer-events-auto shrink-0">
+      <div
+        className="relative flex items-center justify-between h-12 px-6 pointer-events-auto border-b"
+        style={{
+          borderColor: 'var(--color-border-subtle)',
+          background: 'rgba(8,8,12,0.7)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        {/* Left: Logo + name */}
+        <div className="flex items-center gap-3">
           <PanaceaLogo />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold tracking-tight">PANACEA</h1>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-[var(--color-surface-2)]/80 border border-[var(--color-border)] text-[var(--color-text-muted)] whitespace-nowrap">
-                AIPI 540
-              </span>
-            </div>
-            <p className="text-[10px] text-[var(--color-text-muted)] -mt-0.5 tracking-wide hidden sm:block">
-              Predictive Assessment Network for Automated Conjunction Evaluation &amp; Avoidance
-            </p>
-          </div>
+          <span className="text-sm font-semibold tracking-tight">PANACEA</span>
         </div>
 
-        {/* Right: Controls */}
-        <div className="flex items-center gap-2 pointer-events-auto flex-wrap justify-end">
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur-md"
-            title={
-              healthy
-                ? 'Backend API connected — live screening active'
-                : dataDate
-                  ? `Static data from ${dataDate} — globe is live`
-                  : 'Globe is live — alerts from daily pipeline'
-            }
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: healthy ? '#4fff8a' : cdmAlertCount > 0 ? '#4f8aff' : '#ffb84f' }}
-            />
-            {healthy ? 'Live API' : dataDate ? `Data ${dataDate}` : 'Static Data'}
-          </div>
+        {/* Center: Navigation */}
+        <nav className="flex items-center gap-1">
+          {NAV_ITEMS.map(item => {
+            const isActive = activeOverlay === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => onNavigate(item.key)}
+                className={`px-3 py-1.5 text-xs font-medium tracking-wide transition-colors border-b-2
+                  ${isActive
+                    ? 'border-[var(--color-accent)] text-[var(--color-text)]'
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+                  }`}
+              >
+                {item.label}
+                {item.key === 'alerts' && alertCount > 0 && (
+                  <span className="ml-1 text-[var(--color-risk-red)]">
+                    {cdmAlertCount > 0 ? cdmAlertCount : alertCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
 
-          <button
-            onClick={onToggleBorders}
-            className={`${pill} ${showBorders ? pillOn : pillOff}`}
-            title="Toggle country borders"
-          >
-            Borders
-          </button>
-
-          <button
-            onClick={onToggleAlerts}
-            className={`${pill} ${showAlerts ? pillOn : pillOff}`}
-          >
-            Alerts{alertCount > 0 ? ` (${alertCount})` : ''}
-          </button>
-
-          <button
-            onClick={onToggleForecast}
-            className={`${pill} ${showForecast ? pillOn : pillOff}`}
-          >
-            Forecast
-          </button>
-
-          <button
-            onClick={onToggleDashboard}
-            className={`${pill} ${showDashboard ? pillOn : pillOff}`}
-          >
-            Dashboard
-          </button>
-
-          <button
-            onClick={onShowAbout}
-            className={`${pill} ${pillOff}`}
-          >
-            About
-          </button>
+        {/* Right: Status */}
+        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{
+              background: healthy
+                ? 'var(--color-risk-green)'
+                : cdmAlertCount > 0
+                  ? 'var(--color-accent)'
+                  : 'var(--color-risk-amber)',
+            }}
+          />
+          <span>{healthy ? 'Live' : dataDate ? `${dataDate}` : 'Static'}</span>
         </div>
       </div>
     </header>

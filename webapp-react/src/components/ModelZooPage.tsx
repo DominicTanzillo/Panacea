@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Overlay } from './Overlay';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -259,24 +260,15 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
       .catch(() => setCv(null));
   }, [visible]);
 
-  if (!visible) return null;
-
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="relative w-full max-w-4xl max-h-[90vh] mx-4 border border-[var(--color-border)] bg-[var(--color-surface)]/98 backdrop-blur-md shadow-2xl overflow-hidden flex flex-col" style={{ borderRadius: 6 }}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] shrink-0">
-          <div>
-            <h2 className="text-lg font-bold tracking-tight">Model Zoo</h2>
-            <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
-              {cv ? `${cv.n_folds}-fold cross-validation on ${cv.n_pairs} pairs (${(cv.positive_rate * 100).toFixed(1)}% positive)` : '6 models for collision risk assessment'}
-            </p>
-          </div>
-          <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors text-xl leading-none">&times;</button>
-        </div>
-
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+    <Overlay
+      visible={visible}
+      onClose={onClose}
+      title="Model Zoo"
+      subtitle={cv ? `${cv.n_folds}-fold CV on ${cv.n_pairs} pairs (${(cv.positive_rate * 100).toFixed(1)}% positive)` : '6 models for collision risk assessment'}
+      maxWidth="900px"
+    >
+        <div className="p-6 space-y-8">
 
           {/* Cross-validation comparison */}
           <section>
@@ -401,8 +393,7 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
             </div>
           </section>
         </div>
-      </div>
-    </div>
+    </Overlay>
   );
 }
 

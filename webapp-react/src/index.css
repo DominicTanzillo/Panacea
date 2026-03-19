@@ -1,16 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0a0a0f;
-  --color-surface: #12121a;
-  --color-surface-2: #1a1a26;
-  --color-border: #2a2a3a;
-  --color-text: #e0e0e8;
-  --color-text-muted: #8888a0;
-  --color-accent: #4f8aff;
-  --color-danger: #ff4f5a;
-  --color-warning: #ffb84f;
-  --color-safe: #4fff8a;
+  /* ── Backgrounds ─────────────────────────────── */
+  --color-bg:          #08080c;
+  --color-surface:     #111118;
+  --color-surface-2:   #1a1a24;
+  --color-surface-3:   #222230;
+  --color-border:      #2a2a3a;
+  --color-border-subtle: #1e1e2c;
+
+  /* ── Text ────────────────────────────────────── */
+  --color-text:        #e8e8f0;
+  --color-text-muted:  #7c7c96;
+  --color-text-dim:    #55556a;
+
+  /* ── Traffic Light (risk ONLY) ───────────────── */
+  --color-risk-red:    #ef4444;
+  --color-risk-amber:  #f59e0b;
+  --color-risk-green:  #22c55e;
+
+  /* ── UI Accent (interactions ONLY) ───────────── */
+  --color-accent:      #3b82f6;
+  --color-accent-dim:  #1d4ed8;
+
+  /* Legacy aliases for components not yet migrated */
+  --color-danger:  #ef4444;
+  --color-warning: #f59e0b;
+  --color-safe:    #22c55e;
+
+  /* ── Typography ──────────────────────────────── */
   --font-sans: 'Avenir Next', 'Avenir', 'Nunito Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }

@@ -3,6 +3,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
+import { Overlay } from './Overlay';
 
 interface CDMUpdate {
   update_idx: number;
@@ -606,7 +607,8 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
   const [data, setData] = useState<ForecastData | null>(null);
   const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'moderate'>('all');
   const [expandedIdx, setExpandedIdx] = useState<string | null>(null);
-  const [showResolved, setShowResolved] = useState(false);
+  const [_showResolved, _setShowResolved] = useState(false);
+  void _showResolved; void _setShowResolved;
 
   useEffect(() => {
     if (!visible) return;
@@ -640,151 +642,64 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
     return activePairs.filter(p => riskLevel(p) === filter);
   }, [activePairs, filter]);
 
-  if (!visible) return null;
-
   return (
-    <div className="absolute bottom-14 left-4 right-4 max-h-[60vh] border border-[var(--color-border)] bg-[var(--color-surface)]/95 backdrop-blur-md shadow-2xl z-20 flex flex-col" style={{ borderRadius: 6 }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)]">
-        <div className="flex items-center gap-3">
-          <h3 className="font-semibold text-sm">Pc Escalation Forecast</h3>
-          {data && (
-            <span className="text-[10px] text-[var(--color-text-muted)]">
-              {data.n_pairs} pairs
-              {data.generated_at && ` \u00b7 ${data.generated_at.slice(0, 16).replace('T', ' ')} UTC`}
-            </span>
-          )}
-        </div>
-        <button
-          onClick={onClose}
-          className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors text-lg leading-none"
-        >
-          x
-        </button>
-      </div>
-
+    <Overlay
+      visible={visible}
+      onClose={onClose}
+      title="Pc Escalation Forecast"
+      subtitle={data ? `${data.n_pairs} pairs${data.generated_at ? ` \u00b7 ${data.generated_at.slice(0, 16).replace('T', ' ')} UTC` : ''}` : undefined}
+      maxWidth="800px"
+    >
       {!data ? (
-        <div className="p-6 text-xs text-[var(--color-text-muted)] text-center">
+        <div className="p-8 text-sm text-[var(--color-text-muted)] text-center">
           CDM forecast data not available. Run the daily pipeline to generate predictions.
         </div>
       ) : (
-        <>
+        <div>
           {/* Model metrics */}
           {data.model_metrics && (
             <ModelMetricsBanner metrics={data.model_metrics} task={data.prediction_task} regressionMetrics={data.regression_metrics} />
           )}
-
-          {/* Prediction track record */}
-          {data.track_record && (
-            <TrackRecordSection record={data.track_record} />
-          )}
-
-          {/* Conformal prediction guarantee */}
+          {data.track_record && <TrackRecordSection record={data.track_record} />}
           {data.conformal && (
-            <div className="px-4 py-2 border-b border-[var(--color-border)] flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-[#a29bfe] shrink-0" />
-              <div className="text-[10px] text-[var(--color-text-muted)]">
-                <span className="font-semibold text-[var(--color-text)]">Conformal Guarantee:</span>{' '}
-                {(data.conformal.regression_coverage * 100).toFixed(0)}% of true Pc values fall within prediction intervals
-                (target: {((1 - data.conformal.alpha) * 100).toFixed(0)}%, width: {data.conformal.interval_width_log10pc.toFixed(1)} log<sub>10</sub>Pc,
-                n={data.conformal.n_calibration} calibration pairs)
-              </div>
+            <div className="px-6 py-3 border-b border-[var(--color-border-subtle)] text-xs text-[var(--color-text-muted)]">
+              <span className="font-medium text-[var(--color-text)]">Conformal Guarantee:</span>{' '}
+              {(data.conformal.regression_coverage * 100).toFixed(0)}% coverage
+              (target: {((1 - data.conformal.alpha) * 100).toFixed(0)}%, n={data.conformal.n_calibration})
             </div>
           )}
-
-          {/* Risk breakdown + filter */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--color-border)]">
+          {/* Filters */}
+          <div className="flex items-center gap-2 px-6 py-3 border-b border-[var(--color-border-subtle)]">
             {(['all', 'critical', 'high', 'moderate'] as const).map(f => {
               const count = f === 'all' ? activePairs.length : counts[f];
               const isActive = filter === f;
-              const fColor = f === 'all' ? 'var(--color-text)' : RISK_COLORS[f];
               return (
-                <button
-                  key={f}
-                  onClick={() => { setFilter(f); setExpandedIdx(null); }}
-                  className={`px-3 py-1.5 text-[11px] font-medium border transition-all ${
-                    isActive
+                <button key={f} onClick={() => { setFilter(f); setExpandedIdx(null); }}
+                  className={`px-3 py-1.5 text-xs font-medium border transition-colors
+                    ${isActive
                       ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-text)]'
-                      : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-                  }`}
+                      : 'border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
+                  style={{ borderRadius: 6 }}
                 >
-                  <span style={{ color: isActive ? fColor : undefined }}>
-                    {f === 'all' ? 'All' : f === 'critical' ? 'Critical' : f === 'high' ? 'High' : 'Monitor'}
-                  </span>
+                  {f === 'all' ? 'All' : f === 'critical' ? 'Critical' : f === 'high' ? 'High' : 'Monitor'}
                   {' '}({count})
                 </button>
               );
             })}
           </div>
-
-          {/* Pair list — split into active and resolved */}
-          <div className="overflow-y-auto flex-1 p-2 space-y-1">
-            {(() => {
-              const now = new Date().toISOString();
-              const activePairsList = filtered.filter(p => !p.tca || p.tca > now);
-              const resolvedPairsList = filtered.filter(p => p.tca && p.tca <= now);
-
+          {/* Pair list */}
+          <div className="p-4 space-y-2">
+            {filtered.map(pair => {
+              const key = `${pair.sat1_norad}-${pair.sat2_norad}`;
               return (
-                <>
-                  {/* Active Conjunctions */}
-                  <div className="text-[11px] font-semibold text-[var(--color-text)] px-1 pt-1 pb-0.5">
-                    Active Conjunctions ({activePairsList.length})
-                  </div>
-                  {activePairsList.length === 0 ? (
-                    <div className="text-xs text-[var(--color-text-muted)] text-center py-3">
-                      No active pairs in this category.
-                    </div>
-                  ) : (
-                    activePairsList.map((pair) => {
-                      const key = `active-${pair.sat1_norad}-${pair.sat2_norad}`;
-                      return (
-                        <PairCard
-                          key={key}
-                          pair={pair}
-                          expanded={expandedIdx === key}
-                          onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)}
-                        />
-                      );
-                    })
-                  )}
-
-                  {/* Resolved Events */}
-                  {resolvedPairsList.length > 0 && (
-                    <>
-                      <button
-                        onClick={() => setShowResolved(!showResolved)}
-                        className="w-full flex items-center justify-between text-[11px] font-semibold text-[var(--color-text-muted)] px-1 pt-3 pb-0.5 hover:text-[var(--color-text)] transition-colors"
-                      >
-                        <span>Resolved Events ({resolvedPairsList.length})</span>
-                        <span className="text-[10px]">{showResolved ? '\u25B2' : '\u25BC'}</span>
-                      </button>
-                      {showResolved && resolvedPairsList.map((pair) => {
-                        const key = `resolved-${pair.sat1_norad}-${pair.sat2_norad}`;
-                        return (
-                          <PairCard
-                            key={key}
-                            pair={pair}
-                            expanded={expandedIdx === key}
-                            onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)}
-                          />
-                        );
-                      })}
-                    </>
-                  )}
-                </>
+                <PairCard key={key} pair={pair} expanded={expandedIdx === key}
+                  onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)} />
               );
-            })()}
+            })}
           </div>
-
-          {/* Footer */}
-          <div className="px-4 py-1.5 border-t border-[var(--color-border)] text-center">
-            <span className="text-[9px] text-[var(--color-text-muted)]">
-              Retrained daily on resolved pairs &middot; Source: Space-Track 18th SDS CDMs &middot;
-              Click a pair to see Pc evolution
-            </span>
-          </div>
-        </>
+        </div>
       )}
-    </div>
+    </Overlay>
   );
+
 }
