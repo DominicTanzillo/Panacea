@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-20T01:42:38.490635Z",
+  "generated_at": "2026-03-21T01:41:27.411836Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -267,48 +267,54 @@
       "n_satellites_screened": 15999,
       "n_candidate_pairs": 5818853,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-21",
+      "n_satellites_screened": 16025,
+      "n_candidate_pairs": 5833014,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 4279,
-    "last_fetch": "2026-03-20T01:40:51.937323+00:00",
-    "fetch_count": 19,
-    "pc_high": 1019,
-    "pc_moderate": 3260,
-    "emergency_count": 4279
+    "total_cdms": 4344,
+    "last_fetch": "2026-03-21T01:39:34.304620+00:00",
+    "fetch_count": 20,
+    "pc_high": 1037,
+    "pc_moderate": 3307,
+    "emergency_count": 4344
   },
   "forecast_model": {
-    "n_pairs_total": 705,
-    "n_labeled": 705,
-    "n_positive": 163,
-    "n_negative": 542,
-    "positive_rate": 0.2312,
-    "n_train": 493,
-    "n_test": 212,
+    "n_pairs_total": 722,
+    "n_labeled": 722,
+    "n_positive": 166,
+    "n_negative": 556,
+    "positive_rate": 0.2299,
+    "n_train": 505,
+    "n_test": 217,
     "mode": "logistic_regression",
     "train": {
-      "n": 493,
-      "accuracy": 0.9391,
-      "precision": 0.8492,
-      "recall": 0.9068,
-      "f1": 0.877,
-      "auc_pr": 0.7613,
-      "tp": 107,
-      "fp": 19,
+      "n": 505,
+      "accuracy": 0.9386,
+      "precision": 0.8374,
+      "recall": 0.9035,
+      "f1": 0.8692,
+      "auc_pr": 0.7554,
+      "tp": 103,
+      "fp": 20,
       "fn": 11,
-      "tn": 356
+      "tn": 371
     },
     "test": {
-      "n": 212,
-      "accuracy": 0.9387,
-      "precision": 0.8478,
-      "recall": 0.8667,
-      "f1": 0.8571,
-      "auc_pr": 0.7506,
-      "tp": 39,
-      "fp": 7,
-      "fn": 6,
-      "tn": 160
+      "n": 217,
+      "accuracy": 0.9401,
+      "precision": 0.8824,
+      "recall": 0.8654,
+      "f1": 0.8738,
+      "auc_pr": 0.7494,
+      "tp": 45,
+      "fp": 6,
+      "fn": 7,
+      "tn": 159
     }
   }
 }
