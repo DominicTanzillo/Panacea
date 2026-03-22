@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-21T01:41:27.411836Z",
+  "generated_at": "2026-03-22T01:58:35.394994Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -273,48 +273,54 @@
       "n_satellites_screened": 16025,
       "n_candidate_pairs": 5833014,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-22",
+      "n_satellites_screened": 16048,
+      "n_candidate_pairs": 5880124,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 4344,
-    "last_fetch": "2026-03-21T01:39:34.304620+00:00",
-    "fetch_count": 20,
-    "pc_high": 1037,
-    "pc_moderate": 3307,
-    "emergency_count": 4344
+    "total_cdms": 4423,
+    "last_fetch": "2026-03-22T01:56:40.733975+00:00",
+    "fetch_count": 21,
+    "pc_high": 1063,
+    "pc_moderate": 3360,
+    "emergency_count": 4423
   },
   "forecast_model": {
-    "n_pairs_total": 722,
-    "n_labeled": 722,
-    "n_positive": 166,
-    "n_negative": 556,
-    "positive_rate": 0.2299,
-    "n_train": 505,
-    "n_test": 217,
+    "n_pairs_total": 732,
+    "n_labeled": 732,
+    "n_positive": 169,
+    "n_negative": 563,
+    "positive_rate": 0.2309,
+    "n_train": 512,
+    "n_test": 220,
     "mode": "logistic_regression",
     "train": {
-      "n": 505,
-      "accuracy": 0.9386,
-      "precision": 0.8374,
-      "recall": 0.9035,
-      "f1": 0.8692,
-      "auc_pr": 0.7554,
-      "tp": 103,
-      "fp": 20,
-      "fn": 11,
-      "tn": 371
+      "n": 512,
+      "accuracy": 0.9277,
+      "precision": 0.8031,
+      "recall": 0.8947,
+      "f1": 0.8465,
+      "auc_pr": 0.7547,
+      "tp": 102,
+      "fp": 25,
+      "fn": 12,
+      "tn": 373
     },
     "test": {
-      "n": 217,
-      "accuracy": 0.9401,
-      "precision": 0.8824,
-      "recall": 0.8654,
-      "f1": 0.8738,
-      "auc_pr": 0.7494,
-      "tp": 45,
-      "fp": 6,
-      "fn": 7,
-      "tn": 159
+      "n": 220,
+      "accuracy": 0.9273,
+      "precision": 0.8679,
+      "recall": 0.8364,
+      "f1": 0.8519,
+      "auc_pr": 0.7506,
+      "tp": 46,
+      "fp": 7,
+      "fn": 9,
+      "tn": 158
     }
   }
 }
