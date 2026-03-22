@@ -2,3 +2,4 @@
 {"pre_auc_pr": 0.38060610830041347, "post_auc_pr": 0.4553056222466285, "best_val_auc_pr": 0.4553056222466285, "epochs_trained": 3, "keep_new_model": true, "elapsed_minutes": 0.5, "date": "2026-03-01T15:41:03.138342+00:00", "n_outcomes": 3110}
 {"pre_auc_pr": 0.4553056222466285, "post_auc_pr": 0.3750629136844917, "best_val_auc_pr": 0.4553056222466285, "epochs_trained": 2, "keep_new_model": false, "elapsed_minutes": 0.4, "date": "2026-03-08T04:17:04.372892+00:00", "n_outcomes": 3110}
 {"pre_auc_pr": 0.4553056222466285, "post_auc_pr": 0.3771136905052834, "best_val_auc_pr": 0.4553056222466285, "epochs_trained": 2, "keep_new_model": false, "elapsed_minutes": 0.4, "date": "2026-03-15T04:37:33.152502+00:00", "n_outcomes": 3110}
+{"pre_auc_pr": 0.4553056222466285, "post_auc_pr": 0.38125723318299987, "best_val_auc_pr": 0.4553056222466285, "epochs_trained": 2, "keep_new_model": false, "elapsed_minutes": 0.4, "date": "2026-03-22T04:25:32.602711+00:00", "n_outcomes": 3110}
