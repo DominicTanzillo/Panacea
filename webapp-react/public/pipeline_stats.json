@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-22T01:58:35.394994Z",
+  "generated_at": "2026-03-23T02:04:43.900672Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -29,6 +29,14 @@
       "date": "2026-03-15",
       "pre_auc_pr": 0.4553056222466285,
       "post_auc_pr": 0.3771136905052834,
+      "keep_new_model": false,
+      "n_outcomes": 3110,
+      "epochs_trained": 2
+    },
+    {
+      "date": "2026-03-22",
+      "pre_auc_pr": 0.4553056222466285,
+      "post_auc_pr": 0.38125723318299987,
       "keep_new_model": false,
       "n_outcomes": 3110,
       "epochs_trained": 2
@@ -279,48 +287,54 @@
       "n_satellites_screened": 16048,
       "n_candidate_pairs": 5880124,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-03-23",
+      "n_satellites_screened": 16072,
+      "n_candidate_pairs": 5901561,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 4423,
-    "last_fetch": "2026-03-22T01:56:40.733975+00:00",
-    "fetch_count": 21,
-    "pc_high": 1063,
-    "pc_moderate": 3360,
-    "emergency_count": 4423
+    "total_cdms": 4487,
+    "last_fetch": "2026-03-23T02:02:51.941581+00:00",
+    "fetch_count": 22,
+    "pc_high": 1078,
+    "pc_moderate": 3409,
+    "emergency_count": 4487
   },
   "forecast_model": {
-    "n_pairs_total": 732,
-    "n_labeled": 732,
-    "n_positive": 169,
-    "n_negative": 563,
-    "positive_rate": 0.2309,
-    "n_train": 512,
-    "n_test": 220,
+    "n_pairs_total": 749,
+    "n_labeled": 749,
+    "n_positive": 175,
+    "n_negative": 574,
+    "positive_rate": 0.2336,
+    "n_train": 524,
+    "n_test": 225,
     "mode": "logistic_regression",
     "train": {
-      "n": 512,
-      "accuracy": 0.9277,
-      "precision": 0.8031,
-      "recall": 0.8947,
-      "f1": 0.8465,
-      "auc_pr": 0.7547,
-      "tp": 102,
-      "fp": 25,
-      "fn": 12,
-      "tn": 373
+      "n": 524,
+      "accuracy": 0.937,
+      "precision": 0.824,
+      "recall": 0.9035,
+      "f1": 0.8619,
+      "auc_pr": 0.7584,
+      "tp": 103,
+      "fp": 22,
+      "fn": 11,
+      "tn": 388
     },
     "test": {
-      "n": 220,
-      "accuracy": 0.9273,
-      "precision": 0.8679,
-      "recall": 0.8364,
-      "f1": 0.8519,
-      "auc_pr": 0.7506,
-      "tp": 46,
+      "n": 225,
+      "accuracy": 0.92,
+      "precision": 0.8772,
+      "recall": 0.8197,
+      "f1": 0.8475,
+      "auc_pr": 0.7691,
+      "tp": 50,
       "fp": 7,
-      "fn": 9,
-      "tn": 158
+      "fn": 11,
+      "tn": 157
     }
   }
 }
