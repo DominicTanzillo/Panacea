@@ -1173,6 +1173,17 @@ def main():
     except Exception as e:
         print(f"  Pipeline stats export failed (non-fatal): {e}")
 
+    # Prefetch space weather indices (used by CDM forecast model)
+    print("\nFetching space weather indices ...")
+    try:
+        from src.data.space_weather import SpaceWeatherCache
+        sw_cache = SpaceWeatherCache()
+        today_sw = sw_cache.get_indices(datetime.utcnow().strftime("%Y-%m-%d"))
+        print(f"  F10.7={today_sw.get('f107', '?')}, Kp={today_sw.get('kp', '?')}, "
+              f"Ap={today_sw.get('ap', '?')} (source: {today_sw.get('source', '?')})")
+    except Exception as e:
+        print(f"  Space weather fetch failed (non-fatal): {e}")
+
     # Run CDM forecast model — train, evaluate, predict, export
     print("\nRunning CDM Pc escalation forecast ...")
     try:

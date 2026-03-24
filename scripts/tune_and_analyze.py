@@ -30,6 +30,13 @@ from src.model.cdm_forecast import (
     PC_ACTION_THRESHOLD,
 )
 
+# Space weather support (optional)
+try:
+    from src.data.space_weather import SpaceWeatherCache, normalize_space_weather
+    _HAS_SPACE_WEATHER = True
+except ImportError:
+    _HAS_SPACE_WEATHER = False
+
 
 # ── Data Loading ──────────────────────────────────────────────
 def load_pairs():
@@ -68,7 +75,24 @@ def build_dataset(pairs: dict) -> tuple:
         "sat1_rcs", "sat2_rcs", "has_debris",
         "pc_range", "miss_range", "pc_last_delta", "miss_last_delta",
         "max_pc_rate", "time_coverage", "first_log10_pc", "emergency",
+        "f107_norm", "kp_norm", "ap_norm",
     ]
+
+    # Prefetch space weather indices for all CDM dates
+    sw_cache = None
+    if _HAS_SPACE_WEATHER:
+        try:
+            sw_cache = SpaceWeatherCache()
+            all_dates = set()
+            for cdms in pairs.values():
+                for c in cdms:
+                    cd = c.get("creation_date", "")[:10]
+                    if cd:
+                        all_dates.add(cd)
+            if all_dates:
+                sw_cache.bulk_lookup(sorted(all_dates))
+        except Exception:
+            sw_cache = None
 
     X_rows, y_rows, keys, tca_dates = [], [], [], []
 
@@ -129,6 +153,18 @@ def build_dataset(pairs: dict) -> tuple:
         min_miss = min(s[1] for s in seq)
         miss_range = max_miss - min_miss
 
+        # Space weather features
+        sw_f107, sw_kp, sw_ap = 0.5, 0.25, 0.15  # neutral defaults
+        if sw_cache:
+            latest_date = cdms_sorted[-1].get("creation_date", "")[:10]
+            if latest_date:
+                try:
+                    sw = sw_cache.get_indices(latest_date)
+                    sw_f107, sw_kp, sw_ap = normalize_space_weather(
+                        sw.get("f107", 155), sw.get("kp", 2.3), sw.get("ap", 10))
+                except Exception:
+                    pass
+
         row = [
             log10_pc, log10_miss, tth,
             pc_trend, miss_trend, pc_accel,
@@ -139,6 +175,7 @@ def build_dataset(pairs: dict) -> tuple:
             max_pc_rate, time_coverage,
             seq[0][0] if len(seq) > 0 else log10_pc,
             static.get("emergency", 0),
+            sw_f107, sw_kp, sw_ap,
         ]
 
         # Label: max Pc in sequence exceeds threshold
