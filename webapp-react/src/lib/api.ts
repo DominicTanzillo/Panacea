@@ -114,6 +114,14 @@ export interface ForecastModelMetrics {
   test?: { accuracy: number; precision: number; recall: number; f1: number; auc_pr: number; tp?: number; fp?: number; fn?: number; tn?: number };
 }
 
+export interface SpaceWeatherRecord {
+  date: string;
+  f107: number;
+  kp: number;
+  ap: number;
+  source: string;
+}
+
 export interface PipelineStats {
   generated_at: string;
   finetune_history: {
@@ -140,6 +148,10 @@ export interface PipelineStats {
     emergency_count: number;
   };
   forecast_model?: ForecastModelMetrics;
+  space_weather?: {
+    current: SpaceWeatherRecord;
+    history: SpaceWeatherRecord[];
+  };
 }
 
 export interface ScreeningResponse {

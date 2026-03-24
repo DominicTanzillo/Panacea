@@ -1997,6 +1997,30 @@ def export_pipeline_stats():
         except Exception:
             pass
 
+    # Space weather indices (last 30 days from cache)
+    try:
+        from src.data.space_weather import SpaceWeatherCache
+        sw_cache = SpaceWeatherCache()
+        today = datetime.utcnow()
+        sw_records = []
+        for d in range(30):
+            date_str = (today - timedelta(days=d)).strftime("%Y-%m-%d")
+            sw = sw_cache.get_indices(date_str)
+            sw_records.append({
+                "date": date_str,
+                "f107": sw.get("f107", 0),
+                "kp": sw.get("kp", 0),
+                "ap": sw.get("ap", 0),
+                "source": sw.get("source", "unknown"),
+            })
+        sw_records.reverse()  # oldest first
+        stats["space_weather"] = {
+            "current": sw_records[-1] if sw_records else {},
+            "history": sw_records,
+        }
+    except Exception:
+        pass
+
     webapp_path.parent.mkdir(parents=True, exist_ok=True)
     webapp_path.write_text(json.dumps(stats, indent=2))
     print(f"  Pipeline stats exported to {webapp_path}")
