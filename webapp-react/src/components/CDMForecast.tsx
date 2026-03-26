@@ -169,10 +169,14 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
     const sorted = pair.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
     const seen = new Set<number>();
     const points = sorted.filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
-      .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc, forecast: null as number | null }));
-    // Extend to 0h (TCA) with the forecast Pc so the curve reaches the axis
+      .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc, forecast: undefined as number | undefined }));
+    // Extend to 0h (TCA): bridge from last observation to forecast at TCA
     if (points.length > 0 && points[points.length - 1].hoursToTCA < 0 && pair.forecast_pc > 0) {
-      points.push({ hoursToTCA: 0, 'log10(Pc)': null as any, forecast: Math.log10(Math.max(pair.forecast_pc, 1e-20)) });
+      const lastPc = points[points.length - 1]['log10(Pc)'];
+      // Set forecast on the last real point so the dashed line starts there
+      points[points.length - 1].forecast = lastPc;
+      // Add forecast point at TCA (0h)
+      points.push({ hoursToTCA: 0, 'log10(Pc)': undefined as any, forecast: Math.log10(Math.max(pair.forecast_pc, 1e-20)) });
     }
     return points;
   }, [pair.time_series, pair.forecast_pc, expanded]);
@@ -323,12 +327,19 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
       .catch(() => setData(null));
   }, [visible]);
 
-  // Only show future events (TCA hasn't happened yet). Resolved pairs
-  // belong in the track record section, not the active forecast list.
+  // Future events first, then resolved (past TCA) clearly separated.
   const activePairs = useMemo(() => {
     if (!data) return [];
     const now = new Date().toISOString();
-    return data.pairs.filter(p => !p.tca || p.tca > now);
+    const future = data.pairs.filter(p => !p.tca || p.tca > now);
+    const past = data.pairs.filter(p => p.tca && p.tca <= now);
+    return [...future, ...past];
+  }, [data]);
+
+  const nFuture = useMemo(() => {
+    if (!data) return 0;
+    const now = new Date().toISOString();
+    return data.pairs.filter(p => !p.tca || p.tca > now).length;
   }, [data]);
 
   const counts = useMemo(() => {
@@ -441,11 +452,21 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
 
           {/* ── Pair list ──────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {filtered.map(pair => {
+            {filtered.map((pair, i) => {
               const key = `${pair.sat1_norad}-${pair.sat2_norad}`;
+              const isResolved = pair.tca ? pair.tca < new Date().toISOString() : false;
+              const prevResolved = i > 0 && filtered[i - 1].tca ? filtered[i - 1].tca! < new Date().toISOString() : false;
+              const showDivider = isResolved && !prevResolved && i > 0;
               return (
-                <PairCard key={key} pair={pair} expanded={expandedIdx === key}
-                  onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)} />
+                <div key={key}>
+                  {showDivider && (
+                    <div style={{ padding: '12px 16px', margin: '8px 0 4px', borderTop: '1px solid #1e1e2c', fontSize: 12, color: '#55556a', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                      Resolved Predictions ({filtered.length - nFuture} past TCA)
+                    </div>
+                  )}
+                  <PairCard pair={pair} expanded={expandedIdx === key}
+                    onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)} />
+                </div>
               );
             })}
           </div>
