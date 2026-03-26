@@ -112,7 +112,7 @@ export function LandingOverlay({ loading, nSatellites, onEnter, onExploreModels 
         >
           <StatBlock value={nSatellites > 0 ? `${(nSatellites / 1000).toFixed(0)}K` : '--'} label="Objects Tracked" />
           <Divider />
-          <StatBlock value="670" label="CDM Pairs" />
+          <StatBlock value="826" label="CDM Pairs" />
           <Divider />
           <StatBlock value="6" label="ML Models" />
           <Divider />

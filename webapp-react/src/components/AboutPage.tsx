@@ -14,7 +14,7 @@ export function AboutPage({ visible, onClose }: AboutPageProps) {
         <Section title="The Problem">
           <p>
             Over 30,000 tracked objects orbit Earth. Every 5 days, two of them collide,
-            creating thousands of new fragments — each a future collision. This is the <strong style={{ color: '#e8e8f0' }}>Kessler Syndrome</strong>:
+            creating thousands of new fragments, each a future collision. This is the <strong style={{ color: '#e8e8f0' }}>Kessler Syndrome</strong>:
             a cascading chain reaction that could make entire orbital shells unusable.
           </p>
           <p>
@@ -46,12 +46,12 @@ export function AboutPage({ visible, onClose }: AboutPageProps) {
         {/* Technical approach */}
         <Section title="Technical Approach">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <ApproachRow label="01" title="Logistic Regression" desc="20 engineered features from CDM sequences. Retrained daily on resolved pairs. F1 = 0.854 — the strongest single model." />
+            <ApproachRow label="01" title="Logistic Regression" desc="23 engineered features from CDM sequences. Retrained daily on resolved pairs. F1 = 0.854, the strongest single model." />
             <ApproachRow label="02" title="BiLSTM with Transfer Learning" desc="Pre-trained on 13K ESA Kelvins events, fine-tuned on 670 Space-Track pairs. Focal loss for class imbalance. Attention-weighted pooling." />
-            <ApproachRow label="03" title="Ensemble" desc="40% LR + 30% BiLSTM + 30% regression signal. Achieves 98.7% recall — misses only 2 out of 152 positive events." />
+            <ApproachRow label="03" title="Ensemble" desc="40% LR + 30% BiLSTM + 30% regression signal. Achieves 98.7% recall, misses only 2 out of 152 positive events." />
             <ApproachRow label="04" title="Graph Neural Network" desc="GraphSAGE on the conjunction network. Captures orbital neighborhood effects that per-pair models cannot." />
             <ApproachRow label="05" title="Autoregressive Forecaster" desc="Predicts next CDM update. Multi-step rollouts with Monte Carlo dropout uncertainty. Correlation r = 0.931." />
-            <ApproachRow label="06" title="Conformal Prediction" desc="Distribution-free coverage guarantees. 90.8% empirical coverage at 90% target — no distributional assumptions." />
+            <ApproachRow label="06" title="Conformal Prediction" desc="Distribution-free coverage guarantees. 90.8% empirical coverage at 90% target with no distributional assumptions." />
           </div>
         </Section>
 
@@ -76,7 +76,7 @@ export function AboutPage({ visible, onClose }: AboutPageProps) {
         {/* Credits */}
         <div style={{ borderTop: '1px solid #1e1e2c', paddingTop: 20, textAlign: 'center' }}>
           <p style={{ fontSize: 14, color: '#55556a', lineHeight: 1.8 }}>
-            <strong style={{ color: '#7c7c96' }}>PANACEA</strong> &mdash; AIPI 540 Deep Learning Applications, Duke University
+            <strong style={{ color: '#7c7c96' }}>PANACEA</strong> &middot; AIPI 540 Deep Learning Applications, Duke University
             <br />
             Built with React, Three.js, PyTorch, and FastAPI
             <br />

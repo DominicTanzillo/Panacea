@@ -211,7 +211,7 @@ export function RiskDashboard({
               <SH>Train/Test Split Strategy</SH>
               <p style={{ fontSize: 13, color: '#7c7c96', marginBottom: 16 }}>
                 Temporal split (train on older pairs, test on newer) vs random split.
-                Temporal 80/20 achieves <strong style={{ color: '#22c55e' }}>100% recall</strong> — the model generalizes forward in time with no data leakage.
+                Temporal 80/20 achieves <strong style={{ color: '#22c55e' }}>100% recall</strong>. The model generalizes forward in time with no data leakage.
               </p>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={temporalData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
@@ -267,8 +267,8 @@ export function RiskDashboard({
                 Solar and geomagnetic indices from NOAA SWPC. High activity increases atmospheric drag and orbit uncertainty.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
-                <MC value={swCurrent.f107?.toFixed(1) ?? '—'} label="F10.7 Solar Flux" color={swCurrent.f107 > 200 ? '#f59e0b' : '#e8e8f0'} />
-                <MC value={swCurrent.kp?.toFixed(1) ?? '—'} label={`Kp Index${swCurrent.kp >= 5 ? ' ⚠ Storm' : swCurrent.kp >= 4 ? ' — Active' : ' — Quiet'}`} color={swCurrent.kp >= 5 ? '#ef4444' : swCurrent.kp >= 4 ? '#f59e0b' : '#22c55e'} />
+                <MC value={swCurrent.f107?.toFixed(1) ?? '--'} label="F10.7 Solar Flux" color={swCurrent.f107 > 200 ? '#f59e0b' : '#e8e8f0'} />
+                <MC value={swCurrent.kp?.toFixed(1) ?? '--'} label={`Kp Index${swCurrent.kp >= 5 ? ' (Storm)' : swCurrent.kp >= 4 ? ' (Active)' : ' (Quiet)'}`} color={swCurrent.kp >= 5 ? '#ef4444' : swCurrent.kp >= 4 ? '#f59e0b' : '#22c55e'} />
                 <MC value={String(Math.round(swCurrent.ap ?? 0))} label="Ap Amplitude" color={swCurrent.ap > 50 ? '#ef4444' : swCurrent.ap > 20 ? '#f59e0b' : '#e8e8f0'} />
               </div>
               {swData.length > 2 && (
