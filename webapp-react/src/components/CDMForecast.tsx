@@ -168,16 +168,25 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
     if (!expanded) return [];
     const sorted = pair.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
     const seen = new Set<number>();
-    return sorted.filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
-      .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc }));
-  }, [pair.time_series, expanded]);
+    const points = sorted.filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
+      .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc, forecast: undefined as number | undefined }));
+    // Extend to 0h (TCA): bridge from last observation to forecast at TCA
+    if (points.length > 0 && points[points.length - 1].hoursToTCA < 0 && pair.forecast_pc > 0) {
+      const lastPc = points[points.length - 1]['log10(Pc)'];
+      // Set forecast on the last real point so the dashed line starts there
+      points[points.length - 1].forecast = lastPc;
+      // Add forecast point at TCA (0h)
+      points.push({ hoursToTCA: 0, 'log10(Pc)': undefined as any, forecast: Math.log10(Math.max(pair.forecast_pc, 1e-20)) });
+    }
+    return points;
+  }, [pair.time_series, pair.forecast_pc, expanded]);
 
   // Build one-line assessment
   const assessment = (() => {
     if (pair.current_pc >= 5e-3) return 'Collision probability is extremely elevated. Maneuver recommended.';
     if (pair.current_pc >= 5e-4) return 'Pc exceeds the maneuver planning threshold.';
     if (ep >= 0.5) return 'Models predict likely escalation above threshold.';
-    if (pair.risk_direction === 'de-escalating') return 'Pc is decreasing — conjunction may resolve safely.';
+    if (pair.risk_direction === 'de-escalating') return 'Pc is decreasing. Conjunction may resolve safely.';
     return 'Below action threshold. Being monitored.';
   })();
 
@@ -229,7 +238,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
               <div style={{ padding: '10px 14px', borderLeft: `3px solid ${color}`, background: `${color}06`, borderRadius: '0 6px 6px 0', marginBottom: 16 }}>
                 <p style={{ fontSize: 13, color: '#e8e8f0', lineHeight: 1.5 }}>{assessment}</p>
                 {pair.n_updates <= 2 && (
-                  <p style={{ fontSize: 12, color: '#55556a', marginTop: 4 }}>Only {pair.n_updates} CDM update{pair.n_updates > 1 ? 's' : ''} — confidence will improve with more data.</p>
+                  <p style={{ fontSize: 12, color: '#55556a', marginTop: 4 }}>Only {pair.n_updates} CDM update{pair.n_updates > 1 ? 's' : ''}. Confidence will improve with more data.</p>
                 )}
               </div>
 
@@ -278,7 +287,8 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                     {pair.predicted_max_log10_pc != null && (
                       <ReferenceLine y={pair.predicted_max_log10_pc} stroke="#f59e0b" strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Pred Max', position: 'right', fill: '#f59e0b', fontSize: 12 }} />
                     )}
-                    <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} />
+                    <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} connectNulls={false} />
+                    <Area type="monotone" dataKey="forecast" stroke={color} strokeWidth={2} strokeDasharray="4 3" fill="none" dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#111118' }} connectNulls={false} />
                   </AreaChart>
                 </ResponsiveContainer>
                 <div style={{ fontSize: 12, color: '#3a3a4a', textAlign: 'center', marginTop: 4 }}>
@@ -317,15 +327,19 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
       .catch(() => setData(null));
   }, [visible]);
 
-  // Show all pairs — active (future TCA) first, then resolved (past TCA).
-  // Pipeline now prioritizes future-TCA pairs in the export, but we keep
-  // resolved ones visible too so the dashboard isn't empty between events.
+  // Future events first, then resolved (past TCA) clearly separated.
   const activePairs = useMemo(() => {
     if (!data) return [];
     const now = new Date().toISOString();
     const future = data.pairs.filter(p => !p.tca || p.tca > now);
     const past = data.pairs.filter(p => p.tca && p.tca <= now);
     return [...future, ...past];
+  }, [data]);
+
+  const nFuture = useMemo(() => {
+    if (!data) return 0;
+    const now = new Date().toISOString();
+    return data.pairs.filter(p => !p.tca || p.tca > now).length;
   }, [data]);
 
   const counts = useMemo(() => {
@@ -438,11 +452,21 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
 
           {/* ── Pair list ──────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {filtered.map(pair => {
+            {filtered.map((pair, i) => {
               const key = `${pair.sat1_norad}-${pair.sat2_norad}`;
+              const isResolved = pair.tca ? pair.tca < new Date().toISOString() : false;
+              const prevResolved = i > 0 && filtered[i - 1].tca ? filtered[i - 1].tca! < new Date().toISOString() : false;
+              const showDivider = isResolved && !prevResolved && i > 0;
               return (
-                <PairCard key={key} pair={pair} expanded={expandedIdx === key}
-                  onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)} />
+                <div key={key}>
+                  {showDivider && (
+                    <div style={{ padding: '12px 16px', margin: '8px 0 4px', borderTop: '1px solid #1e1e2c', fontSize: 12, color: '#55556a', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                      Resolved Predictions ({filtered.length - nFuture} past TCA)
+                    </div>
+                  )}
+                  <PairCard pair={pair} expanded={expandedIdx === key}
+                    onToggle={() => setExpandedIdx(expandedIdx === key ? null : key)} />
+                </div>
               );
             })}
           </div>

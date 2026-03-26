@@ -47,10 +47,14 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const [supp, setSupp] = useState<any>(null);
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const [pstats, setPstats] = useState<any>(null);
+
   useEffect(() => {
     if (!visible) return;
     fetch('./cv_results.json').then(r => r.ok ? r.json() : null).then(setCv).catch(() => setCv(null));
     fetch('./supplementary_models.json').then(r => r.ok ? r.json() : null).then(setSupp).catch(() => setSupp(null));
+    fetch('./pipeline_stats.json').then(r => r.ok ? r.json() : null).then(setPstats).catch(() => setPstats(null));
   }, [visible]);
 
   return (
@@ -71,7 +75,7 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
             <p style={{ fontSize: 15, color: '#e8e8f0', lineHeight: 1.5, maxWidth: 700, marginBottom: 16 }}>
               Given a sequence of CDM updates for a conjunction pair, predict whether collision probability (Pc)
               will exceed <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#3b82f6' }}>5 &times; 10<sup>-4</sup></span> before
-              time of closest approach — the threshold at which operators begin planning avoidance maneuvers.
+              time of closest approach, the threshold at which operators begin planning avoidance maneuvers.
             </p>
             <div style={{
               padding: '14px 20px',
@@ -82,7 +86,7 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
             }}>
               <p style={{ fontSize: 14, color: '#e8e8f0', lineHeight: 1.6 }}>
                 <strong style={{ color: '#ef4444' }}>Recall is the primary metric.</strong> A false negative
-                means an undetected escalation — an operator doesn't plan a maneuver, and a $500M
+                means an undetected escalation: an operator doesn't plan a maneuver, and a $500M
                 satellite is at risk. A false positive means 30 minutes of extra monitoring. We optimize
                 for catching every dangerous event, even at the cost of more false alarms.
               </p>
@@ -94,6 +98,9 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
 
           {/* ── Section 3: Per-Fold Stability ────────────────── */}
           <FoldStabilityChart cv={cv} />
+
+          {/* ── Section 3b: BiLSTM Learning Over Time ──────── */}
+          <BiLSTMProgress pstats={pstats} />
 
           {/* ── Section 4: Ensemble Deep-Dive ────────────────── */}
           <EnsembleSection cv={cv} />
@@ -114,7 +121,7 @@ function ModelComparisonTable({ cv }: { cv: CVResults | null }) {
     return [
       {
         name: 'Logistic Regression',
-        role: 'Production baseline \u00b7 20 features, retrained daily',
+        role: 'Production baseline \u00b7 23 features, retrained daily',
         f1: avg(cv.results.lr.map(r => r.f1)),
         precision: avg(cv.results.lr.map(r => r.precision)),
         recall: avg(cv.results.lr.map(r => r.recall)),
@@ -295,7 +302,7 @@ function EnsembleSection({ cv }: { cv: CVResults | null }) {
     <div style={{ padding: '24px 0', borderBottom: '1px solid #1e1e2c' }}>
       <SectionHeader>Ensemble: Why 98.7% Recall Matters</SectionHeader>
       <p style={{ fontSize: 14, color: '#7c7c96', marginBottom: 20, maxWidth: 700, lineHeight: 1.6 }}>
-        In collision avoidance, a false negative means a missed escalation event — an undetected risk
+        In collision avoidance, a false negative means a missed escalation event: an undetected risk
         that could lead to a collision. The ensemble trades 53 false alarms for just <strong style={{ color: '#e8e8f0' }}>2 missed events</strong> out
         of 152 positives across all folds.
       </p>
@@ -330,7 +337,7 @@ function EnsembleSection({ cv }: { cv: CVResults | null }) {
             Ensemble Architecture
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <WeightBar label="Logistic Regression" weight={40} desc="20 engineered features, retrained daily" />
+            <WeightBar label="Logistic Regression" weight={40} desc="23 engineered features, retrained daily" />
             <WeightBar label="BiLSTM (Kelvins)" weight={30} desc="Transfer learning, attention pooling, focal loss" />
             <WeightBar label="Regression Signal" weight={30} desc="Predicted max Pc acts as soft escalation vote" />
           </div>
@@ -393,7 +400,7 @@ function SupplementaryModels({ supp }: { supp: any }) {
       id: 'gnn',
       name: 'Graph Neural Network',
       metric: gnnMetric,
-      desc: supp?.gnn ? `${supp.gnn.n_nodes.toLocaleString()} satellite nodes, ${supp.gnn.n_edges.toLocaleString()} conjunction edges. 1-hop message passing with risk aggregation from orbital neighborhood.` : 'GraphSAGE on conjunction network — satellites as nodes, conjunctions as edges.',
+      desc: supp?.gnn ? `${supp.gnn.n_nodes.toLocaleString()} satellite nodes, ${supp.gnn.n_edges.toLocaleString()} conjunction edges. 1-hop message passing with risk aggregation from orbital neighborhood.` : 'GraphSAGE on conjunction network: satellites as nodes, conjunctions as edges.',
       detail: <GNNDetail data={supp?.gnn} />,
     },
     {
@@ -485,7 +492,7 @@ function GNNDetail({ data }: { data: any }) {
       <div>
         <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 16 }}>
           {data ? `${data.n_nodes.toLocaleString()} satellite nodes with ${data.n_edges.toLocaleString()} conjunction edges (${data.n_positive_edges} high-risk).` : 'Loading...'}{' '}
-          1-hop message passing aggregates risk from orbital neighborhood — a satellite
+          1-hop message passing aggregates risk from orbital neighborhood. A satellite
           with many simultaneous high-risk conjunctions gets elevated signal.
         </p>
         <div style={{ display: 'flex', gap: 20, fontSize: 13, marginBottom: 16 }}>
@@ -613,7 +620,7 @@ function ConformalDetail({ data }: { data: any }) {
       <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 16 }}>
         Split-conformal prediction with {data ? data.n_calibration : '--'} calibration samples.
         NASA CARA requires calibrated uncertainty before adopting ML operationally.
-        Conformal prediction guarantees that the true outcome falls within our prediction set — no distributional assumptions.
+        Conformal prediction guarantees that the true outcome falls within our prediction set with no distributional assumptions.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
         {/* Classification coverage */}
@@ -681,6 +688,81 @@ function SummarizerDetail() {
         Collision probability is 1 in 3,125 with a miss distance of 0.4 km.
         Risk is escalating across 5 CDM updates (+15%/update). Ensemble gives 68% chance of exceeding
         the maneuver threshold. Recommend: active monitoring at 6-hour intervals.
+      </div>
+    </div>
+  );
+}
+
+/* ── BiLSTM Learning Over Time ────────────────────────────── */
+function BiLSTMProgress({ pstats }: { pstats: any }) {
+  const ftData = useMemo(() => {
+    if (!pstats?.finetune_history) return [];
+    return pstats.finetune_history.map((f: any) => ({
+      date: f.date?.slice(5, 10) ?? '',
+      auc_pr: +(f.post_auc_pr ?? 0).toFixed(3),
+      baseline: +(f.pre_auc_pr ?? 0).toFixed(3),
+      kept: f.keep_new_model,
+    }));
+  }, [pstats]);
+
+  if (ftData.length < 2) return null;
+
+  const best = Math.max(...ftData.map((d: any) => d.auc_pr));
+  const latest = ftData[ftData.length - 1];
+  const nKept = ftData.filter((d: any) => d.kept).length;
+
+  return (
+    <div style={{ padding: '24px 0', borderBottom: '1px solid #1e1e2c' }}>
+      <SectionHeader>BiLSTM: Learning Over Time</SectionHeader>
+      <p style={{ fontSize: 13, color: '#7c7c96', marginBottom: 16, maxWidth: 700, lineHeight: 1.6 }}>
+        Weekly fine-tuning on newly resolved conjunction pairs. The BiLSTM retrains each Sunday
+        and keeps the new weights only if AUC-PR improves. {nKept} of {ftData.length} fine-tune
+        runs improved the model.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px', gap: 24, alignItems: 'start' }}>
+        <ResponsiveContainer width="100%" height={180}>
+          <LineChart data={ftData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
+            <XAxis dataKey="date" tick={{ fill: '#55556a', fontSize: 12 }} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
+            <YAxis domain={[0, 'auto']} tick={{ fill: '#55556a', fontSize: 12 }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Line type="monotone" dataKey="baseline" stroke="#55556a" strokeWidth={1} strokeDasharray="4 3" dot={false} name="Pre-finetune" />
+            <Line type="monotone" dataKey="auc_pr" stroke="#3b82f6" strokeWidth={2} dot={(props: any) => {
+              const { cx, cy, payload } = props;
+              if (!cx || !cy) return <circle key={props.key} />;
+              return (
+                <circle key={props.key} cx={cx} cy={cy} r={payload.kept ? 5 : 3}
+                  fill={payload.kept ? '#22c55e' : '#ef4444'}
+                  stroke={payload.kept ? '#22c55e' : '#ef4444'}
+                  strokeWidth={payload.kept ? 2 : 1}
+                  opacity={payload.kept ? 1 : 0.5}
+                />
+              );
+            }} name="Post-finetune" />
+          </LineChart>
+        </ResponsiveContainer>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
+            <div style={{ fontSize: 12, color: '#55556a', marginBottom: 4 }}>Best AUC-PR</div>
+            <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>{best.toFixed(3)}</div>
+          </div>
+          <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
+            <div style={{ fontSize: 12, color: '#55556a', marginBottom: 4 }}>Latest Run</div>
+            <div style={{ fontSize: 15, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: latest?.kept ? '#22c55e' : '#7c7c96' }}>
+              {latest?.auc_pr.toFixed(3)} {latest?.kept ? '(kept)' : '(reverted)'}
+            </div>
+          </div>
+          <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
+            <div style={{ fontSize: 12, color: '#55556a', marginBottom: 4 }}>Improvements</div>
+            <div style={{ fontSize: 15, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>
+              {nKept} / {ftData.length} runs
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: '#55556a', marginTop: 4 }}>
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#22c55e', marginRight: 4 }} /> Kept
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ef4444', marginLeft: 12, marginRight: 4, opacity: 0.5 }} /> Reverted
+          </div>
+        </div>
       </div>
     </div>
   );
