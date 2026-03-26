@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import type { ScreeningPair } from '../lib/api';
 import { FullPagePanel } from './Overlay';
 
@@ -51,10 +52,20 @@ function shortObjType(t?: string): string {
   return OBJ_TYPE_SHORT[t.toUpperCase()] || t.slice(0, 3).toUpperCase();
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: ConjunctionAlertsProps) {
   const cdmCount = pairs.filter(p => p.source === 'cdm').length;
   const highCount = pairs.filter(p => riskTier(p) === 'HIGH').length;
   const modCount = pairs.filter(p => riskTier(p) === 'MODERATE').length;
+
+  // Fetch forecast data for ML track record
+  const [forecast, setForecast] = useState<any>(null);
+  useEffect(() => {
+    if (!visible) return;
+    fetch('./cdm_forecast.json').then(r => r.ok ? r.json() : null).then(setForecast).catch(() => setForecast(null));
+  }, [visible]);
+  const tr = forecast?.track_record;
 
   const sorted = [...pairs].sort((a, b) => {
     const order: Record<string, number> = { HIGH: 0, MODERATE: 1, LOW: 2 };
@@ -71,10 +82,30 @@ export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: Con
     >
       {pairs.length === 0 ? (
         <div style={{ padding: 48, textAlign: 'center', fontSize: 14, color: '#7c7c96' }}>
-          No active conjunction alerts. The pipeline screens satellite pairs daily — alerts appear when Pc exceeds screening thresholds.
+          No active conjunction alerts. The pipeline screens satellite pairs daily. Alerts appear when Pc exceeds screening thresholds.
         </div>
       ) : (
         <>
+          {/* ML context banner */}
+          <div style={{ padding: '16px 20px', background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.12)', borderRadius: 8, margin: '16px 0' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', marginBottom: 6 }}>ML Ensemble Active</div>
+            <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.5, margin: 0 }}>
+              Each conjunction below is scored by our ensemble model (40% logistic regression + 30% BiLSTM + 30% regression).
+              CDM-sourced pairs include Pc escalation predictions. Click any pair to view its trajectory on the globe.
+            </p>
+            {tr && tr.total > 0 && (
+              <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 13 }}>
+                <span style={{ color: '#e8e8f0' }}>
+                  Track Record: <strong style={{ fontFamily: "'JetBrains Mono', monospace" }}>{tr.correct}/{tr.total}</strong> correct
+                  ({((tr.correct / tr.total) * 100).toFixed(0)}%)
+                </span>
+                <span style={{ color: '#22c55e' }}>{tr.tp} true positives</span>
+                {tr.fn > 0 && <span style={{ color: '#ef4444' }}>{tr.fn} missed</span>}
+                <span style={{ color: '#7c7c96' }}>{tr.fp} false alarms</span>
+              </div>
+            )}
+          </div>
+
           {/* Summary strip */}
           <div style={{ display: 'flex', gap: 24, padding: '20px 0', borderBottom: '1px solid #1e1e2c', fontSize: 14 }}>
             {highCount > 0 && <span style={{ color: '#ef4444', fontWeight: 600 }}>{highCount} High Risk</span>}

@@ -261,7 +261,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
             {/* Chart */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>
-                {isCDM ? 'Separation Distance (SGP4 approximate — CDM miss distance is authoritative)' : 'Separation Distance'}
+                {isCDM ? 'Separation Distance (SGP4 approximate, CDM miss distance is authoritative)' : 'Separation Distance'}
               </div>
               <div style={{ height: 180 }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -324,7 +324,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
                 </div>
                 {tcaPoint && Math.abs(tcaPoint.distance - pair.miss_distance_km) > 10 && (
                   <div style={{ fontSize: 12, color: '#3a3a4a', marginTop: 4, fontStyle: 'italic' }}>
-                    SGP4 shows {tcaPoint.distance.toFixed(1)} km — TLE propagation is less accurate for debris
+                    SGP4 shows {tcaPoint.distance.toFixed(1)} km (TLE propagation is less accurate for debris)
                   </div>
                 )}
               </div>
