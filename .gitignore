@@ -2,6 +2,7 @@
 /data/
 !/data/tle_snapshots/
 !/data/prediction_logs/
+!/data/space_weather/
 
 # Python
 __pycache__/

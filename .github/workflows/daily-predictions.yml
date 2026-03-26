@@ -110,6 +110,7 @@ jobs:
           git config user.email "panacea-bot@users.noreply.github.com"
           # Force-add in case gitignore still interferes
           git add -f data/prediction_logs/ data/tle_snapshots/ 2>/dev/null || true
+          git add -f data/space_weather/ 2>/dev/null || true
           git add -f writeup/figures/ 2>/dev/null || true
           # Stage webapp alerts and TLE fallback (consumed by frontend)
           git add -f webapp-react/public/latest_alerts.json 2>/dev/null || true

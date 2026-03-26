@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer, ReferenceLine, LineChart, Line,
 } from 'recharts';
 import type { ModelComparisonResult, StalenessResults, PipelineStats } from '../lib/api';
 import type { SatellitePosition } from '../lib/types';
@@ -67,6 +67,18 @@ export function RiskDashboard({
     return Object.entries(bins).map(([a, c]) => ({ altitude: `${a}`, count: c })).sort((a, b) => parseInt(a.altitude) - parseInt(b.altitude));
   }, [satellites]);
 
+  // Space weather chart data
+  const swData = useMemo(() => {
+    if (!stats?.space_weather?.history) return [];
+    return stats.space_weather.history.slice(-14).map(d => ({
+      date: d.date.slice(5, 10),
+      f107: d.f107,
+      kp: d.kp,
+      ap: d.ap,
+    }));
+  }, [stats]);
+  const swCurrent = stats?.space_weather?.current;
+
   // Feature importance chart data
   const importanceData = useMemo(() => {
     if (!tuning) return [];
@@ -99,7 +111,7 @@ export function RiskDashboard({
             <SH>How the Pipeline Works</SH>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
               <StepCard step={1} title="Fetch CDMs" desc="Download latest conjunction data messages from Space-Track (18th SDS)" />
-              <StepCard step={2} title="Feature Engineering" desc="Extract 20 features per pair: Pc trend, miss distance slope, RCS, debris flags" />
+              <StepCard step={2} title="Feature Engineering" desc="Extract 23 features per pair: Pc trend, miss distance slope, RCS, debris flags, space weather" />
               <StepCard step={3} title="Model Inference" desc="Ensemble prediction: 40% LR + 30% BiLSTM + 30% regression signal" />
               <StepCard step={4} title="Export & Deploy" desc="Write forecasts to JSON, deploy webapp to GitHub Pages automatically" />
             </div>
@@ -246,6 +258,34 @@ export function RiskDashboard({
               <MC value={String(stats.cdm_stats.emergency_count)} label="Emergency" color="#ef4444" />
             </div>
           </div>
+
+          {/* ── Space Weather ─────────────────────────── */}
+          {swCurrent && (
+            <div style={{ padding: '24px 0', borderBottom: '1px solid #1e1e2c' }}>
+              <SH>Space Weather Conditions</SH>
+              <p style={{ fontSize: 13, color: '#7c7c96', marginBottom: 16 }}>
+                Solar and geomagnetic indices from NOAA SWPC. High activity increases atmospheric drag and orbit uncertainty.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+                <MC value={swCurrent.f107?.toFixed(1) ?? '—'} label="F10.7 Solar Flux" color={swCurrent.f107 > 200 ? '#f59e0b' : '#e8e8f0'} />
+                <MC value={swCurrent.kp?.toFixed(1) ?? '—'} label={`Kp Index${swCurrent.kp >= 5 ? ' ⚠ Storm' : swCurrent.kp >= 4 ? ' — Active' : ' — Quiet'}`} color={swCurrent.kp >= 5 ? '#ef4444' : swCurrent.kp >= 4 ? '#f59e0b' : '#22c55e'} />
+                <MC value={String(Math.round(swCurrent.ap ?? 0))} label="Ap Amplitude" color={swCurrent.ap > 50 ? '#ef4444' : swCurrent.ap > 20 ? '#f59e0b' : '#e8e8f0'} />
+              </div>
+              {swData.length > 2 && (
+                <ResponsiveContainer width="100%" height={140}>
+                  <LineChart data={swData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
+                    <XAxis dataKey="date" tick={{ fill: '#55556a', fontSize: 12 }} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
+                    <YAxis yAxisId="f107" tick={{ fill: '#55556a', fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="kp" orientation="right" domain={[0, 9]} tick={{ fill: '#55556a', fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={TT} />
+                    <Line yAxisId="f107" type="monotone" dataKey="f107" stroke="#3b82f6" strokeWidth={2} dot={false} name="F10.7" />
+                    <Line yAxisId="kp" type="monotone" dataKey="kp" stroke="#f59e0b" strokeWidth={2} dot={false} name="Kp" />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          )}
 
           {/* ── Activity + Density side by side ──────── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, paddingTop: 24 }}>

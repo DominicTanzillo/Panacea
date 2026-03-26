@@ -1,123 +1,87 @@
-# Panacea
+# PANACEA
 
-**AI-powered satellite collision avoidance and orbital debris visualization**
+**ML-based satellite conjunction assessment from public CDM data**
 
-[Live Demo](https://tanzillo.me/Panacea/) | [Models on HuggingFace](https://huggingface.co/DTanzillo/panacea-models)
+[Live Dashboard](https://dominictanzillo.github.io/Panacea/) · [Methodology Paper](writeup/methodology.md) · [Models on HuggingFace](https://huggingface.co/DTanzillo/panacea-models)
 
-AIPI 540 Final Project - Duke University
+AIPI 540 Final Project — Duke University
 
 ---
 
 ## What It Does
 
-Panacea predicts orbital conjunction events (potential satellite collisions) using machine learning on ESA's Conjunction Data Messages, and visualizes the full tracked-object catalog on an interactive 3D globe with real-time TLE data from CelesTrak.
+Every day, the US military issues thousands of Conjunction Data Messages (CDMs) warning satellite operators about potential collisions. Most resolve harmlessly — but the few that escalate look identical early on.
 
-**Key capabilities:**
-- 3 ML models for collision risk scoring (Baseline, XGBoost, Physics-Informed Transformer)
-- Live daily screening of 14,000+ active satellites via GitHub Actions
-- Automated weekly model fine-tuning using Starlink maneuver detections as proxy labels
-- Interactive 3D Earth with all tracked orbital objects, conjunction alerts, and model comparison dashboard
+PANACEA predicts **where those warnings are headed**. Given a sequence of CDM updates, our ensemble predicts whether collision probability (Pc) will exceed the 5e-4 maneuver-planning threshold before TCA.
 
-## Model Performance
+**98.7% recall** — catches 74 out of 75 escalating events — with conformal prediction providing calibrated uncertainty bounds.
 
-Trained and evaluated on the [ESA Kelvins Collision Avoidance Challenge](https://kelvins.esa.int/collision-avoidance-challenge/) dataset (13K events, 162K CDMs).
-
-| Model | AUC-PR | F1 | Description |
-|-------|--------|-----|-------------|
-| Orbital Shell Baseline | 0.061 | 0.132 | Altitude-binned historical collision rates |
-| **XGBoost** | **0.988** | **0.947** | Gradient-boosted trees on 112 engineered CDM features |
-| PI-TFT | 0.511 | 0.519 | Physics-Informed Temporal Fusion Transformer on CDM sequences |
-
-The PI-TFT improves automatically over time via weekly fine-tuning on real-world maneuver outcomes.
-
-### Staleness Experiment
-
-How quickly does prediction accuracy degrade as TLE data ages?
-
-| Model | 2 days | 3 days | 6 days |
-|-------|--------|--------|--------|
-| XGBoost | 0.988 | 0.711 | 0.322 |
-| PI-TFT | 0.511 | 0.313 | 0.184 |
-| Baseline | 0.061 | 0.061 | 0.061 |
-
-XGBoost has a sharp performance cliff at 3 days, demonstrating that timely data is critical for operational conjunction assessment.
-
-## Architecture
-
-```
-CelesTrak TLEs ──> Daily Screening ──> Risk Scoring ──> Firebase + JSONL
-                    (GitHub Actions)     (Baseline)       (Outcomes)
-                                                              │
-                                                              v
-ESA Kelvins CDMs ──> Feature Eng ──> XGBoost ──────────> Model Comparison
-                         │                                    │
-                         v                                    v
-                   CDM Sequences ──> PI-TFT ──> Weekly ──> HuggingFace
-                                    (Transformer)  Fine-Tune   Hub
-                                         │
-GitHub Pages ◄── React + Three.js ◄──── FastAPI ◄── All 3 Models
- (3D Globe)       (Visualization)      (Inference)
+```bash
+pip install panacea-ssa
+panacea predict --cdm-store my_cdms.jsonl -o predictions.json
 ```
 
-## Repository Structure
+## Key Results
+
+5-fold cross-validation on 787 conjunction pairs from Space-Track public CDMs:
+
+| Model | F1 | Recall | Precision | Role |
+|-------|-----|--------|-----------|------|
+| Logistic Regression | 0.854 | 0.899 | 0.813 | Interpretable baseline (40% weight) |
+| BiLSTM + Transfer | 0.597 | 0.518 | 0.849 | Temporal patterns (30% weight) |
+| **Ensemble** | **0.847** | **0.987** | **0.743** | **Production model** |
+
+Supplementary models:
+
+| Model | Key Metric | Value |
+|-------|-----------|-------|
+| Graph Neural Network | F1 / Recall | 0.960 / 1.000 |
+| Autoregressive Forecaster | MAE(log₁₀ Pc) | 0.090 |
+| Conformal Prediction (α=0.05) | Coverage | 94.9% |
+
+## How It Works
 
 ```
-Panacea/
-├── src/
-│   ├── data/
-│   │   ├── cdm_loader.py          # ESA Kelvins dataset loading + feature engineering
-│   │   ├── sequence_builder.py    # CDM sequence dataset for PI-TFT (temporal + delta features)
-│   │   ├── density_features.py    # Space debris density computation
-│   │   ├── firebase_client.py     # Firestore prediction/outcome logging
-│   │   └── maneuver_detector.py   # Kelecy SMA-change maneuver detection
-│   ├── model/
-│   │   ├── baseline.py            # Orbital shell baseline (altitude-binned rates)
-│   │   ├── classical.py           # XGBoost conjunction model
-│   │   ├── deep.py                # Physics-Informed TFT + focal loss + physics loss
-│   │   ├── pretrain.py            # Self-supervised TLE encoder pre-training
-│   │   └── triage.py              # Urgency tier classifier (LOW/MODERATE/HIGH)
-│   └── evaluation/
-│       ├── metrics.py             # AUC-PR, F1, calibration, miss-distance metrics
-│       ├── staleness.py           # TLE staleness sensitivity experiment
-│       └── conformal.py           # Conformal prediction intervals
-├── app/
-│   └── main.py                    # FastAPI inference server (5 endpoints)
-├── scripts/
-│   ├── train.py                   # Train baseline + XGBoost
-│   ├── train_deep.py              # Train PI-TFT
-│   ├── daily_predictions.py       # Daily CelesTrak screening pipeline
-│   ├── weekly_finetune.py         # Weekly PI-TFT fine-tuning from outcomes
-│   └── run_experiment.py          # Staleness experiment runner
-├── webapp-react/                  # 3D visualization frontend
-│   └── src/
-│       ├── App.tsx                # Main app with globe, panels, dashboard
-│       └── components/
-│           ├── Globe.tsx          # Three.js Earth with satellite orbits
-│           ├── ConjunctionAlerts.tsx  # Real-time risk alerts panel
-│           ├── RiskDashboard.tsx  # Model comparison + experiment charts
-│           ├── SearchFilter.tsx   # Satellite search by name/NORAD ID
-│           └── AboutPage.tsx      # Project info modal
-├── models/                        # Trained model artifacts
-├── results/                       # Experiment results (JSON)
-└── .github/workflows/
-    ├── daily-predictions.yml      # Cron: 00:00 UTC daily
-    ├── weekly-finetune.yml        # Cron: 02:00 UTC Sundays
-    ├── upload-models.yml          # Manual: push models to HuggingFace
-    └── deploy-webapp.yml          # Deploy React app to GitHub Pages
+Space-Track CDMs ─── Feature Engineering (23 features) ─── Ensemble Prediction
+       │                     │                                      │
+       │              Pc trends, volatility,               40% LogReg (interpretable)
+       │              RCS, debris flags,                   30% BiLSTM (temporal)
+       │              space weather (F10.7, Kp, Ap)        30% Regression signal
+       │                                                          │
+       v                                                          v
+  Daily Pipeline ──────── Retrain on resolved pairs ──── Conformal UQ ──── Webapp
+  (GitHub Actions)         (TCA in past = known label)   (coverage bounds)  (GitHub Pages)
+  00:00 UTC daily          787 pairs, 4,590+ CDMs
 ```
 
-## Operational Feedback Loop
+The system retrains itself nightly. When a conjunction's TCA passes, the outcome becomes a labeled training example.
 
-Panacea runs a continuous improvement cycle without human intervention:
+## Installation
 
-1. **Daily (00:00 UTC)** - Fetch TLEs, screen 14K+ satellites, score pairs, log predictions to Firebase
-2. **Daily +24h** - Compare yesterday's predictions against detected maneuvers (Kelecy SMA-change)
-3. **Weekly (Sunday 02:00 UTC)** - Pull accumulated outcomes, fine-tune PI-TFT, upload improved model to HuggingFace
-4. **Ongoing** - PI-TFT improves as more maneuver labels accumulate (current AUC-PR: 0.511, improving)
+### As a Package
 
-## Quick Start
+```bash
+pip install panacea-ssa                    # minimal: numpy, requests
+pip install panacea-ssa[full]              # adds torch, sklearn, sgp4, etc.
+```
 
-### Frontend (3D Globe)
+```bash
+# Predict on your CDMs
+panacea predict --cdm-store data.jsonl -o predictions.json
+
+# Train a model
+panacea train --cdm-store data.jsonl -o model.json
+```
+
+### From Source
+
+```bash
+git clone https://github.com/DominicTanzillo/Panacea.git
+cd Panacea
+pip install -e ".[full]"
+```
+
+### Webapp (3D Globe)
 
 ```bash
 cd webapp-react
@@ -125,36 +89,84 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-### Backend (API Server)
+## Daily Pipeline
 
-```bash
-pip install -r requirements.txt
-uvicorn app.main:app --reload    # http://localhost:8000
+Runs automatically at 00:00 UTC via GitHub Actions:
+
+1. **Fetch CDMs** from Space-Track (18th Space Defense Squadron data)
+2. **Fetch space weather** indices (F10.7, Kp, Ap) from NOAA SWPC
+3. **Extract 23 features** per conjunction pair (trends, derivatives, metadata, space weather)
+4. **Retrain** ensemble on all resolved pairs (TCA in past = known label)
+5. **Predict** escalation probability for all active pairs
+6. **Export** forecasts + uncertainty to webapp, deploy to GitHub Pages
+
+Current scale: **16,000+ satellites** screened, **6M candidate pairs** filtered, **500 predictions** logged nightly.
+
+## Repository Structure
+
+```
+Panacea/
+├── src/
+│   ├── cli.py                        # panacea predict / panacea train
+│   ├── data/
+│   │   ├── space_weather.py          # NOAA SWPC F10.7/Kp/Ap fetch + cache
+│   │   ├── spacetrack_crossref.py    # Space-Track CDM API client
+│   │   └── ...
+│   ├── model/
+│   │   ├── cdm_forecast.py           # Production logistic regression (23 features)
+│   │   ├── cdm_sequence_model.py     # BiLSTM with transfer learning + focal loss
+│   │   ├── conjunction_gnn.py        # Graph neural network on conjunction network
+│   │   ├── cdm_autoregressive.py     # Autoregressive next-CDM forecaster
+│   │   ├── conformal.py              # Split-conformal prediction intervals
+│   │   └── ...
+│   └── evaluation/
+├── scripts/
+│   ├── daily_predictions.py          # Daily automated pipeline (2000+ lines)
+│   ├── tune_and_analyze.py           # Hyperparameter grid search + feature importance
+│   ├── train_models.py               # Multi-model training + 5-fold CV
+│   └── train_supplementary.py        # GNN, autoregressive, conformal
+├── webapp-react/                     # Interactive 3D dashboard
+│   └── src/components/
+│       ├── Globe.tsx                  # Three.js Earth + 25K satellite dots
+│       ├── CDMForecast.tsx            # Ensemble forecast visualization
+│       ├── RiskDashboard.tsx          # Pipeline metrics + space weather
+│       └── ConjunctionAlerts.tsx      # Real-time risk alerts
+├── writeup/
+│   ├── methodology.md                # Full methodology paper
+│   └── paper.tex                     # LaTeX (NeurIPS format)
+├── models/                           # Trained checkpoints (JSON + PyTorch)
+├── pyproject.toml                    # pip install panacea-ssa
+└── .github/workflows/
+    ├── daily-predictions.yml         # 00:00 UTC daily
+    └── weekly-finetune.yml           # Sundays 02:00 UTC
 ```
 
-### Training (requires ESA Kelvins data in `data/cdm/`)
+## Strategic Positioning
 
-```bash
-python scripts/train.py          # Baseline + XGBoost
-python scripts/train_deep.py     # PI-TFT
-python scripts/run_experiment.py # Staleness experiment
-```
+PANACEA does **not** compete with commercial SSA providers:
+
+- **LeoLabs** generates CDMs and screens conjunctions (60% LEO market)
+- **Slingshot Aerospace** trains on 6.4M proprietary CDMs
+- **NASA CARA** concluded ML "has not shown promise" for risk assessment (AMOS 2025)
+
+PANACEA predicts where those CDMs are headed — an **open-source ML layer on top of their data**. We reframe from Pc regression (which NASA CARA found intractable) to binary escalation prediction (which works). The conformal prediction provides the calibrated uncertainty bounds that NASA CARA has called out as missing from every ML approach they've evaluated.
+
+## Novel Contributions
+
+1. **Conformal prediction for conjunction assessment** — first application; no prior work exists
+2. **Cross-dataset transfer learning** — Kelvins (103 features) → Space-Track (20 features) via feature dropout
+3. **Conjunction network GNN** — graph over relational structure of conjunction events
+4. **Space weather experiment** — controlled test of F10.7/Kp/Ap features, reported honestly
+5. **Continuously-retrained open-source pipeline** — first for public CDM data
 
 ## Tech Stack
 
-**ML:** PyTorch, XGBoost, scikit-learn, NumPy, SciPy
-
-**Backend:** FastAPI, Firebase Firestore, HuggingFace Hub
-
-**Frontend:** React 19, Three.js, Recharts, TailwindCSS, Vite
-
-**Infrastructure:** GitHub Actions (daily/weekly cron), GitHub Pages, CelesTrak API
+**ML:** PyTorch, scikit-learn, NumPy · **Data:** Space-Track API, NOAA SWPC, CelesTrak · **Frontend:** React 19, Three.js, Recharts, Vite · **Infra:** GitHub Actions, GitHub Pages
 
 ## Credits
 
-- **Dataset:** [ESA Kelvins Collision Avoidance Challenge](https://kelvins.esa.int/collision-avoidance-challenge/)
-- **TLE Data:** [CelesTrak](https://celestrak.org/) (Dr. T.S. Kelso)
-- **Maneuver Detection:** Kelecy semi-major axis change method
+- **Data:** [Space-Track.org](https://www.space-track.org/) (18th SDS), [ESA Kelvins Challenge](https://kelvins.esa.int/collision-avoidance-challenge/), [NOAA SWPC](https://www.swpc.noaa.gov/)
+- **TLEs:** [CelesTrak](https://celestrak.org/) (Dr. T.S. Kelso)
 - **Course:** AIPI 540 — Deep Learning Applications, Duke University
 
 ## License

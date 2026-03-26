@@ -28,6 +28,13 @@ from datetime import datetime, timezone
 from typing import Optional
 from collections import defaultdict
 
+# Space weather support (optional — degrades gracefully)
+try:
+    from src.data.space_weather import SpaceWeatherCache, normalize_space_weather
+    _HAS_SPACE_WEATHER = True
+except ImportError:
+    _HAS_SPACE_WEATHER = False
+
 
 # Feature engineering from raw CDM sequence
 RCS_MAP = {"SMALL": 0, "MEDIUM": 1, "LARGE": 2}
@@ -206,7 +213,7 @@ def compute_trend_features(sequence: np.ndarray) -> dict:
 def _build_feature_vector(sequence: np.ndarray, static: dict) -> np.ndarray:
     """Build a fixed-size feature vector from a variable-length CDM sequence.
 
-    Features (20 total):
+    Features (23 total):
       0: latest log10(Pc)
       1: latest log10(miss_km)
       2: latest time_to_tca_hours
@@ -219,7 +226,7 @@ def _build_feature_vector(sequence: np.ndarray, static: dict) -> np.ndarray:
       9: sat1_rcs
      10: sat2_rcs
      11: has_debris (either object is debris)
-     -- NEW derivative/rate features --
+     -- derivative/rate features --
      12: pc_range (max - min log10 Pc) — volatility indicator
      13: miss_range (max - min log10 miss)
      14: pc_last_delta — change in log10(Pc) between last two updates
@@ -228,8 +235,12 @@ def _build_feature_vector(sequence: np.ndarray, static: dict) -> np.ndarray:
      17: time_coverage — fraction of pre-TCA window covered by CDM updates
      18: first_log10_pc — initial Pc (how the conjunction started)
      19: emergency — emergency reportable flag
+     -- space weather features (normalized 0-1) --
+     20: f107_norm — F10.7 solar flux (atmospheric drag proxy)
+     21: kp_norm — Kp geomagnetic index (ionospheric heating)
+     22: ap_norm — Ap geomagnetic amplitude (drag storm effects)
     """
-    n_features = 20
+    n_features = 23
     if len(sequence) == 0:
         return np.zeros(n_features, dtype=np.float32)
 
@@ -266,6 +277,11 @@ def _build_feature_vector(sequence: np.ndarray, static: dict) -> np.ndarray:
     else:
         time_coverage = 0.0
 
+    # Space weather features (normalized 0-1)
+    sw_f107 = static.get("sw_f107_norm", 0.5)
+    sw_kp = static.get("sw_kp_norm", 0.25)
+    sw_ap = static.get("sw_ap_norm", 0.15)
+
     return np.array([
         float(log_pcs[-1]),                  # 0: latest log10(Pc)
         float(log_miss[-1]),                 # 1: latest log10(miss_km)
@@ -287,6 +303,9 @@ def _build_feature_vector(sequence: np.ndarray, static: dict) -> np.ndarray:
         time_coverage,                       # 17: CDM time coverage
         float(log_pcs[0]),                   # 18: initial Pc
         static.get("emergency_reportable", 0),  # 19: emergency flag
+        sw_f107,                             # 20: F10.7 solar flux
+        sw_kp,                               # 21: Kp geomagnetic
+        sw_ap,                               # 22: Ap geomagnetic
     ], dtype=np.float32)
 
 
@@ -369,6 +388,23 @@ class CDMForecastModel:
 
         now = datetime.utcnow()
 
+        # Fetch space weather indices for all CDM creation dates
+        sw_cache = None
+        if _HAS_SPACE_WEATHER:
+            try:
+                sw_cache = SpaceWeatherCache()
+                # Collect unique dates across all CDMs
+                all_dates = set()
+                for pair_cdms in pair_map.values():
+                    for c in pair_cdms:
+                        cd = c.get("creation_date", "")[:10]
+                        if cd:
+                            all_dates.add(cd)
+                if all_dates:
+                    sw_cache.bulk_lookup(sorted(all_dates))
+            except Exception:
+                sw_cache = None
+
         # Build labeled dataset from resolved pairs
         labeled_pairs = []
         for pair_key, pair_cdms in pair_map.items():
@@ -407,6 +443,17 @@ class CDMForecastModel:
             seq = feats["sequence"]
             if seq.shape[0] == 0:
                 continue
+
+            # Inject space weather indices into static features
+            if sw_cache:
+                latest_date = lp["cdms"][-1].get("creation_date", "")[:10]
+                if latest_date:
+                    sw = sw_cache.get_indices(latest_date)
+                    f107_n, kp_n, ap_n = normalize_space_weather(
+                        sw.get("f107", 155), sw.get("kp", 2.3), sw.get("ap", 10))
+                    feats["static"]["sw_f107_norm"] = f107_n
+                    feats["static"]["sw_kp_norm"] = kp_n
+                    feats["static"]["sw_ap_norm"] = ap_n
 
             # Simulate early prediction: use first ceil(n/2) updates
             n = seq.shape[0]
@@ -613,6 +660,21 @@ class CDMForecastModel:
         seq = feats["sequence"]
         meta = feats["meta"]
 
+        # Inject space weather at prediction time
+        if _HAS_SPACE_WEATHER:
+            try:
+                sw_cache = SpaceWeatherCache()
+                latest_date = cdm_sequence[-1].get("creation_date", "")[:10] if cdm_sequence else ""
+                if latest_date:
+                    sw = sw_cache.get_indices(latest_date)
+                    f107_n, kp_n, ap_n = normalize_space_weather(
+                        sw.get("f107", 155), sw.get("kp", 2.3), sw.get("ap", 10))
+                    feats["static"]["sw_f107_norm"] = f107_n
+                    feats["static"]["sw_kp_norm"] = kp_n
+                    feats["static"]["sw_ap_norm"] = ap_n
+            except Exception:
+                pass
+
         if seq.shape[0] == 0:
             return {
                 "will_exceed_threshold": False,
@@ -698,9 +760,11 @@ class CDMForecastModel:
 
     def save(self, path: str | Path):
         path = Path(path)
+        n_features = len(self.weights) if self.weights is not None else 23
         data = {
             "model_type": "CDMForecastModel",
             "version": 2,
+            "n_features": n_features,
             "trained": self.trained,
             "weights": self.weights.tolist() if self.weights is not None else None,
             "bias": float(self.bias),
@@ -722,12 +786,28 @@ class CDMForecastModel:
         model.global_stats = data.get("global_stats", {})
         w = data.get("weights")
         if w is not None:
-            model.weights = np.array(w, dtype=np.float32)
+            weights = np.array(w, dtype=np.float32)
+            # Backward compatibility: pad old 20-feature weights to 23
+            saved_n = data.get("n_features", len(weights))
+            if saved_n < 23:
+                pad = np.zeros(23 - saved_n, dtype=np.float32)
+                weights = np.concatenate([weights, pad])
+            model.weights = weights
         model.bias = data.get("bias", 0.0)
         fm = data.get("feature_mean")
         if fm is not None:
-            model._feature_mean = np.array(fm, dtype=np.float32)
+            fmean = np.array(fm, dtype=np.float32)
+            if len(fmean) < 23:
+                # Pad with neutral normalization (mean=0.5 for [0,1] features)
+                pad_mean = np.full(23 - len(fmean), 0.5, dtype=np.float32)
+                fmean = np.concatenate([fmean, pad_mean])
+            model._feature_mean = fmean
         fs = data.get("feature_std")
         if fs is not None:
-            model._feature_std = np.array(fs, dtype=np.float32)
+            fstd = np.array(fs, dtype=np.float32)
+            if len(fstd) < 23:
+                # Pad with std=1 (no scaling) for new features
+                pad_std = np.ones(23 - len(fstd), dtype=np.float32)
+                fstd = np.concatenate([fstd, pad_std])
+            model._feature_std = fstd
         return model

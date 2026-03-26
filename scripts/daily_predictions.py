@@ -1173,6 +1173,17 @@ def main():
     except Exception as e:
         print(f"  Pipeline stats export failed (non-fatal): {e}")
 
+    # Prefetch space weather indices (used by CDM forecast model)
+    print("\nFetching space weather indices ...")
+    try:
+        from src.data.space_weather import SpaceWeatherCache
+        sw_cache = SpaceWeatherCache()
+        today_sw = sw_cache.get_indices(datetime.utcnow().strftime("%Y-%m-%d"))
+        print(f"  F10.7={today_sw.get('f107', '?')}, Kp={today_sw.get('kp', '?')}, "
+              f"Ap={today_sw.get('ap', '?')} (source: {today_sw.get('source', '?')})")
+    except Exception as e:
+        print(f"  Space weather fetch failed (non-fatal): {e}")
+
     # Run CDM forecast model — train, evaluate, predict, export
     print("\nRunning CDM Pc escalation forecast ...")
     try:
@@ -1985,6 +1996,30 @@ def export_pipeline_stats():
             stats["forecast_model"] = model_data.get("metrics", {})
         except Exception:
             pass
+
+    # Space weather indices (last 30 days from cache)
+    try:
+        from src.data.space_weather import SpaceWeatherCache
+        sw_cache = SpaceWeatherCache()
+        today = datetime.utcnow()
+        sw_records = []
+        for d in range(30):
+            date_str = (today - timedelta(days=d)).strftime("%Y-%m-%d")
+            sw = sw_cache.get_indices(date_str)
+            sw_records.append({
+                "date": date_str,
+                "f107": sw.get("f107", 0),
+                "kp": sw.get("kp", 0),
+                "ap": sw.get("ap", 0),
+                "source": sw.get("source", "unknown"),
+            })
+        sw_records.reverse()  # oldest first
+        stats["space_weather"] = {
+            "current": sw_records[-1] if sw_records else {},
+            "history": sw_records,
+        }
+    except Exception:
+        pass
 
     webapp_path.parent.mkdir(parents=True, exist_ok=True)
     webapp_path.write_text(json.dumps(stats, indent=2))
