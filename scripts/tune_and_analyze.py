@@ -98,7 +98,14 @@ def build_dataset(pairs: dict) -> tuple:
 
     for key, cdms in pairs.items():
         cdms_sorted = sorted(cdms, key=lambda c: c.get("creation_date", ""))
-        feat = extract_sequence_features(cdms_sorted)
+
+        # Early prediction simulation: use only first ceil(n/2) CDMs for features,
+        # but the full sequence for labels (ground truth).
+        n_total = len(cdms_sorted)
+        n_early = math.ceil(n_total / 2)
+        cdms_early = cdms_sorted[:n_early]
+
+        feat = extract_sequence_features(cdms_early)
         if feat is None:
             continue
 
@@ -153,10 +160,10 @@ def build_dataset(pairs: dict) -> tuple:
         min_miss = min(s[1] for s in seq)
         miss_range = max_miss - min_miss
 
-        # Space weather features
+        # Space weather features (from early window only)
         sw_f107, sw_kp, sw_ap = 0.5, 0.25, 0.15  # neutral defaults
         if sw_cache:
-            latest_date = cdms_sorted[-1].get("creation_date", "")[:10]
+            latest_date = cdms_early[-1].get("creation_date", "")[:10]
             if latest_date:
                 try:
                     sw = sw_cache.get_indices(latest_date)
