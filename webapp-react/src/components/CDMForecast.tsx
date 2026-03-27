@@ -171,13 +171,25 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
     const seen = new Set<number>();
     const points = sorted.filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
       .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc, forecast: undefined as number | undefined }));
-    // Extend to 0h (TCA): bridge from last observation to forecast at TCA
+    // Extend to 0h (TCA): smooth interpolated forecast curve from last CDM to TCA
     if (points.length > 0 && points[points.length - 1].hoursToTCA < 0 && pair.forecast_pc > 0) {
-      const lastPc = points[points.length - 1]['log10(Pc)'];
+      const lastPoint = points[points.length - 1];
+      const startHour = lastPoint.hoursToTCA;
+      const startPc = lastPoint['log10(Pc)'];
+      const endPc = Math.log10(Math.max(pair.forecast_pc, 1e-20));
       // Set forecast on the last real point so the dashed line starts there
-      points[points.length - 1].forecast = lastPc;
-      // Add forecast point at TCA (0h)
-      points.push({ hoursToTCA: 0, 'log10(Pc)': undefined as any, forecast: Math.log10(Math.max(pair.forecast_pc, 1e-20)) });
+      lastPoint.forecast = startPc;
+      // Generate intermediate forecast points (every 1-2 hours) for a smooth curve
+      const span = Math.abs(startHour);
+      const nSteps = Math.max(2, Math.min(Math.ceil(span / 2), 12));
+      for (let i = 1; i <= nSteps; i++) {
+        const t = i / nSteps; // 0..1
+        const h = Math.round(startHour + t * (0 - startHour));
+        // Ease-in curve: forecast changes gradually at first, steeper near TCA
+        const ease = t * t;
+        const pc = startPc + ease * (endPc - startPc);
+        points.push({ hoursToTCA: h, 'log10(Pc)': undefined as any, forecast: pc });
+      }
     }
     return points;
   }, [pair.time_series, pair.forecast_pc, expanded]);
