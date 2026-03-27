@@ -77,7 +77,9 @@ export function useSatellites(): UseSatellitesResult {
   const propagatingRef = useRef(false);
   const initialLoadDoneRef = useRef(false);
 
-  // Fetch TLE data for enabled groups (CelesTrak first, static fallback)
+  // Fetch TLE data: static fallback FIRST (guaranteed same-origin), then
+  // try CelesTrak as an upgrade for fresher data. This ensures satellites
+  // always render even when CelesTrak is CORS-blocked.
   const fetchGroups = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -86,63 +88,67 @@ export function useSatellites(): UseSatellitesResult {
     const newCache = new Map(tleCache);
     const toFetch = enabledGroups.filter(g => !newCache.has(g.id));
 
-    // Phase 1: Try CelesTrak (freshest TLEs)
-    let celestrakFailed = 0;
+    if (toFetch.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    // Phase 1: Load static fallback (same-origin, always works)
+    try {
+      const resp = await fetch('./latest_tles.json');
+      if (resp.ok) {
+        const allTles: (TLERecord & { _group?: string })[] = await resp.json();
+        // Distribute TLEs into groups by _group tag
+        for (const group of toFetch) {
+          const groupTles = allTles.filter(t => t._group === group.id);
+          if (groupTles.length > 0) {
+            newCache.set(group.id, groupTles);
+          }
+        }
+        // Any TLEs without a matching group go into 'active'
+        const assigned = new Set(toFetch.map(g => g.id));
+        const unmatched = allTles.filter(t => !t._group || !assigned.has(t._group));
+        if (unmatched.length > 0) {
+          const existing = newCache.get('active') || [];
+          const existingIds = new Set(existing.map(t => t.NORAD_CAT_ID));
+          const merged = [...existing, ...unmatched.filter(t => !existingIds.has(t.NORAD_CAT_ID))];
+          newCache.set('active', merged);
+        }
+        console.log(`Static TLEs loaded: ${allTles.length} satellites`);
+      }
+    } catch (fallbackErr) {
+      console.error('Static TLE load failed:', fallbackErr);
+    }
+
+    // Phase 2: Try CelesTrak for fresher data (may be CORS-blocked)
     const promises = toFetch.map(async (group) => {
       try {
         const resp = await fetch(group.url);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data: TLERecord[] = await resp.json();
-        return { id: group.id, data };
-      } catch (err) {
-        console.warn(`CelesTrak fetch failed for ${group.id}:`, err);
-        celestrakFailed++;
-        return { id: group.id, data: [] as TLERecord[] };
+        if (data.length > 0) return { id: group.id, data };
+      } catch {
+        // CelesTrak blocked — static fallback already loaded, no problem
       }
+      return null;
     });
 
     const results = await Promise.all(promises);
-    for (const { id, data } of results) {
-      // Only cache non-empty results — don't let failed fetches poison the cache
-      if (data.length > 0) {
-        newCache.set(id, data);
+    let upgraded = 0;
+    for (const r of results) {
+      if (r && r.data.length > 0) {
+        newCache.set(r.id, r.data);
+        upgraded++;
       }
     }
+    if (upgraded > 0) {
+      console.log(`CelesTrak upgraded ${upgraded} groups with fresh TLEs`);
+    } else {
+      console.log('CelesTrak unavailable — using static TLEs (updated daily by pipeline)');
+    }
 
-    // Phase 2: If CelesTrak returned very few TLEs (blocked/partial), use static fallback.
-    // Expect at least 1000 TLEs total; if less, CelesTrak is likely blocked.
-    const totalLoaded = results.reduce((sum, r) => sum + r.data.length, 0);
-    const expectedMinimum = 1000;
-    if (toFetch.length > 0 && totalLoaded < expectedMinimum) {
-      console.warn('All CelesTrak fetches failed — trying static TLE fallback');
-      try {
-        const resp = await fetch('./latest_tles.json');
-        if (resp.ok) {
-          const allTles: (TLERecord & { _group?: string })[] = await resp.json();
-          // Distribute TLEs into groups by _group tag
-          for (const group of toFetch) {
-            const groupTles = allTles.filter(t => t._group === group.id);
-            if (groupTles.length > 0) {
-              newCache.set(group.id, groupTles);
-            }
-          }
-          // Any TLEs without a matching group go into 'active'
-          const assigned = new Set(toFetch.map(g => g.id));
-          const unmatched = allTles.filter(t => !t._group || !assigned.has(t._group));
-          if (unmatched.length > 0 && newCache.has('active')) {
-            const existing = newCache.get('active') || [];
-            const existingIds = new Set(existing.map(t => t.NORAD_CAT_ID));
-            const merged = [...existing, ...unmatched.filter(t => !existingIds.has(t.NORAD_CAT_ID))];
-            newCache.set('active', merged);
-          } else if (unmatched.length > 0) {
-            newCache.set('active', unmatched);
-          }
-          console.log(`Static fallback loaded ${allTles.length} TLEs`);
-        }
-      } catch (fallbackErr) {
-        console.error('Static TLE fallback also failed:', fallbackErr);
-        setError('Unable to load satellite data (CelesTrak blocked, no static fallback)');
-      }
+    if (newCache.size === 0) {
+      setError('Unable to load satellite data');
     }
 
     setTleCache(newCache);
