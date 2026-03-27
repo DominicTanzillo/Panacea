@@ -180,12 +180,18 @@ def fetch_supplemental_tles(active_tles: list[dict]) -> list[dict]:
           f"(of {len(cdm_norad_ids)} tracked, {len(cdm_norad_ids) - len(ids_to_fetch)} already in active)")
 
     # Fetch fresh TLEs from CelesTrak (every run, to keep elements current)
+    # Cap at 120s total to prevent pipeline timeout
     fetched_tles: dict[int, dict] = {}
     n_failed = 0
+    fetch_start = time.time()
+    MAX_SUPPLEMENTAL_SECONDS = 120
     for i, norad_id in enumerate(ids_to_fetch):
+        if time.time() - fetch_start > MAX_SUPPLEMENTAL_SECONDS:
+            print(f"    Supplemental fetch time limit ({MAX_SUPPLEMENTAL_SECONDS}s) reached at {i}/{len(ids_to_fetch)}")
+            break
         try:
             url = f"{CELESTRAK_URL}?CATNR={norad_id}&FORMAT=json"
-            resp = requests.get(url, timeout=30)
+            resp = requests.get(url, timeout=10)
             if resp.status_code == 200:
                 data = resp.json()
                 if isinstance(data, list) and len(data) > 0:
@@ -201,9 +207,9 @@ def fetch_supplemental_tles(active_tles: list[dict]) -> list[dict]:
             if n_failed <= 3:
                 print(f"    NORAD {norad_id}: {e}")
 
-        # Rate limit: 0.3s between requests
+        # Rate limit: 0.1s between requests (CelesTrak allows rapid queries)
         if i < len(ids_to_fetch) - 1:
-            time.sleep(0.3)
+            time.sleep(0.1)
 
     print(f"  Fetched {len(fetched_tles)} fresh supplemental TLEs"
           + (f" ({n_failed} failed)" if n_failed else ""))
@@ -1262,10 +1268,15 @@ def main():
 
             future = [p for p in predictions if p.get("tca", "") > now_str]
             past = [p for p in predictions if p.get("tca", "") <= now_str]
-            # Combine: today's future + carried-forward unresolved + today's past
-            export_pairs = future + prev_unresolved + past
+            # Combine: today's future + carried-forward unresolved + recent past
+            # Cap at 200 exported pairs to keep webapp fast (~300 KB)
+            MAX_EXPORT = 200
+            all_export = future + prev_unresolved + past
+            export_pairs = all_export[:MAX_EXPORT]
             if prev_unresolved:
                 print(f"  Carried forward {len(prev_unresolved)} unresolved pairs from yesterday")
+            if len(all_export) > MAX_EXPORT:
+                print(f"  Capped export to {MAX_EXPORT}/{len(all_export)} pairs (webapp perf)")
             forecast_data["n_pairs_exported"] = len(export_pairs)
             for p in export_pairs:
                 forecast_data["pairs"].append({
