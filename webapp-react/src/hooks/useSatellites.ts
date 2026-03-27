@@ -103,12 +103,17 @@ export function useSatellites(): UseSatellitesResult {
 
     const results = await Promise.all(promises);
     for (const { id, data } of results) {
-      newCache.set(id, data);
+      // Only cache non-empty results — don't let failed fetches poison the cache
+      if (data.length > 0) {
+        newCache.set(id, data);
+      }
     }
 
-    // Phase 2: If ALL CelesTrak fetches failed (IP blocked), try static fallback
+    // Phase 2: If CelesTrak returned very few TLEs (blocked/partial), use static fallback.
+    // Expect at least 1000 TLEs total; if less, CelesTrak is likely blocked.
     const totalLoaded = results.reduce((sum, r) => sum + r.data.length, 0);
-    if (toFetch.length > 0 && totalLoaded === 0) {
+    const expectedMinimum = 1000;
+    if (toFetch.length > 0 && totalLoaded < expectedMinimum) {
       console.warn('All CelesTrak fetches failed — trying static TLE fallback');
       try {
         const resp = await fetch('./latest_tles.json');

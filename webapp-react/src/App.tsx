@@ -369,11 +369,12 @@ function App() {
       {/* Borders toggle */}
       <button
         onClick={() => setShowBorders(!showBorders)}
+        aria-label="Toggle country borders"
         style={{
           position: 'absolute',
           bottom: 48,
           right: 24,
-          zIndex: 10,
+          zIndex: 25,
           padding: '6px 14px',
           fontSize: 12,
           fontWeight: 500,
