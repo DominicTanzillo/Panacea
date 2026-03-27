@@ -1236,12 +1236,36 @@ def main():
                 },
                 "pairs": [],
             }
-            # Prioritize future-TCA pairs (active conjunctions operators care about),
-            # then backfill with resolved pairs for context. Max 60 total.
+            # Sticky tracking: merge today's predictions with any unresolved pairs
+            # from yesterday's forecast that dropped out of today's top-K.
+            # This ensures every pair is tracked continuously until TCA.
             now_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+            forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
+            prev_unresolved = []
+            if forecast_path.exists():
+                try:
+                    with open(forecast_path) as f:
+                        prev_data = json.load(f)
+                    today_keys = set()
+                    for p in predictions:
+                        k = (p.get("sat1_norad", 0), p.get("sat2_norad", 0), p.get("tca", "")[:10])
+                        today_keys.add(k)
+                    for p in prev_data.get("pairs", []):
+                        tca_str = p.get("tca", "")
+                        if tca_str and tca_str > now_str:
+                            k = (p.get("sat1_norad", 0), p.get("sat2_norad", 0), tca_str[:10])
+                            if k not in today_keys:
+                                p["_carried_forward"] = True
+                                prev_unresolved.append(p)
+                except Exception:
+                    pass  # if previous JSON is corrupted, skip
+
             future = [p for p in predictions if p.get("tca", "") > now_str]
             past = [p for p in predictions if p.get("tca", "") <= now_str]
-            export_pairs = future[:40] + past[:max(0, 60 - len(future[:40]))]
+            # Combine: today's future + carried-forward unresolved + today's past
+            export_pairs = future + prev_unresolved + past
+            if prev_unresolved:
+                print(f"  Carried forward {len(prev_unresolved)} unresolved pairs from yesterday")
             forecast_data["n_pairs_exported"] = len(export_pairs)
             for p in export_pairs:
                 forecast_data["pairs"].append({
@@ -1289,26 +1313,57 @@ def main():
                     track_record["n_false_negatives"] += 1
                 else:
                     track_record["n_true_negatives"] += 1
-                # Collect interesting examples (wrong predictions first, then correct)
-                if not correct or len(track_record["examples"]) < 5:
-                    track_record["examples"].append({
-                        "sat1_name": p["sat1_name"],
-                        "sat2_name": p["sat2_name"],
-                        "sat1_norad": p["sat1_norad"],
-                        "sat2_norad": p["sat2_norad"],
-                        "tca": tca_str,
-                        "predicted_action": predicted_action,
-                        "actual_exceeded": actual_exceeded,
-                        "current_pc": p.get("current_pc", 0),
-                        "forecast_pc": p.get("forecast_pc", 0),
-                        "correct": correct,
-                    })
-            # Keep at most 5 examples, prioritizing wrong predictions
+                # Collect ALL resolved examples for comprehensive validation
+                track_record["examples"].append({
+                    "sat1_name": p["sat1_name"],
+                    "sat2_name": p["sat2_name"],
+                    "sat1_norad": p["sat1_norad"],
+                    "sat2_norad": p["sat2_norad"],
+                    "tca": tca_str,
+                    "predicted_action": predicted_action,
+                    "actual_exceeded": actual_exceeded,
+                    "exceedance_probability": p.get("exceedance_probability", 0),
+                    "ensemble_probability": p.get("ensemble_probability"),
+                    "current_pc": p.get("current_pc", 0),
+                    "forecast_pc": p.get("forecast_pc", 0),
+                    "risk_direction": p.get("risk_direction", ""),
+                    "n_updates": p.get("n_updates", 0),
+                    "correct": correct,
+                })
+            # Sort: wrong predictions first, then by exceedance_probability descending
             examples = track_record["examples"]
-            wrong_ex = [e for e in examples if not e["correct"]]
-            right_ex = [e for e in examples if e["correct"]]
-            track_record["examples"] = (wrong_ex + right_ex)[:5]
+            wrong_ex = sorted([e for e in examples if not e["correct"]],
+                              key=lambda e: e.get("exceedance_probability", 0), reverse=True)
+            right_ex = sorted([e for e in examples if e["correct"]],
+                              key=lambda e: e.get("exceedance_probability", 0), reverse=True)
+            # Keep up to 20 wrong + 30 right = 50 examples for the webapp
+            track_record["examples"] = wrong_ex[:20] + right_ex[:30]
             forecast_data["track_record"] = track_record
+
+            # Append daily snapshot to prediction_history.jsonl for confidence evolution tracking.
+            # Each line records today's prediction for one pair, enabling time-series
+            # analysis of how model confidence evolves as TCA approaches.
+            history_path = LOG_DIR / "prediction_history.jsonl"
+            today_str_snap = datetime.utcnow().strftime("%Y-%m-%d")
+            try:
+                with open(history_path, "a") as hf:
+                    for p in predictions:
+                        hf.write(json.dumps({
+                            "date": today_str_snap,
+                            "sat1_norad": p["sat1_norad"],
+                            "sat2_norad": p["sat2_norad"],
+                            "tca": p.get("tca", ""),
+                            "hours_to_tca": p.get("time_to_tca_hours", 0),
+                            "current_pc": p.get("current_pc", 0),
+                            "exceedance_prob": p.get("exceedance_probability", 0),
+                            "ensemble_prob": p.get("ensemble_probability"),
+                            "action_recommended": p.get("action_recommended", False),
+                            "risk_direction": p.get("risk_direction", ""),
+                            "n_updates": p.get("n_updates", 0),
+                        }, default=_json_default) + "\n")
+                print(f"  Appended {len(predictions)} prediction snapshots to prediction_history.jsonl")
+            except Exception as e:
+                print(f"  prediction_history.jsonl write failed (non-fatal): {e}")
 
             forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
             with open(forecast_path, "w") as f:

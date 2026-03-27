@@ -328,6 +328,24 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
     if (!visible) return;
     fetch('./cdm_forecast.json')
       .then(r => r.ok ? r.json() : null)
+      .then((raw) => {
+        if (!raw) return null;
+        // Normalize track_record field names from pipeline (n_correct, n_wrong, ...)
+        // to webapp interface (correct, total, tp, fp, fn, tn)
+        if (raw.track_record) {
+          const tr = raw.track_record;
+          raw.track_record = {
+            correct: tr.correct ?? tr.n_correct ?? 0,
+            total: tr.total ?? (tr.n_correct ?? 0) + (tr.n_wrong ?? 0),
+            tp: tr.tp ?? tr.n_true_positives ?? 0,
+            fp: tr.fp ?? tr.n_false_positives ?? 0,
+            fn: tr.fn ?? tr.n_false_negatives ?? 0,
+            tn: tr.tn ?? tr.n_true_negatives ?? 0,
+            examples: tr.examples,
+          };
+        }
+        return raw;
+      })
       .then(setData)
       .catch(() => setData(null));
   }, [visible]);
