@@ -285,7 +285,7 @@ export function RiskDashboard({
               <MC value={stats.cdm_stats.total_cdms.toLocaleString()} label="Total CDMs" />
               <MC value={String(stats.cdm_stats.pc_high)} label="High Risk (Pc >= 5e-4)" color="#ef4444" />
               <MC value={String(stats.cdm_stats.pc_moderate)} label="Moderate (1e-4 to 5e-4)" color="#f59e0b" />
-              <MC value={String(stats.cdm_stats.emergency_count)} label="Emergency" color="#ef4444" />
+              <MC value={`${((stats.cdm_stats.pc_high / Math.max(stats.cdm_stats.total_cdms, 1)) * 100).toFixed(1)}%`} label="High Risk Rate" color="#f59e0b" />
             </div>
           </div>
 
