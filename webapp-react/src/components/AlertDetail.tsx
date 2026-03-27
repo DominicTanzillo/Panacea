@@ -94,6 +94,13 @@ function formatPcDisplay(pc: number): string {
 export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailProps) {
   const hasPrecomputed = !!(pair.trajectory && pair.trajectory.length > 0);
   const hasTrail = !!(pair.trail && pair.trail.length > 0);
+  // Timeout: if trajectory hasn't computed in 5s, give up and show CDM-only view
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    setTimedOut(false);
+    const t = setTimeout(() => setTimedOut(true), 5000);
+    return () => clearTimeout(t);
+  }, [pair.norad_1, pair.norad_2]);
 
   const tle1 = useMemo(() => {
     if (hasPrecomputed) return null;
@@ -182,7 +189,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
   const color = TIER_COLORS[tier];
   const hasData = chartPoints.length > 0 || simPoints.length > 0;
   // No trajectory = show CDM-only view (not "loading forever")
-  const noTrajectory = !hasPrecomputed && !hasTrail && !tle1 && !tle2;
+  const noTrajectory = (!hasPrecomputed && !hasTrail && !tle1 && !tle2) || timedOut;
 
   const isCDM = pair.source === 'cdm';
   const tcaDate = pair.cdm_tca ? new Date(pair.cdm_tca) : null;
