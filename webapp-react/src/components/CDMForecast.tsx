@@ -169,30 +169,61 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
     if (!expanded) return [];
     const sorted = pair.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
     const seen = new Set<number>();
-    const points = sorted.filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
+    type ChartPoint = { hoursToTCA: number; 'log10(Pc)': number | undefined; forecast: number | undefined; forecastUpper?: number; forecastLower?: number };
+    const points: ChartPoint[] = sorted
+      .filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
       .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc, forecast: undefined as number | undefined }));
-    // Extend to 0h (TCA): smooth interpolated forecast curve from last CDM to TCA
-    if (points.length > 0 && points[points.length - 1].hoursToTCA < 0 && pair.forecast_pc > 0) {
+
+    if (points.length > 0 && points[points.length - 1].hoursToTCA < 0) {
       const lastPoint = points[points.length - 1];
-      const startHour = lastPoint.hoursToTCA;
-      const startPc = lastPoint['log10(Pc)'];
-      const endPc = Math.log10(Math.max(pair.forecast_pc, 1e-20));
-      // Set forecast on the last real point so the dashed line starts there
-      lastPoint.forecast = startPc;
-      // Generate intermediate forecast points (every 1-2 hours) for a smooth curve
-      const span = Math.abs(startHour);
-      const nSteps = Math.max(2, Math.min(Math.ceil(span / 2), 12));
-      for (let i = 1; i <= nSteps; i++) {
-        const t = i / nSteps; // 0..1
-        const h = Math.round(startHour + t * (0 - startHour));
-        // Ease-in curve: forecast changes gradually at first, steeper near TCA
-        const ease = t * t;
-        const pc = startPc + ease * (endPc - startPc);
-        points.push({ hoursToTCA: h, 'log10(Pc)': undefined as any, forecast: pc });
+      // Bridge: set forecast on last real point so dashed line connects
+      lastPoint.forecast = lastPoint['log10(Pc)'];
+
+      // Prefer autoregressive forecast_steps (real model predictions with uncertainty)
+      if (pair.forecast_steps && pair.forecast_steps.length > 0) {
+        const lastHour = lastPoint.hoursToTCA;
+        const stepSpan = Math.abs(lastHour) / (pair.forecast_steps.length + 1);
+        for (let i = 0; i < pair.forecast_steps.length; i++) {
+          const fs = pair.forecast_steps[i];
+          // Distribute forecast steps evenly between last CDM and TCA
+          const h = Math.round(lastHour + (i + 1) * stepSpan);
+          const unc = fs.uncertainty_log10_pc || 0;
+          points.push({
+            hoursToTCA: h,
+            'log10(Pc)': undefined,
+            forecast: fs.predicted_log10_pc,
+            forecastUpper: fs.predicted_log10_pc + unc,
+            forecastLower: fs.predicted_log10_pc - unc,
+          });
+        }
+        // Final point at TCA (0h) using last forecast step
+        const lastFs = pair.forecast_steps[pair.forecast_steps.length - 1];
+        const lastUnc = lastFs.uncertainty_log10_pc || 0;
+        points.push({
+          hoursToTCA: 0,
+          'log10(Pc)': undefined,
+          forecast: lastFs.predicted_log10_pc,
+          forecastUpper: lastFs.predicted_log10_pc + lastUnc * 1.2,
+          forecastLower: lastFs.predicted_log10_pc - lastUnc * 1.2,
+        });
+      } else if (pair.forecast_pc > 0) {
+        // Fallback: simple interpolation when no autoregressive forecast available
+        const startHour = lastPoint.hoursToTCA;
+        const startPc = lastPoint['log10(Pc)']!;
+        const endPc = Math.log10(Math.max(pair.forecast_pc, 1e-20));
+        const span = Math.abs(startHour);
+        const nSteps = Math.max(2, Math.min(Math.ceil(span / 2), 12));
+        for (let i = 1; i <= nSteps; i++) {
+          const t = i / nSteps;
+          const h = Math.round(startHour + t * (0 - startHour));
+          const ease = t * t;
+          const pc = startPc + ease * (endPc - startPc);
+          points.push({ hoursToTCA: h, 'log10(Pc)': undefined, forecast: pc });
+        }
       }
     }
     return points;
-  }, [pair.time_series, pair.forecast_pc, expanded]);
+  }, [pair.time_series, pair.forecast_pc, pair.forecast_steps, expanded]);
 
   // Build one-line assessment
   const assessment = (() => {
@@ -304,6 +335,9 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                       <ReferenceLine y={pair.predicted_max_log10_pc} stroke="#f59e0b" strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Pred Max', position: 'right', fill: '#f59e0b', fontSize: 12 }} />
                     )}
                     <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} connectNulls={false} />
+                    {/* Uncertainty band from autoregressive forecast */}
+                    <Area type="monotone" dataKey="forecastUpper" stroke="none" fill={color} fillOpacity={0.08} connectNulls={false} />
+                    <Area type="monotone" dataKey="forecastLower" stroke="none" fill="#111118" fillOpacity={0.9} connectNulls={false} />
                     <Area type="monotone" dataKey="forecast" stroke={color} strokeWidth={2} strokeDasharray="4 3" fill="none" dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#111118' }} connectNulls={false} />
                   </AreaChart>
                 </ResponsiveContainer>
