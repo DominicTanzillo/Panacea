@@ -23,7 +23,7 @@ panacea predict --cdm-store my_cdms.jsonl -o predictions.json
 
 ## Key Results
 
-5-fold cross-validation on 787 conjunction pairs from Space-Track public CDMs:
+5-fold cross-validation on 670 conjunction pairs from Space-Track public CDMs (826 total in corpus, 670 used for CV):
 
 | Model | F1 | Recall | Precision | Role |
 |-------|-----|--------|-----------|------|
@@ -35,9 +35,9 @@ Supplementary models:
 
 | Model | Key Metric | Value |
 |-------|-----------|-------|
-| Graph Neural Network | F1 / Recall | 0.960 / 1.000 |
-| Autoregressive Forecaster | MAE(log₁₀ Pc) | 0.090 |
-| Conformal Prediction (α=0.05) | Coverage | 94.9% |
+| Graph Neural Network | F1 / Recall | 0.962 / 1.000 |
+| Autoregressive Forecaster | MAE(log₁₀ Pc) | 0.093 |
+| Conformal Prediction (α=0.05) | Coverage | 97.0% |
 
 ## How It Works
 
@@ -51,7 +51,7 @@ Space-Track CDMs ─── Feature Engineering (23 features) ─── Ensemble 
        v                                                          v
   Daily Pipeline ──────── Retrain on resolved pairs ──── Conformal UQ ──── Webapp
   (GitHub Actions)         (TCA in past = known label)   (coverage bounds)  (GitHub Pages)
-  00:00 UTC daily          787 pairs, 4,590+ CDMs
+  00:00 UTC daily          826+ pairs, 4,590+ CDMs
 ```
 
 The system retrains itself nightly. When a conjunction's TCA passes, the outcome becomes a labeled training example.
