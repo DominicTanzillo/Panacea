@@ -1,11 +1,12 @@
-# Daily conjunction prediction pipeline
-# Runs at 00:00 UTC every day, fetching TLEs, screening pairs,
-# logging predictions, and validating yesterday's results.
+# Conjunction prediction pipeline (BID — twice daily)
+# Runs at 00:00 and 12:00 UTC, fetching CDMs, screening pairs,
+# logging predictions, and validating previous results.
 name: Daily Predictions
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Every day at midnight UTC
+    - cron: '0 0 * * *'   # 00:00 UTC
+    - cron: '0 12 * * *'  # 12:00 UTC
   workflow_dispatch:  # Manual trigger for testing
 
 permissions:
