@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ScreeningPair } from '../lib/api';
 import { FullPagePanel } from './Overlay';
+import { GlossaryTooltip } from './Glossary';
 
 interface ConjunctionAlertsProps {
   pairs: ScreeningPair[];
@@ -46,7 +47,7 @@ function formatTCA(hours: number): string {
   return `${(hours / 24).toFixed(1)}d`;
 }
 
-const OBJ_TYPE_SHORT: Record<string, string> = { PAYLOAD: 'SAT', ROCKET_BODY: 'R/B', DEBRIS: 'DEB', UNKNOWN: '???' };
+const OBJ_TYPE_SHORT: Record<string, string> = { PAYLOAD: 'Satellite', ROCKET_BODY: 'Rocket Body', DEBRIS: 'Debris', UNKNOWN: 'Unknown' };
 function shortObjType(t?: string): string {
   if (!t) return '';
   return OBJ_TYPE_SHORT[t.toUpperCase()] || t.slice(0, 3).toUpperCase();
@@ -90,8 +91,8 @@ export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: Con
           <div style={{ padding: '16px 20px', background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.12)', borderRadius: 8, margin: '16px 0' }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', marginBottom: 6 }}>ML Ensemble Active</div>
             <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.5, margin: 0 }}>
-              Each conjunction below is scored by our ensemble model (40% logistic regression + 30% BiLSTM + 30% regression).
-              CDM-sourced pairs include Pc escalation predictions. Click any pair to view its trajectory on the globe.
+              Three machine learning models work together to score each pair. Track Record shows past accuracy.
+              {' '}<GlossaryTooltip term="CDM">CDM</GlossaryTooltip>-sourced pairs include collision probability escalation predictions. Click any pair to view its trajectory on the globe.
             </p>
             {tr && tr.total > 0 && (
               <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 13 }}>
@@ -128,9 +129,9 @@ export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: Con
           }}>
             <span />
             <span>Conjunction Pair</span>
-            <span style={{ textAlign: 'right' }}>Pc</span>
-            <span style={{ textAlign: 'right' }}>Miss Dist</span>
-            <span style={{ textAlign: 'right' }}>TCA</span>
+            <span style={{ textAlign: 'right' }} title="Collision Probability (0-1). Higher values = more dangerous.">Pc</span>
+            <span style={{ textAlign: 'right' }} title="Closest approach distance in kilometers">Miss Dist</span>
+            <span style={{ textAlign: 'right' }} title="Time of Closest Approach - when the objects pass nearest">TCA</span>
             <span style={{ textAlign: 'center' }}>Risk</span>
             <span />
           </div>
@@ -146,6 +147,7 @@ export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: Con
                 <button
                   key={`${pair.norad_1}-${pair.norad_2}`}
                   onClick={() => onSelectPair(pair)}
+                  aria-label={`View conjunction: ${pair.name_1} vs ${pair.name_2}, risk level ${tier}`}
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '4px 1fr 100px 100px 80px 72px 32px',
@@ -206,7 +208,7 @@ export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: Con
                   {/* Risk badge */}
                   <div style={{ textAlign: 'center' }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}12`, padding: '3px 8px', borderRadius: 6 }}>
-                      {tier}
+                      {tier === 'HIGH' ? '\u26A0 ' : tier === 'MODERATE' ? '-- ' : '\u2713 '}{tier}
                     </span>
                   </div>
 
@@ -220,6 +222,16 @@ export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: Con
           {/* Footer */}
           <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 13, color: '#55556a' }}>
             {cdmCount > 0 ? 'Space-Track CDM data' : 'Orbital proximity screening'} &middot; click a pair to view trajectory on globe
+          </div>
+
+          {/* Risk level legend */}
+          <div style={{ padding: '12px 16px', borderTop: '1px solid #1e1e2c', fontSize: 12, color: '#55556a', lineHeight: 1.6 }}>
+            <span style={{ fontWeight: 600, color: '#7c7c96' }}>Risk Levels: </span>
+            <span style={{ color: TIER_COLORS.HIGH, fontWeight: 600 }}>{'\u26A0'} HIGH</span> = Pc above maneuver threshold
+            {' | '}
+            <span style={{ color: TIER_COLORS.MODERATE, fontWeight: 600 }}>-- MODERATE</span> = Pc approaching threshold
+            {' | '}
+            <span style={{ color: TIER_COLORS.LOW, fontWeight: 600 }}>{'\u2713'} LOW</span> = Pc well below threshold
           </div>
         </>
       )}

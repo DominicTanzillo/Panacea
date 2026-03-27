@@ -203,12 +203,12 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
       {/* Header */}
       <div style={{ padding: '16px 20px', borderBottom: '1px solid #1e1e2c', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <button onClick={handleBack} style={{
+          <button onClick={handleBack} aria-label="Close detail view" style={{
             width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
             borderRadius: 6, border: 'none', background: '#1a1a24', color: '#7c7c96', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14,
           }}>&larr;</button>
           <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#e8e8f0' }}>Conjunction Detail</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}12`, padding: '2px 10px', borderRadius: 6 }}>{tier}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}12`, padding: '2px 10px', borderRadius: 6 }}>{tier === 'HIGH' ? '\u26A0 ' : tier === 'MODERATE' ? '-- ' : '\u2713 '}{tier}</span>
         </div>
 
         {/* Pair names */}
@@ -261,9 +261,9 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
             {/* Chart */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>
-                {isCDM ? 'Separation Distance (SGP4 approximate, CDM miss distance is authoritative)' : 'Separation Distance'}
+                {isCDM ? 'Separation Distance (SGP4 estimate — orbit prediction algorithm using public data; CDM miss distance is authoritative)' : 'Separation Distance'}
               </div>
-              <div style={{ height: 180 }}>
+              <div style={{ height: 180 }} role="img" aria-label={`Separation distance chart for ${pair.name_1} vs ${pair.name_2}. Shows distance in km relative to time of closest approach.`}>
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartPoints} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                     <defs>
@@ -288,11 +288,13 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button onClick={() => { if (!autoPlay && sliderIdx >= simPoints.length - 1) setSliderIdx(0); setAutoPlay(!autoPlay); }}
+                    aria-label={autoPlay ? 'Pause orbital approach animation' : 'Play orbital approach animation'}
                     style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #2a2a3a', borderRadius: 6, background: 'transparent', color: '#7c7c96', cursor: 'pointer', fontSize: 12, flexShrink: 0 }}>
                     {autoPlay ? '\u23F8' : '\u25B6'}
                   </button>
                   <div style={{ flex: 1 }}>
                     <input type="range" min={0} max={simPoints.length - 1} value={sliderIdx}
+                      aria-label="Orbital approach timeline slider"
                       onChange={e => { setAutoPlay(false); setSliderIdx(Number(e.target.value)); }}
                       style={{ width: '100%', height: 6, appearance: 'none', cursor: 'pointer', borderRadius: 3, background: `linear-gradient(to right, #3b82f6 ${(sliderIdx / Math.max(simPoints.length - 1, 1)) * 100}%, #1a1a24 ${(sliderIdx / Math.max(simPoints.length - 1, 1)) * 100}%)` }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#3a3a4a', marginTop: 4 }}>
@@ -324,7 +326,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
                 </div>
                 {tcaPoint && Math.abs(tcaPoint.distance - pair.miss_distance_km) > 10 && (
                   <div style={{ fontSize: 12, color: '#3a3a4a', marginTop: 4, fontStyle: 'italic' }}>
-                    SGP4 shows {tcaPoint.distance.toFixed(1)} km (TLE propagation is less accurate for debris)
+                    SGP4 (orbit prediction algorithm using public data) shows {tcaPoint.distance.toFixed(1)} km — TLE propagation is less accurate for debris
                   </div>
                 )}
               </div>
@@ -341,10 +343,10 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
                     <>TCA has passed. {isCDM && pair.miss_distance_km != null ? `Objects passed within ${pair.miss_distance_km.toFixed(1)} km.` : 'Event is no longer actionable.'}{' '}
                     {tier === 'HIGH' ? 'Check for debris generation in follow-up TLEs.' : 'Monitor for updated CDMs.'}</>
                   ) : tier === 'HIGH' ? (
-                    <>Collision avoidance maneuver recommended. Pc of {pair.pc != null ? pair.pc.toExponential(1) : '>1e-4'} exceeds the 1e-4 threshold.
-                    {hoursToTCA != null && hoursToTCA > 0 && <> Time to TCA: <strong style={{ color: '#e8e8f0' }}>{hoursToTCA < 24 ? `${hoursToTCA.toFixed(1)} hours` : `${(hoursToTCA / 24).toFixed(1)} days`}</strong>.</>}</>
+                    <>Collision avoidance maneuver recommended. The collision probability ({pair.pc != null ? formatPcDisplay(pair.pc) : 'elevated'}) has reached the screening threshold — this event warrants immediate attention and active monitoring.
+                    {hoursToTCA != null && hoursToTCA > 0 && <> Time to closest approach: <strong style={{ color: '#e8e8f0' }}>{hoursToTCA < 24 ? `${hoursToTCA.toFixed(1)} hours` : `${(hoursToTCA / 24).toFixed(1)} days`}</strong>.</>}</>
                   ) : (
-                    <>Monitor conjunction. {isCDM ? 'Request updated CDM to refine Pc estimate.' : 'Refine with higher-fidelity orbit determination.'}</>
+                    <>Monitor conjunction. {isCDM ? 'Updated data messages may refine the collision probability estimate.' : 'Higher-fidelity orbit data would improve this estimate.'}</>
                   )}
                 </div>
               </div>
@@ -390,7 +392,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
 
       {/* Footer */}
       <div style={{ padding: '8px 20px', borderTop: '1px solid #1e1e2c', textAlign: 'center', fontSize: 12, color: '#3a3a4a', flexShrink: 0 }}>
-        {hasData ? (hasPrecomputed ? 'Pre-computed trajectory' : 'SGP4 propagation') + (isCDM ? ' (approx.)' : '') : 'CDM data only'}
+        {hasData ? (hasPrecomputed ? 'Pre-computed trajectory' : 'SGP4 propagation (orbit prediction algorithm using public data)') + (isCDM ? ' — approximate' : '') : 'CDM data only'}
       </div>
     </div>
   );

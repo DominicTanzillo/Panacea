@@ -1,11 +1,33 @@
+import type { OverlayView } from '../App';
 import { FullPagePanel } from './Overlay';
 
 interface AboutPageProps {
   visible: boolean;
   onClose: () => void;
+  onNavigate?: (view: OverlayView) => void;
 }
 
-export function AboutPage({ visible, onClose }: AboutPageProps) {
+export function AboutPage({ visible, onClose, onNavigate }: AboutPageProps) {
+  const navLink = (label: string, view: OverlayView) => (
+    <button
+      onClick={() => { onNavigate?.(view); }}
+      style={{
+        background: 'rgba(59,130,246,0.1)',
+        border: '1px solid rgba(59,130,246,0.3)',
+        borderRadius: 6,
+        color: '#3b82f6',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: 13,
+        fontWeight: 500,
+        padding: '4px 12px',
+        marginLeft: 6,
+      }}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <FullPagePanel visible={visible} onClose={onClose} title="About PANACEA" subtitle="Orbital collision prediction for the age of mega-constellations" maxWidth={860}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32, paddingTop: 24 }}>
@@ -41,6 +63,15 @@ export function AboutPage({ visible, onClose }: AboutPageProps) {
               desc="Automated pipeline fetches real CDMs from Space-Track, runs inference, and deploys updated forecasts to this dashboard."
             />
           </div>
+          {onNavigate && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, color: '#55556a', lineHeight: '28px' }}>Explore:</span>
+              {navLink('View Forecasts', 'forecast')}
+              {navLink('See Alerts', 'alerts')}
+              {navLink('Pipeline Stats', 'dashboard')}
+              {navLink('Model Details', 'models')}
+            </div>
+          )}
         </Section>
 
         {/* Technical approach */}

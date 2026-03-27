@@ -446,6 +446,7 @@ function App() {
       <AboutPage
         visible={activeOverlay === 'about'}
         onClose={closeOverlay}
+        onNavigate={setActiveOverlay}
       />
 
       {/* Status bar */}

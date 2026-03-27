@@ -6,6 +6,7 @@ import {
 import type { ModelComparisonResult, StalenessResults, PipelineStats } from '../lib/api';
 import type { SatellitePosition } from '../lib/types';
 import { FullPagePanel } from './Overlay';
+import { GlossaryTooltip } from './Glossary';
 
 interface RiskDashboardProps {
   modelComparison: ModelComparisonResult[] | null;
@@ -30,6 +31,35 @@ interface TuningResults {
 }
 
 const TT = { background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 12, padding: '8px 12px' };
+
+const FEATURE_LABELS: Record<string, string> = {
+  latest_log10_pc: 'Current Collision Prob.',
+  pc_trend: 'Pc Trend (escalating?)',
+  max_log10_pc: 'Peak Collision Prob.',
+  miss_trend: 'Miss Distance Trend',
+  first_log10_pc: 'Initial Collision Prob.',
+  log_n_updates: 'Number of CDM Updates',
+  latest_tth: 'Time to Closest Approach',
+  pc_range: 'Pc Volatility',
+  miss_range: 'Miss Distance Range',
+  sat1_rcs: 'Object 1 Size (RCS)',
+  sat2_rcs: 'Object 2 Size (RCS)',
+  has_debris: 'Debris Involved?',
+  time_coverage: 'Observation Coverage',
+  min_log10_pc: 'Minimum Collision Prob.',
+  pc_acceleration: 'Pc Acceleration',
+  pc_last_delta: 'Latest Pc Change',
+  miss_last_delta: 'Latest Miss Change',
+  max_pc_rate: 'Max Pc Change Rate',
+  emergency: 'Emergency Flag',
+  f107_norm: 'Solar Flux (F10.7)',
+  kp_norm: 'Geomagnetic Index (Kp)',
+  ap_norm: 'Geomagnetic Amp. (Ap)',
+};
+
+function humanFeatureName(raw: string): string {
+  return FEATURE_LABELS[raw] ?? raw.replace(/_/g, ' ');
+}
 
 export function RiskDashboard({
   modelComparison: _mc, experimentResults: _er, satellites, visible, onClose,
@@ -85,7 +115,7 @@ export function RiskDashboard({
     return tuning.feature_importance.features
       .filter(f => f.f1_drop_mean > 0.001)
       .slice(0, 10)
-      .map(f => ({ name: f.feature.replace(/_/g, ' '), drop: +(f.f1_drop_mean * 100).toFixed(1) }));
+      .map(f => ({ name: humanFeatureName(f.feature), drop: +(f.f1_drop_mean * 100).toFixed(1) }));
   }, [tuning]);
 
   // Temporal split chart data
@@ -111,8 +141,8 @@ export function RiskDashboard({
             <SH>How the Pipeline Works</SH>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
               <StepCard step={1} title="Fetch CDMs" desc="Download latest conjunction data messages from Space-Track (18th SDS)" />
-              <StepCard step={2} title="Feature Engineering" desc="Extract 23 features per pair: Pc trend, miss distance slope, RCS, debris flags, space weather" />
-              <StepCard step={3} title="Model Inference" desc="Ensemble prediction: 40% LR + 30% BiLSTM + 30% regression signal" />
+              <StepCard step={2} title="Feature Engineering" desc="Extract 23 features per pair: collision probability trend, miss distance slope, object size (RCS), debris flags, solar and geomagnetic indices" />
+              <StepCard step={3} title="Model Inference" desc="Ensemble prediction: 40% logistic regression + 30% BiLSTM + 30% regression signal" />
               <StepCard step={4} title="Export & Deploy" desc="Write forecasts to JSON, deploy webapp to GitHub Pages automatically" />
             </div>
           </div>
@@ -194,7 +224,7 @@ export function RiskDashboard({
                   <div style={{ fontSize: 12, color: '#3a3a4a', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 8 }}>Label Correlation (top 5)</div>
                   {tuning.correlations.label_correlations.slice(0, 5).map((c, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #111118', fontSize: 13 }}>
-                      <span style={{ color: '#7c7c96' }}>{c.feature.replace(/_/g, ' ')}</span>
+                      <span style={{ color: '#7c7c96' }}>{humanFeatureName(c.feature)}</span>
                       <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: Math.abs(c.correlation) > 0.5 ? '#e8e8f0' : '#55556a' }}>
                         r = {c.correlation > 0 ? '+' : ''}{c.correlation.toFixed(3)}
                       </span>
@@ -250,11 +280,11 @@ export function RiskDashboard({
 
           {/* ── CDM stats ────────────────────────────── */}
           <div style={{ padding: '24px 0', borderBottom: '1px solid #1e1e2c' }}>
-            <SH>CDM Statistics</SH>
+            <SH><GlossaryTooltip term="CDM">CDM</GlossaryTooltip> Statistics</SH>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
               <MC value={stats.cdm_stats.total_cdms.toLocaleString()} label="Total CDMs" />
-              <MC value={String(stats.cdm_stats.pc_high)} label="Pc >= 5e-4" color="#ef4444" />
-              <MC value={String(stats.cdm_stats.pc_moderate)} label="1e-4 <= Pc < 5e-4" color="#f59e0b" />
+              <MC value={String(stats.cdm_stats.pc_high)} label="High Risk (Pc >= 5e-4)" color="#ef4444" />
+              <MC value={String(stats.cdm_stats.pc_moderate)} label="Moderate (1e-4 to 5e-4)" color="#f59e0b" />
               <MC value={String(stats.cdm_stats.emergency_count)} label="Emergency" color="#ef4444" />
             </div>
           </div>
@@ -264,12 +294,31 @@ export function RiskDashboard({
             <div style={{ padding: '24px 0', borderBottom: '1px solid #1e1e2c' }}>
               <SH>Space Weather Conditions</SH>
               <p style={{ fontSize: 13, color: '#7c7c96', marginBottom: 16 }}>
-                Solar and geomagnetic indices from NOAA SWPC. High activity increases atmospheric drag and orbit uncertainty.
+                Solar and geomagnetic indices from NOAA SWPC. High activity increases atmospheric drag and orbit uncertainty,
+                making collision predictions less certain.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 8 }}>
                 <MC value={swCurrent.f107?.toFixed(1) ?? '--'} label="F10.7 Solar Flux" color={swCurrent.f107 > 200 ? '#f59e0b' : '#e8e8f0'} />
                 <MC value={swCurrent.kp?.toFixed(1) ?? '--'} label={`Kp Index${swCurrent.kp >= 5 ? ' (Storm)' : swCurrent.kp >= 4 ? ' (Active)' : ' (Quiet)'}`} color={swCurrent.kp >= 5 ? '#ef4444' : swCurrent.kp >= 4 ? '#f59e0b' : '#22c55e'} />
                 <MC value={String(Math.round(swCurrent.ap ?? 0))} label="Ap Amplitude" color={swCurrent.ap > 50 ? '#ef4444' : swCurrent.ap > 20 ? '#f59e0b' : '#e8e8f0'} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+                <div style={{ fontSize: 11, color: '#55556a', lineHeight: 1.4, padding: '0 4px' }}>
+                  {swCurrent.f107 > 200 ? 'Elevated solar radio flux; increased drag on LEO satellites'
+                    : swCurrent.f107 > 150 ? 'Moderate solar activity'
+                    : 'Low solar activity; stable atmospheric drag'}
+                </div>
+                <div style={{ fontSize: 11, color: '#55556a', lineHeight: 1.4, padding: '0 4px' }}>
+                  {swCurrent.kp >= 7 ? 'Severe geomagnetic storm (Kp >= 7); major orbit uncertainty'
+                    : swCurrent.kp >= 5 ? 'Geomagnetic storm (Kp >= 5); orbits less predictable'
+                    : swCurrent.kp >= 4 ? 'Active geomagnetic conditions; slight orbit perturbations'
+                    : 'Quiet geomagnetic conditions; predictions most reliable'}
+                </div>
+                <div style={{ fontSize: 11, color: '#55556a', lineHeight: 1.4, padding: '0 4px' }}>
+                  {swCurrent.ap > 50 ? 'High geomagnetic amplitude; atmosphere expanding, increased drag'
+                    : swCurrent.ap > 20 ? 'Moderate amplitude; slightly elevated drag'
+                    : 'Low amplitude; calm upper atmosphere'}
+                </div>
               </div>
               {swData.length > 2 && (
                 <ResponsiveContainer width="100%" height={140}>

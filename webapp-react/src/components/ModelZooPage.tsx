@@ -67,6 +67,20 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
         : '6 models for satellite collision risk assessment'}
     >
 
+          {/* ── Context disclaimer ────────────────────────────── */}
+          <div style={{
+            padding: '12px 16px',
+            marginBottom: 8,
+            background: 'rgba(59,130,246,0.05)',
+            border: '1px solid rgba(59,130,246,0.15)',
+            borderRadius: 8,
+            fontSize: 13,
+            color: '#7c7c96',
+            lineHeight: 1.5,
+          }}>
+            This page shows detailed model performance metrics for technical review. For operational collision-risk decisions, see the <strong style={{ color: '#e8e8f0' }}>Forecast</strong> and <strong style={{ color: '#e8e8f0' }}>Alerts</strong> tabs.
+          </div>
+
           {/* ── Section 1: Task & Key Insight ────────────────── */}
           <div style={{ padding: '24px 0 20px', borderBottom: '1px solid #1e1e2c' }}>
             <div style={{ fontSize: 13, color: '#55556a', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 8 }}>
@@ -159,11 +173,11 @@ function ModelComparisonTable({ cv }: { cv: CVResults | null }) {
           <thead>
             <tr style={{ borderBottom: '1px solid #2a2a3a' }}>
               <Th align="left">Model</Th>
-              <Th>Recall</Th>
-              <Th>Missed Events</Th>
-              <Th>F1</Th>
-              <Th>Precision</Th>
-              <Th>Accuracy</Th>
+              <Th title="What fraction of dangerous events we catch">Recall</Th>
+              <Th title="Dangerous events the model failed to flag">Missed Events</Th>
+              <Th title="Balance between catching events and avoiding false alarms">F1</Th>
+              <Th title="What fraction of alerts are real threats">Precision</Th>
+              <Th title="Overall correct classification rate">Accuracy</Th>
             </tr>
           </thead>
           <tbody>
@@ -617,10 +631,13 @@ function ConformalDetail({ data }: { data: any }) {
 
   return (
     <div>
-      <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 16 }}>
+      <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 12 }}>
         Split-conformal prediction with {data ? data.n_calibration : '--'} calibration samples.
         NASA CARA requires calibrated uncertainty before adopting ML operationally.
         Conformal prediction guarantees that the true outcome falls within our prediction set with no distributional assumptions.
+      </p>
+      <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.6, marginBottom: 16, padding: '8px 12px', background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.12)', borderRadius: 6 }}>
+        <strong style={{ color: '#22c55e' }}>In plain terms:</strong> When the model says it is 90% confident, the true outcome actually falls within the predicted range 95%+ of the time. The model's uncertainty estimates are reliable and slightly conservative, which is what you want for safety-critical decisions.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
         {/* Classification coverage */}
@@ -777,9 +794,9 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Th({ children, align }: { children: React.ReactNode; align?: 'left' | 'center' }) {
+function Th({ children, align, title }: { children: React.ReactNode; align?: 'left' | 'center'; title?: string }) {
   return (
-    <th style={{
+    <th title={title} style={{
       padding: '8px 12px',
       fontSize: 12,
       fontWeight: 600,
@@ -787,6 +804,8 @@ function Th({ children, align }: { children: React.ReactNode; align?: 'left' | '
       textTransform: 'uppercase',
       letterSpacing: '0.04em',
       textAlign: align ?? 'right',
+      cursor: title ? 'help' : undefined,
+      borderBottom: title ? '1px dotted #55556a' : undefined,
     }}>
       {children}
     </th>
