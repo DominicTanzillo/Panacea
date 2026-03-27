@@ -91,6 +91,18 @@ function formatPcDisplay(pc: number): string {
   return pc.toExponential(1);
 }
 
+// Forecast data for cross-referencing alerts with model predictions
+interface ForecastMatch {
+  exceedance_probability: number;
+  ensemble_probability?: number | null;
+  forecast_pc: number;
+  risk_direction: string;
+  n_updates: number;
+  time_series: { time_to_tca_hours: number; log10_pc: number; pc: number }[];
+  forecast_steps?: { step: number; predicted_log10_pc: number; uncertainty_log10_pc: number; hours_ahead: number }[];
+  predicted_max_log10_pc?: number | null;
+}
+
 export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailProps) {
   const hasPrecomputed = !!(pair.trajectory && pair.trajectory.length > 0);
   const hasTrail = !!(pair.trail && pair.trail.length > 0);
@@ -100,6 +112,23 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
     setTimedOut(false);
     const t = setTimeout(() => setTimedOut(true), 5000);
     return () => clearTimeout(t);
+  }, [pair.norad_1, pair.norad_2]);
+
+  // Fetch forecast data to show model predictions when no trajectory available
+  const [forecastMatch, setForecastMatch] = useState<ForecastMatch | null>(null);
+  useEffect(() => {
+    fetch('./cdm_forecast.json')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.pairs) return;
+        const n1 = pair.norad_1, n2 = pair.norad_2;
+        const match = data.pairs.find((p: Record<string, unknown>) =>
+          (p.sat1_norad === n1 && p.sat2_norad === n2) ||
+          (p.sat1_norad === n2 && p.sat2_norad === n1)
+        );
+        setForecastMatch(match || null);
+      })
+      .catch(() => setForecastMatch(null));
   }, [pair.norad_1, pair.norad_2]);
 
   const tle1 = useMemo(() => {
@@ -360,13 +389,66 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
             )}
           </>
         ) : (
-          /* No trajectory data — show CDM data only */
-          <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+          /* No trajectory — show forecast model data + CDM data */
+          <div style={{ padding: '16px' }}>
             {noTrajectory ? (
               <>
-                <div style={{ fontSize: 13, color: '#55556a', lineHeight: 1.6, marginBottom: 16 }}>
-                  No orbital elements available for this pair. Objects may not be in the CelesTrak catalog (common for small debris and rocket bodies).
-                </div>
+                {/* ML forecast chart if available */}
+                {forecastMatch && forecastMatch.time_series && forecastMatch.time_series.length >= 2 && (() => {
+                  const sorted = forecastMatch.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
+                  type FcPoint = { hoursToTCA: number; 'log10(Pc)': number | undefined; forecast?: number; forecastUpper?: number; forecastLower?: number };
+                  const pts: FcPoint[] = sorted.map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc }));
+                  // Add forecast steps
+                  if (pts.length > 0 && forecastMatch.forecast_steps && forecastMatch.forecast_steps.length > 0) {
+                    const last = pts[pts.length - 1];
+                    last.forecast = last['log10(Pc)'];
+                    const span = Math.abs(last.hoursToTCA);
+                    const steps = forecastMatch.forecast_steps;
+                    const stepSpan = span / (steps.length + 1);
+                    for (let i = 0; i < steps.length; i++) {
+                      const fs = steps[i];
+                      const h = Math.round(last.hoursToTCA + (i + 1) * stepSpan);
+                      pts.push({ hoursToTCA: h, 'log10(Pc)': undefined, forecast: fs.predicted_log10_pc,
+                        forecastUpper: fs.predicted_log10_pc + (fs.uncertainty_log10_pc || 0),
+                        forecastLower: fs.predicted_log10_pc - (fs.uncertainty_log10_pc || 0) });
+                    }
+                    const lastFs = steps[steps.length - 1];
+                    pts.push({ hoursToTCA: 0, 'log10(Pc)': undefined, forecast: lastFs.predicted_log10_pc,
+                      forecastUpper: lastFs.predicted_log10_pc + (lastFs.uncertainty_log10_pc || 0) * 1.2,
+                      forecastLower: lastFs.predicted_log10_pc - (lastFs.uncertainty_log10_pc || 0) * 1.2 });
+                  } else if (pts.length > 0 && forecastMatch.forecast_pc > 0) {
+                    const last = pts[pts.length - 1];
+                    last.forecast = last['log10(Pc)'];
+                    pts.push({ hoursToTCA: 0, 'log10(Pc)': undefined, forecast: Math.log10(Math.max(forecastMatch.forecast_pc, 1e-20)) });
+                  }
+                  return (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: '#55556a', fontWeight: 600, marginBottom: 6 }}>ML Forecast — Pc Evolution</div>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <AreaChart data={pts} margin={{ top: 4, right: 8, left: -10, bottom: 4 }}>
+                          <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]} tick={{ fontSize: 11, fill: '#55556a' }} tickFormatter={(v: number) => `${v}h`} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
+                          <YAxis tick={{ fontSize: 11, fill: '#55556a' }} domain={['auto', 'auto']} tickFormatter={(v: number) => v.toFixed(1)} axisLine={false} tickLine={false} />
+                          <Tooltip contentStyle={{ background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 12 }} labelFormatter={(v) => `TCA ${v}h`} />
+                          <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1} strokeOpacity={0.5} />
+                          <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`${color}15`} dot={{ r: 2, fill: color }} connectNulls={false} />
+                          <Area type="monotone" dataKey="forecastUpper" stroke="none" fill={color} fillOpacity={0.08} connectNulls={false} />
+                          <Area type="monotone" dataKey="forecastLower" stroke="none" fill="#0c0c12" fillOpacity={0.9} connectNulls={false} />
+                          <Area type="monotone" dataKey="forecast" stroke={color} strokeWidth={2} strokeDasharray="4 3" fill="none" dot={{ r: 3, fill: color, stroke: '#111118', strokeWidth: 2 }} connectNulls={false} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 8, fontSize: 12 }}>
+                        <div style={{ color: '#7c7c96' }}>P(Exceed) <span style={{ color: '#e8e8f0', fontWeight: 600 }}>{((forecastMatch.ensemble_probability ?? forecastMatch.exceedance_probability) * 100).toFixed(1)}%</span></div>
+                        <div style={{ color: '#7c7c96' }}>Trend <span style={{ color: forecastMatch.risk_direction === 'escalating' ? '#ef4444' : forecastMatch.risk_direction === 'de-escalating' ? '#22c55e' : '#7c7c96', fontWeight: 600 }}>{forecastMatch.risk_direction}</span></div>
+                        <div style={{ color: '#7c7c96' }}>CDM Updates <span style={{ color: '#e8e8f0' }}>{forecastMatch.n_updates}</span></div>
+                        {forecastMatch.predicted_max_log10_pc != null && (
+                          <div style={{ color: '#7c7c96' }}>Pred Max <span style={{ color: '#f59e0b' }}>10^{forecastMatch.predicted_max_log10_pc.toFixed(1)}</span></div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* CDM data section */}
                 {isCDM && pair.miss_distance_km != null && (
                   <div style={{ padding: '12px 16px', background: '#111118', borderRadius: 8, textAlign: 'left', fontSize: 13 }}>
                     <div style={{ fontWeight: 600, color: '#e8e8f0', marginBottom: 6 }}>CDM Data (authoritative)</div>
@@ -384,6 +466,12 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
                         <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>{new Date(pair.cdm_tca).toISOString().slice(0, 16).replace('T', ' ')} UTC</span>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {!forecastMatch && (
+                  <div style={{ fontSize: 12, color: '#3a3a4a', marginTop: 8 }}>
+                    No orbital elements or forecast data available for this pair.
                   </div>
                 )}
               </>

@@ -1268,13 +1268,19 @@ def main():
 
             future = [p for p in predictions if p.get("tca", "") > now_str]
             past = [p for p in predictions if p.get("tca", "") <= now_str]
-            # Combine: today's future + carried-forward unresolved + recent past
-            # Cap at 200 exported pairs to keep webapp fast (~300 KB)
+            # Only export past pairs from last 30 days for webapp interaction.
+            # All-time stats (track_record totals) still computed from full history.
+            cutoff_30d = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%dT")
+            recent_past = [p for p in past if p.get("tca", "") >= cutoff_30d]
+            # Combine: future + carried-forward unresolved + recent past, cap at 200
             MAX_EXPORT = 200
-            all_export = future + prev_unresolved + past
+            all_export = future + prev_unresolved + recent_past
             export_pairs = all_export[:MAX_EXPORT]
             if prev_unresolved:
                 print(f"  Carried forward {len(prev_unresolved)} unresolved pairs from yesterday")
+            n_old_dropped = len(past) - len(recent_past)
+            if n_old_dropped > 0:
+                print(f"  Excluded {n_old_dropped} resolved pairs older than 30 days from webapp (data preserved on server)")
             if len(all_export) > MAX_EXPORT:
                 print(f"  Capped export to {MAX_EXPORT}/{len(all_export)} pairs (webapp perf)")
             forecast_data["n_pairs_exported"] = len(export_pairs)
