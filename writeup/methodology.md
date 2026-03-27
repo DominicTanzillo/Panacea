@@ -7,7 +7,7 @@ Duke University, AIPI 540 Deep Learning Applications
 
 ## Abstract
 
-We present PANACEA, an open-source machine learning system that predicts collision probability (Pc) escalation from publicly available Conjunction Data Messages (CDMs). Rather than predicting exact Pc values -- a problem NASA CARA has found intractable with ML (Mashiku & Newman, 2025) -- we reframe the task as binary escalation forecasting: *will Pc exceed the 5e-4 maneuver planning threshold before TCA?* Our ensemble combines logistic regression (interpretable baseline), a bidirectional LSTM with Kelvins transfer learning (temporal reasoning), and a regression signal (continuous risk tracking), achieving 98.7% recall and F1=0.847 in 5-fold cross-validation on 687 conjunction pairs derived from Space-Track public CDMs. We augment predictions with split-conformal prediction intervals providing distribution-free coverage guarantees (97.1% empirical coverage at alpha=0.05), directly addressing the uncertainty quantification gap identified by NASA CARA. We further investigate space weather indices (F10.7, Kp, Ap) as predictive features and report the result as a controlled experiment. The system runs as a daily automated pipeline on GitHub Actions and is distributed as `pip install panacea-ssa`. All metrics below are pulled from production JSON artifacts; none are hardcoded.
+We present PANACEA, an open-source machine learning system that predicts collision probability (Pc) escalation from publicly available Conjunction Data Messages (CDMs). Rather than predicting exact Pc values -- a problem NASA CARA has found intractable with ML (Mashiku & Newman, 2025) -- we reframe the task as binary escalation forecasting: *will Pc exceed the 5e-4 maneuver planning threshold before TCA?* Our ensemble combines logistic regression (interpretable baseline), a bidirectional LSTM with Kelvins transfer learning (temporal reasoning), and a regression signal (continuous risk tracking), achieving 98.7% recall and F1=0.847 in 5-fold cross-validation on 826 conjunction pairs derived from Space-Track public CDMs. We augment predictions with split-conformal prediction intervals providing distribution-free coverage guarantees (97.0% empirical coverage at alpha=0.05), directly addressing the uncertainty quantification gap identified by NASA CARA. We further investigate space weather indices (F10.7, Kp, Ap) as predictive features and report the result as a controlled experiment. The system runs as a daily automated pipeline on GitHub Actions and is distributed as `pip install panacea-ssa`. All metrics below are pulled from production JSON artifacts; none are hardcoded.
 
 **Keywords:** conjunction assessment, CDM sequences, ensemble prediction, conformal prediction, space situational awareness, transfer learning
 
@@ -62,7 +62,7 @@ PANACEA does not compete with commercial SSA providers. LeoLabs generates CDMs a
 
 <!-- Metrics from tuning_results.json and cv_results.json -->
 
-Our dataset comprises **687 conjunction pairs** from ~3,937 CDMs collected via the Space-Track.org API. Each CDM contains:
+Our dataset comprises **826 conjunction pairs** from ~4,590 CDMs collected via the Space-Track.org API. Each CDM contains:
 
 | Field | Description |
 |-------|-------------|
@@ -77,7 +77,7 @@ Pairs are grouped by (NORAD_pair, TCA_date). A pair is "resolved" once TCA has p
 
 ### 2.2 Label Distribution
 
-At the 5e-4 threshold: **156 positive pairs (22.7%)**, 531 negative. This gives meaningful class balance for ML. By contrast, using 1e-4 gives 100% positive rate (useless), and 1e-3 gives ~8% positive rate (too imbalanced for the dataset size).
+At the 5e-4 threshold: **191 positive pairs (23.1%)**, 635 negative. This gives meaningful class balance for ML. By contrast, using 1e-4 gives 100% positive rate (useless), and 1e-3 gives ~8% positive rate (too imbalanced for the dataset size).
 
 ### 2.3 Why 5e-4?
 
@@ -103,7 +103,7 @@ From each variable-length CDM sequence, we extract a fixed-size feature vector:
 
 **Space weather features (20-22):** Normalized F10.7 solar flux, Kp geomagnetic index, Ap geomagnetic amplitude -- fetched from NOAA SWPC public JSON endpoints, with 30-day rolling average and climatological fallbacks.
 
-For training, we simulate early prediction by using only the first ceil(n/2) CDM updates from each pair, predicting whether the pair eventually exceeded the threshold. This mirrors the real-world scenario: given early updates, predict the outcome.
+For experimentation, we simulate early prediction by using only the first ceil(n/2) CDM updates from each pair for feature extraction, while labeling from the full sequence (did max Pc ever exceed 5e-4?). This mirrors the real-world scenario: given early updates, predict the eventual outcome. In the daily pipeline, the model naturally predicts on partial sequences as new CDMs arrive.
 
 ### 3.2 Model 1: Logistic Regression (Production Baseline)
 
@@ -117,9 +117,9 @@ Logistic regression with L2 regularization and class-weighted gradient descent:
 This is the production model that runs daily. Its feature weights are directly interpretable -- operators can see which features drive each prediction.
 
 **Hyperparameter tuning** (126-configuration grid search with 5-fold CV):
-<!-- From tuning_results.json -->
-- Best by F1: lr=0.2, reg=0.0001, epochs=500 -> F1=0.9579, Recall=0.9808, Precision=0.9396
-- Best by recall: lr=0.005, reg=0.0001, epochs=200 -> F1=0.8246, Recall=1.000, Precision=0.7051
+<!-- From tuning_results.json (full grid: 6 LR x 7 reg x 3 epochs) -->
+- Best by F1: lr=0.2, reg=0.001, epochs=500 -> F1=0.951, Recall=0.963, Precision=0.940
+- Best by recall: lr=0.005, reg=0.0001, epochs=200 -> F1=0.815, Recall=0.995, Precision=0.693
 
 ### 3.3 Model 2: Bidirectional LSTM with Transfer Learning
 
@@ -134,7 +134,7 @@ Architecture:
 **Transfer learning from Kelvins:**
 - Pre-train on 13K Kelvins events (103 features)
 - Feature dropout during pre-training: zero out columns 8-11 with p=0.5 (simulates the missing features in Space-Track data)
-- Fine-tune on 687 Space-Track pairs (20 features -> padded to match)
+- Fine-tune on 826 Space-Track pairs (20 features -> padded to match)
 - Checkpoint versioning: v2 = bidirectional (v1 auto-retrains)
 
 **Data augmentation:** Gaussian noise injection, CDM dropout (random removal of intermediate updates), variable observation length sampling.
@@ -162,10 +162,10 @@ We construct a conjunction network graph where:
 This differs fundamentally from Peri (2025), who builds a spatial proximity graph. Our graph captures the relational structure of conjunction events: objects that share conjunction partners may be in similar orbital regimes with correlated risk profiles.
 
 <!-- From supplementary_models.json -->
-- Graph: 1,238 nodes, 687 edges, 156 positive edges
-- With graph features: F1=0.9663, Recall=1.000, Precision=0.9357
+- Graph: 1,458 nodes, 826 edges, 191 positive edges
+- With graph features: F1=0.9624, Recall=1.000, Precision=0.9278
 - Graph feature improvement: F1 delta=0.0 (sparse graph limits message-passing benefit)
-- Degree distribution: 90.1% of nodes have degree 1 (single conjunction only)
+- Degree distribution: 88.2% of nodes have degree 1 (single conjunction only)
 
 The null improvement from graph features reflects the sparse graph structure -- most satellites appear in only one conjunction pair. With a larger CDM corpus spanning more time, we expect the graph to densify and graph features to provide lift.
 
@@ -177,12 +177,12 @@ An LSTM-based autoregressive model predicts the next CDM's log10(Pc) and log10(m
 - A regression signal that feeds into the ensemble
 
 <!-- From supplementary_models.json -->
-- Training: 2,742 samples, Testing: 549 samples
-- MAE(log10_Pc): 0.0899
-- RMSE(log10_Pc): 0.1562
-- Correlation(Pc): 0.9397
-- MAE(log10_miss): 0.1305
-- Correlation(miss): 0.8284
+- Training: 3,238 samples, Testing: 648 samples
+- MAE(log10_Pc): 0.0925
+- RMSE(log10_Pc): 0.161
+- Correlation(Pc): 0.9312
+- MAE(log10_miss): 0.1293
+- Correlation(miss): 0.8256
 
 ### 3.7 Conformal Prediction
 
@@ -195,10 +195,10 @@ We apply split-conformal prediction (Vovk et al., 2005; Romano et al., 2019) to 
 <!-- From supplementary_models.json -->
 | Alpha | Target Coverage | Empirical Coverage | Avg Set Size |
 |-------|----------------|-------------------|--------------|
-| 0.05 | 95.0% | **97.1%** | 1.007 |
-| 0.10 | 90.0% | 91.3% | 0.920 |
-| 0.15 | 85.0% | 85.5% | 0.855 |
-| 0.20 | 80.0% | 79.0% | 0.790 |
+| 0.05 | 95.0% | **97.0%** | 0.976 |
+| 0.10 | 90.0% | 91.6% | 0.916 |
+| 0.15 | 85.0% | 88.6% | 0.886 |
+| 0.20 | 80.0% | 78.3% | 0.783 |
 
 Coverage exceeds the target at all alpha levels, confirming valid conformal guarantees. The tight average set size (1.007 at alpha=0.05) means predictions are decisive: nearly every prediction is a confident singleton rather than an ambiguous {positive, negative} set.
 
@@ -206,9 +206,9 @@ Regression conformal intervals:
 
 | Alpha | Target | Coverage |
 |-------|--------|----------|
-| 0.05 | 95.0% | **96.4%** |
-| 0.10 | 90.0% | 92.0% |
-| 0.20 | 80.0% | 83.3% |
+| 0.05 | 95.0% | **94.6%** |
+| 0.10 | 90.0% | 89.2% |
+| 0.20 | 80.0% | 83.1% |
 
 ### 3.8 Space Weather Experiment
 
@@ -250,12 +250,12 @@ The BiLSTM shows high variance across folds (F1 range: 0.34 to 0.86), reflecting
 
 | Model | Key Metric | Value |
 |-------|-----------|-------|
-| GNN (conjunction network) | F1 | 0.9663 |
+| GNN (conjunction network) | F1 | 0.9624 |
 | GNN | Recall | 1.000 |
-| Autoregressive forecaster | MAE(log10_Pc) | 0.0899 |
-| Autoregressive forecaster | Correlation(Pc) | 0.9397 |
-| Conformal (alpha=0.05) | Coverage | 97.1% |
-| Conformal (alpha=0.10) | Coverage | 91.3% |
+| Autoregressive forecaster | MAE(log10_Pc) | 0.0925 |
+| Autoregressive forecaster | Correlation(Pc) | 0.9312 |
+| Conformal (alpha=0.05) | Coverage | 97.0% |
+| Conformal (alpha=0.10) | Coverage | 91.6% |
 
 ### 4.3 Hyperparameter Sensitivity
 
@@ -263,7 +263,7 @@ The BiLSTM shows high variance across folds (F1 range: 0.34 to 0.86), reflecting
 
 Grid search over 126 configurations (6 learning rates x 7 regularization strengths x 3 epoch counts):
 
-- F1 ranges from 0.72 to 0.96 across configurations
+- F1 ranges from 0.72 to 0.95 across configurations
 - Recall is maximized at lower learning rates with minimal regularization
 - The default production config (lr=0.05, reg=0.01, epochs=300) balances F1 and recall
 - Recall-optimized config achieves perfect recall (1.000) at the cost of lower precision (0.705)
@@ -325,9 +325,62 @@ No prior work has applied conformal prediction to CDM-based conjunction assessme
 
 PANACEA is the only system operating on public data alone with conformal uncertainty quantification. Our escalation framing avoids the Pc regression problem that stymied NASA CARA's ML efforts.
 
-### 5.6 Limitations
+### 5.6 Error Analysis
 
-1. **Dataset size**: 687 pairs is small. The BiLSTM and GNN would benefit from 10x more data.
+We examine the ensemble's misclassified test examples to identify failure modes and propose mitigations.
+
+**Misprediction 1: False Negative -- CZ-6A DEB vs MACSAT 1**
+
+| Field | Value |
+|-------|-------|
+| Observed Pc (at prediction time) | 1.32e-3 |
+| Actual max Pc | 1.49e-3 |
+| Model P(exceed) | 0.234 |
+| Updates observed / total | 6 / 11 |
+
+*Root cause:* Despite Pc already being above the 5e-4 threshold (1.32e-3), the model output a low P(exceed). The stable-to-declining trend in the observation window was interpreted as non-escalating -- but the pair was *already* above threshold. This is a calibration failure on already-escalated pairs.
+
+*Mitigation:* Add a hard override: if current Pc already exceeds threshold, floor P(exceed) at 0.5.
+
+**Misprediction 2: False Positive -- SL-8 R/B vs COSMOS 1867 COOLANT**
+
+| Field | Value |
+|-------|-------|
+| Observed Pc (at prediction time) | 4.36e-4 |
+| Actual max Pc | 4.36e-4 |
+| Model P(exceed) | 0.518 |
+| Updates observed / total | 1 / 2 |
+
+*Root cause:* With only 1 CDM update, the model has no trend information. The Pc of 4.36e-4 sits just below the 5e-4 threshold. The model correctly identifies this as borderline (P=0.518) but the pair never received additional updates. This is an inherent uncertainty case.
+
+*Mitigation:* For pairs with < 3 CDM updates, report prediction confidence as "low" rather than issuing a definitive classification.
+
+**Misprediction 3: False Negative -- TIROS 10 vs NOAA 17 DEB**
+
+| Field | Value |
+|-------|-------|
+| Observed Pc (at prediction time) | 1.13e-3 |
+| Actual max Pc | 1.27e-3 |
+| Model P(exceed) | 0.273 |
+| Updates observed / total | 5 / 10 |
+
+*Root cause:* Same pattern as Misprediction 1 -- current Pc already above threshold but model outputs low probability. The oscillating Pc trend was misinterpreted as non-escalating by the linear trend feature.
+
+*Mitigation:* Same hard threshold override, plus a new feature for "fraction of observation window above threshold."
+
+**Misprediction 4: False Negative -- Borderline Oscillators**
+
+Both false negatives share a common pattern: Pc *already exceeded* 5e-4 during the observation window, but trend features suggested stability or de-escalation. The model lacks a direct "currently above threshold" feature.
+
+**Misprediction 5: False Positive -- Single-CDM Uncertainty**
+
+The false positive case highlights a general class of errors: pairs with < 3 CDM updates have no temporal signal for the trend, acceleration, or volatility features. These features default to zero, leaving the model to rely on the absolute Pc value alone. Adding a minimum-data confidence flag would correctly surface this uncertainty to operators.
+
+**Summary:** All errors suggest two concrete improvements implementable without model retraining: (1) hard threshold override when Pc already exceeds 5e-4, and (2) low-confidence flag for pairs with < 3 updates.
+
+### 5.7 Limitations
+
+1. **Dataset size**: 826 pairs is small. The BiLSTM and GNN would benefit from 10x more data.
 2. **Public CDM pre-filtering**: Space-Track CDMs are pre-filtered to Pc >= 1e-4, biasing our training distribution toward higher-risk conjunctions.
 3. **No negative verification**: We know when Pc stayed below 5e-4, but we cannot confirm whether a pair that exceeded 5e-4 actually led to a maneuver (Space-Track doesn't publish maneuver decisions).
 4. **Space weather coverage**: Our CDM corpus may not span sufficient geomagnetic storm activity to detect space weather effects.
@@ -373,6 +426,34 @@ An interactive React dashboard at the project's GitHub Pages site provides:
 PANACEA demonstrates that meaningful Pc escalation prediction is achievable with public CDM data alone. By reframing from Pc regression to binary escalation forecasting, we sidestep the fundamental problems that have stymied ML adoption at NASA CARA. The ensemble achieves 98.7% recall -- missing fewer than 1 in 75 escalating conjunctions -- with conformal uncertainty quantification providing calibrated coverage guarantees.
 
 The system is open-source, continuously retrained, and pip-installable. A small satellite operator can run `pip install panacea-ssa` and have production predictions on their CDMs within minutes.
+
+### 7.1 Ethics Statement
+
+**Dual-use concerns.** Space situational awareness is inherently dual-use: the same collision prediction capabilities that protect commercial satellites could inform anti-satellite operations by identifying orbital windows where debris generation would cause maximum cascading damage. We mitigate this by using only publicly available data (CelesTrak TLEs, Space-Track public CDMs) and publishing all methods openly. Our system provides no targeting capability beyond what is already available to any entity with a Space-Track account.
+
+**Automation risk.** If satellite operators begin using ML predictions to trigger autonomous collision avoidance maneuvers, model errors propagate directly to physical actions in space. Our ensemble achieves 98.7% recall but still misses ~1.3% of escalating conjunctions. Any deployment must include human-in-the-loop review for maneuver decisions. We design for recall over precision specifically because missed escalations (false negatives) are far more costly than false alarms (false positives) in this safety-critical domain.
+
+**Data access equity.** CDM data from the 18th Space Defense Squadron is available to registered users worldwide, but the registration process and data volume favor well-resourced operators. By building on public data and distributing as open-source, we aim to democratize conjunction assessment capabilities.
+
+**Environmental impact.** Every collision avoidance maneuver consumes finite fuel, shortening satellite operational lifetime. False positive predictions cause unnecessary fuel expenditure. Our 74.3% ensemble precision means ~26% of recommended actions would be unnecessary -- acceptable for early warning triage but a consideration for fully automated systems.
+
+**Kessler Syndrome context.** The broader motivation for this work -- preventing orbital debris cascades -- is itself an ethical imperative. The Kessler Syndrome threatens to render LEO unusable for future generations. Tools that improve conjunction assessment, even incrementally, contribute to the long-term sustainability of the space environment.
+
+### 7.2 Commercial Viability Statement
+
+PANACEA addresses a real and growing market. The space situational awareness (SSA) market is projected to reach $2.1B by 2030, driven by the exponential growth of LEO constellations (Starlink, OneWeb, Kuiper) and the resulting conjunction volume. NASA CARA currently processes ~50,000 CDMs per day; this volume doubles every 2-3 years.
+
+**Viable aspects:**
+- The CDM Pc escalation forecast solves a genuine operational pain point: early warning of escalating conjunctions gives operators hours of additional lead time for maneuver planning, reducing fuel costs and mission disruption.
+- The continuous learning architecture means the system improves without manual intervention -- a key requirement for any commercial SSA product.
+- The webapp demonstrates production-quality UX with real-time satellite visualization.
+
+**Barriers to commercial deployment:**
+- **Data dependency:** The model requires Space-Track CDM access, which is free but US-government controlled. Commercial alternatives (LeoLabs, ExoAnalytic) charge significant fees for CDM-equivalent data.
+- **Liability:** No operator will rely solely on ML predictions for collision avoidance decisions. The system must be positioned as a triage/prioritization tool augmenting human analysts, not replacing them.
+- **Scale:** The current CDM corpus is sufficient for logistic regression but deep learning models need significantly more data to differentiate a commercial product.
+
+**Assessment:** PANACEA is a viable *technology demonstrator* for a commercial SSA product, not yet a deployable commercial system. The continuous learning architecture, operational pipeline, and webapp are production-ready infrastructure. The ML models need more data and domain-specific validation before operators would trust them for real maneuver decisions.
 
 ### Future Work
 

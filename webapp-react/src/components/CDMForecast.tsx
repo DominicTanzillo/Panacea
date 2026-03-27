@@ -4,6 +4,7 @@ import {
   ReferenceLine, ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
 import { FullPagePanel } from './Overlay';
+import { GlossaryTooltip } from './Glossary';
 
 interface CDMUpdate {
   update_idx: number;
@@ -118,24 +119,24 @@ interface ForecastData {
   pairs: ForecastPair[];
 }
 
-type RiskLevel = 'critical' | 'high' | 'moderate';
+type RiskLevel = 'HIGH' | 'MODERATE' | 'LOW';
 
 function riskLevel(pair: ForecastPair): RiskLevel {
-  if (pair.current_pc >= 5e-3) return 'critical';   // Pc already very high
-  if (pair.current_pc >= 5e-4) return 'high';       // Already above maneuver threshold
-  return 'moderate';                                  // Below threshold but tracked
+  if (pair.current_pc >= 5e-3) return 'HIGH';        // Pc already very high
+  if (pair.current_pc >= 5e-4) return 'MODERATE';    // Already above maneuver threshold
+  return 'LOW';                                       // Below threshold but tracked
 }
 
 const RISK_COLORS: Record<RiskLevel, string> = {
-  critical: '#ef4444',
-  high: '#f59e0b',
-  moderate: '#3b82f6',
+  HIGH: '#ef4444',
+  MODERATE: '#f59e0b',
+  LOW: '#22c55e',
 };
 
 const RISK_LABELS: Record<RiskLevel, string> = {
-  critical: 'Critical',
-  high: 'High',
-  moderate: 'Monitor',
+  HIGH: '\u26A0 High',
+  MODERATE: '-- Moderate',
+  LOW: '\u2713 Low',
 };
 
 function formatPc(pc: number): string {
@@ -197,6 +198,8 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
       {/* Collapsed row */}
       <button
         onClick={onToggle}
+        aria-expanded={expanded}
+        aria-label={`${expanded ? 'Collapse' : 'Expand'} forecast: ${pair.sat1_name} vs ${pair.sat2_name}, risk level ${level}`}
         style={{
           width: '100%', display: 'grid',
           gridTemplateColumns: '4px 1fr 90px 90px 80px 80px 64px 24px',
@@ -251,10 +254,10 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                 <MetricRow label="CDM Updates" value={String(pair.n_updates)} />
                 <MetricRow label="TCA" value={pair.tca ? pair.tca.slice(0, 16).replace('T', ' ') : '--'} />
                 {pair.predicted_max_log10_pc != null && (
-                  <MetricRow label="BiLSTM Max Pc" value={`10^${pair.predicted_max_log10_pc.toFixed(1)}`} color={pair.predicted_max_log10_pc > -3.3 ? '#ef4444' : '#22c55e'} />
+                  <MetricRow label="BiLSTM Max Pc (deep learning model's predicted peak collision probability)" value={`10^${pair.predicted_max_log10_pc.toFixed(1)}`} color={pair.predicted_max_log10_pc > -3.3 ? '#ef4444' : '#22c55e'} />
                 )}
                 {pair.lstm_escalation_prob != null && (
-                  <MetricRow label="LSTM P(Escalation)" value={formatPct(pair.lstm_escalation_prob)} color={(pair.lstm_escalation_prob) >= 0.5 ? '#ef4444' : '#22c55e'} />
+                  <MetricRow label="LSTM P(Escalation) (neural network's estimated chance of threshold breach)" value={formatPct(pair.lstm_escalation_prob)} color={(pair.lstm_escalation_prob) >= 0.5 ? '#ef4444' : '#22c55e'} />
                 )}
               </div>
 
@@ -271,6 +274,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
             {chartData.length >= 2 && (
               <div>
                 <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>Pc Evolution (log scale)</div>
+                <div role="img" aria-label={`Collision probability evolution chart for ${pair.sat1_name} vs ${pair.sat2_name}. Shows log-scale Pc over time leading to closest approach.`}>
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -10, bottom: 4 }}>
                     <defs>
@@ -283,7 +287,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                     <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]} tick={{ fontSize: 12, fill: '#55556a' }} tickFormatter={(v: number) => `${v}h`} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
                     <YAxis tick={{ fontSize: 12, fill: '#55556a' }} domain={['auto', 'auto']} tickFormatter={(v: number) => v.toFixed(1)} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 12 }} labelFormatter={(v) => `TCA ${v}h`} formatter={(v: unknown) => [`${Number(v).toFixed(2)}`, 'log\u2081\u2080(Pc)']} />
-                    <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.5} />
+                    <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.5} label={{ value: 'Maneuver threshold (Pc = 5e-4)', position: 'insideTopRight', fill: '#ef4444', fontSize: 11 }} />
                     {pair.predicted_max_log10_pc != null && (
                       <ReferenceLine y={pair.predicted_max_log10_pc} stroke="#f59e0b" strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Pred Max', position: 'right', fill: '#f59e0b', fontSize: 12 }} />
                     )}
@@ -291,6 +295,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                     <Area type="monotone" dataKey="forecast" stroke={color} strokeWidth={2} strokeDasharray="4 3" fill="none" dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#111118' }} connectNulls={false} />
                   </AreaChart>
                 </ResponsiveContainer>
+                </div>
                 <div style={{ fontSize: 12, color: '#3a3a4a', textAlign: 'center', marginTop: 4 }}>
                   Red line = maneuver threshold (5e-4)
                 </div>
@@ -314,7 +319,7 @@ function MetricRow({ label, value, color }: { label: string; value: string; colo
 
 export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [data, setData] = useState<ForecastData | null>(null);
-  const [filter, setFilter] = useState<'all' | 'critical' | 'high' | 'moderate'>('all');
+  const [filter, setFilter] = useState<'all' | 'HIGH' | 'MODERATE' | 'LOW'>('all');
   const [expandedIdx, setExpandedIdx] = useState<string | null>(null);
   const [_showResolved, _setShowResolved] = useState(false);
   void _showResolved; void _setShowResolved;
@@ -344,9 +349,9 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
 
   const counts = useMemo(() => {
     return {
-      critical: activePairs.filter(p => riskLevel(p) === 'critical').length,
-      high: activePairs.filter(p => riskLevel(p) === 'high').length,
-      moderate: activePairs.filter(p => riskLevel(p) === 'moderate').length,
+      HIGH: activePairs.filter(p => riskLevel(p) === 'HIGH').length,
+      MODERATE: activePairs.filter(p => riskLevel(p) === 'MODERATE').length,
+      LOW: activePairs.filter(p => riskLevel(p) === 'LOW').length,
     };
   }, [activePairs]);
 
@@ -375,9 +380,10 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
               What This Shows
             </div>
             <p style={{ fontSize: 15, color: '#e8e8f0', lineHeight: 1.5, maxWidth: 700, marginBottom: 16 }}>
-              The ensemble model monitors {data.n_pairs} active conjunction pairs daily. For each pair, it
-              predicts whether collision probability will escalate above the maneuver planning threshold,
-              giving operators early warning to plan avoidance.
+              Each day, this system receives updated collision data (<GlossaryTooltip term="CDM">CDMs</GlossaryTooltip>) on {data.n_pairs} monitored conjunction pairs.
+              It predicts which pairs will escalate to dangerous levels (<GlossaryTooltip term="Pc">Pc</GlossaryTooltip> exceeding
+              5 &times; 10<sup>-4</sup>, the maneuver planning threshold) before closest approach, giving
+              operators advance warning to plan avoidance maneuvers.
             </p>
             {data.track_record && data.track_record.total > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
@@ -409,11 +415,13 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
 
           {/* ── Filters ────────────────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid #1e1e2c' }}>
-            {(['all', 'critical', 'high', 'moderate'] as const).map(f => {
+            {(['all', 'HIGH', 'MODERATE', 'LOW'] as const).map(f => {
               const count = f === 'all' ? activePairs.length : counts[f];
               const isActive = filter === f;
               return (
                 <button key={f} onClick={() => { setFilter(f); setExpandedIdx(null); }}
+                  aria-label={`Filter by ${f === 'all' ? 'all risk levels' : f + ' risk'}: ${count} pairs`}
+                  aria-pressed={isActive}
                   style={{
                     padding: '6px 14px',
                     fontSize: 13,
@@ -427,7 +435,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
                     transition: 'all 150ms',
                   }}
                 >
-                  {f === 'all' ? 'All' : f === 'critical' ? 'Critical' : f === 'high' ? 'High' : 'Monitor'} ({count})
+                  {f === 'all' ? 'All' : RISK_LABELS[f]} ({count})
                 </button>
               );
             })}
@@ -443,7 +451,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
             <span />
             <span>Conjunction Pair</span>
             <span style={{ textAlign: 'right' }}>Pc</span>
-            <span style={{ textAlign: 'right' }}>P(Exceed)</span>
+            <span style={{ textAlign: 'right' }} title="Probability this pair will reach dangerous levels (Pc >= 5e-4, the maneuver threshold)">P(Exceed)</span>
             <span style={{ textAlign: 'right' }}>Trend</span>
             <span style={{ textAlign: 'right' }}>TCA</span>
             <span style={{ textAlign: 'center' }}>Risk</span>

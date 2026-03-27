@@ -96,6 +96,15 @@ export function LandingOverlay({ loading, nSatellites, onEnter, onExploreModels 
             Each collision creates thousands of new fragments.<br />
             <span style={{ color: '#3b82f6' }}>We predict the next one.</span>
           </p>
+          <p style={{
+            fontSize: 14,
+            color: '#7c7c96',
+            lineHeight: 1.6,
+            marginTop: 12,
+          }}>
+            Panacea uses machine learning to analyze close-approach warnings and forecast<br />
+            which satellite pairs are most likely to need a collision-avoidance maneuver.
+          </p>
         </div>
 
         {/* Stats strip */}
@@ -112,11 +121,11 @@ export function LandingOverlay({ loading, nSatellites, onEnter, onExploreModels 
         >
           <StatBlock value={nSatellites > 0 ? `${(nSatellites / 1000).toFixed(0)}K` : '--'} label="Objects Tracked" />
           <Divider />
-          <StatBlock value="826" label="CDM Pairs" />
+          <StatBlock value="826" label="Tracked Pairs" />
           <Divider />
           <StatBlock value="6" label="ML Models" />
           <Divider />
-          <StatBlock value="98.7%" label="Recall" />
+          <StatBlock value="98.7%" label="Events Caught" />
         </div>
 
         {/* CTA */}

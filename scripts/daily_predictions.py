@@ -61,6 +61,18 @@ LOG_DIR = ROOT / "data" / "prediction_logs"
 MANEUVER_HISTORY_PATH = LOG_DIR / "maneuver_history.jsonl"
 WEBAPP_TLE_PATH = ROOT / "webapp-react" / "public" / "latest_tles.json"
 
+# ── Ensemble thresholds & weights ──
+# Pc escalation threshold: operators begin planning maneuvers at 5e-4
+PC_ESCALATION_THRESHOLD = 5e-4
+# Log10 of the threshold, used in sigmoid conversion
+LOG10_PC_THRESHOLD = -3.3  # log10(5e-4) ≈ -3.3
+# Sigmoid steepness for converting regression to probability
+SIGMOID_STEEPNESS = 5.0
+# Ensemble component weights (must sum to 1.0)
+ENSEMBLE_W_LR = 0.4       # Logistic regression (interpretable, high recall)
+ENSEMBLE_W_LSTM = 0.3      # BiLSTM (temporal pattern recognition)
+ENSEMBLE_W_REGRESSION = 0.3  # Regression signal (continuous risk tracking)
+
 # CelesTrak groups that the webapp loads (must match webapp-react/src/lib/types.ts)
 WEBAPP_GROUPS = [
     ("stations", "stations"),
@@ -1147,13 +1159,18 @@ def main():
     logger.log_predictions(today_str, top_predictions)
 
     # Daily summary
+    if not top_predictions:
+        print("  WARNING: No predictions generated")
+        top_risk = 0
+    else:
+        top_risk = top_predictions[0].get("model_risk_score",
+                                           top_predictions[0].get("risk_score", 0))
     summary = {
         "date": today_str,
         "n_satellites_screened": len(active_tles),
         "n_candidate_pairs": len(candidates),
         "n_predictions_logged": top_k,
-        "top_risk_score": top_predictions[0].get("model_risk_score",
-                                                   top_predictions[0].get("risk_score", 0)),
+        "top_risk_score": top_risk,
         "validation": validation,
     }
     logger.log_daily_summary(today_str, summary)
@@ -1406,8 +1423,10 @@ def main():
                 forecast_data = json.load(f)
             n_ensemble = 0
             for pair_entry in forecast_data.get("pairs", []):
-                n1 = pair_entry["sat1_norad"]
-                n2 = pair_entry["sat2_norad"]
+                n1 = pair_entry.get("sat1_norad")
+                n2 = pair_entry.get("sat2_norad")
+                if n1 is None or n2 is None:
+                    continue
                 tca_date = pair_entry.get("tca", "")[:10]
                 key = (min(n1, n2), max(n1, n2), tca_date)
                 sp = seq_predictions.get(key, {})
@@ -1429,17 +1448,17 @@ def main():
                 pred_max = sp.get("predicted_max_log10_pc")
 
                 if lstm_prob is not None and pred_max is not None:
-                    # Sigmoid signal from regression: how far above -3.3 threshold
-                    pc_signal = 1.0 / (1.0 + math.exp(-5.0 * (pred_max + 3.3)))
-                    p_ens = 0.4 * lr_prob + 0.3 * lstm_prob + 0.3 * pc_signal
+                    # Sigmoid signal from regression: how far above threshold
+                    pc_signal = 1.0 / (1.0 + math.exp(-SIGMOID_STEEPNESS * (pred_max - LOG10_PC_THRESHOLD)))
+                    p_ens = ENSEMBLE_W_LR * lr_prob + ENSEMBLE_W_LSTM * lstm_prob + ENSEMBLE_W_REGRESSION * pc_signal
                     pair_entry["ensemble_probability"] = round(p_ens, 4)
 
                     # Uncertainty interval (±1 MAE around predicted max)
                     mae = seq_regression_metrics.get("mae_log10_pc", 0.3)
-                    p_upper = 1.0 / (1.0 + math.exp(-5.0 * (pred_max + mae + 3.3)))
-                    p_lower = 1.0 / (1.0 + math.exp(-5.0 * (pred_max - mae + 3.3)))
-                    pair_entry["exceedance_upper"] = round(max(p_ens, 0.4 * lr_prob + 0.3 * lstm_prob + 0.3 * p_upper), 4)
-                    pair_entry["exceedance_lower"] = round(min(p_ens, 0.4 * lr_prob + 0.3 * lstm_prob + 0.3 * p_lower), 4)
+                    p_upper = 1.0 / (1.0 + math.exp(-SIGMOID_STEEPNESS * (pred_max + mae - LOG10_PC_THRESHOLD)))
+                    p_lower = 1.0 / (1.0 + math.exp(-SIGMOID_STEEPNESS * (pred_max - mae - LOG10_PC_THRESHOLD)))
+                    pair_entry["exceedance_upper"] = round(max(p_ens, ENSEMBLE_W_LR * lr_prob + ENSEMBLE_W_LSTM * lstm_prob + ENSEMBLE_W_REGRESSION * p_upper), 4)
+                    pair_entry["exceedance_lower"] = round(min(p_ens, ENSEMBLE_W_LR * lr_prob + ENSEMBLE_W_LSTM * lstm_prob + ENSEMBLE_W_REGRESSION * p_lower), 4)
                     n_ensemble += 1
                 else:
                     # No LSTM prediction — use LR only
@@ -1461,7 +1480,13 @@ def main():
                 }
             with open(forecast_path, "w") as f:
                 json.dump(forecast_data, f, indent=2, default=_json_default)
+            n_total_pairs = len(forecast_data.get("pairs", []))
+            n_lr_only = n_total_pairs - n_ensemble
+            lstm_coverage_pct = (n_ensemble / n_total_pairs * 100) if n_total_pairs > 0 else 0
             print(f"  Merged {len(seq_predictions)} LSTM + {n_ensemble} ensemble predictions into cdm_forecast.json")
+            print(f"  Ensemble coverage: {n_ensemble}/{n_total_pairs} pairs ({lstm_coverage_pct:.1f}%) have full ensemble; {n_lr_only} use LR-only fallback")
+            if lstm_coverage_pct < 50:
+                print(f"  WARNING: Low LSTM coverage ({lstm_coverage_pct:.1f}%) — ensemble quality degraded")
     except Exception as e:
         print(f"  Merge into cdm_forecast.json failed (non-fatal): {e}")
 

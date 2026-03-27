@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { OverlayView } from '../App';
+import { GlossaryPanel } from './Glossary';
 
 interface HeaderProps {
   activeOverlay: OverlayView;
@@ -39,6 +41,7 @@ const NAV_ITEMS: { key: Exclude<OverlayView, null>; label: string }[] = [
 export function Header({
   activeOverlay, onNavigate, healthy, alertCount, cdmAlertCount, dataDate,
 }: HeaderProps) {
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
   return (
     <header style={{
       position: 'fixed',
@@ -108,17 +111,19 @@ export function Header({
             >
               {item.label}
               {hasCount && (
-                <span style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: '#ef4444',
-                  background: 'rgba(239,68,68,0.12)',
-                  padding: '1px 7px',
-                  borderRadius: 10,
-                  minWidth: 20,
-                  textAlign: 'center',
-                  lineHeight: '18px',
-                }}>
+                <span
+                  aria-label={`${cdmAlertCount > 0 ? cdmAlertCount : alertCount} active conjunction alerts`}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#ef4444',
+                    background: 'rgba(239,68,68,0.12)',
+                    padding: '1px 7px',
+                    borderRadius: 10,
+                    minWidth: 20,
+                    textAlign: 'center',
+                    lineHeight: '18px',
+                  }}>
                   {cdmAlertCount > 0 ? cdmAlertCount : alertCount}
                 </span>
               )}
@@ -127,8 +132,25 @@ export function Header({
         })}
       </nav>
 
-      {/* Right: Status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#7c7c96' }}>
+      {/* Right: Glossary + Status */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: '#7c7c96' }}>
+        <button
+          onClick={() => setGlossaryOpen(true)}
+          aria-label="Open glossary of space terms"
+          style={{
+            padding: '5px 12px',
+            fontSize: 12,
+            fontWeight: 500,
+            color: '#7c8aff',
+            background: 'rgba(124,138,255,0.08)',
+            border: '1px solid rgba(124,138,255,0.2)',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          Glossary
+        </button>
         <div style={{
           width: 7,
           height: 7,
@@ -138,6 +160,7 @@ export function Header({
         }} />
         <span style={{ fontWeight: 500 }}>{healthy ? 'Live' : dataDate || 'Static data'}</span>
       </div>
+      {glossaryOpen && <GlossaryPanel onClose={() => setGlossaryOpen(false)} />}
     </header>
   );
 }

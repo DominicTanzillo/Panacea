@@ -221,14 +221,31 @@ class SpaceWeatherCache:
         }
 
     def bulk_lookup(self, dates: list[str]) -> dict[str, dict]:
-        """Look up indices for multiple dates, fetching once."""
-        # Fetch fresh data (populates cache)
+        """Look up indices for multiple dates, fetching as needed."""
         unique_dates = sorted(set(d[:10] for d in dates))
         if unique_dates:
-            # One fetch populates recent data; individual lookups hit cache
+            # Fetch most recent date first (populates SWPC cache broadly),
+            # then fetch any remaining uncached dates individually.
             self.get_indices(unique_dates[-1])
+            for d in unique_dates:
+                if d not in self._cache:
+                    self.get_indices(d)
 
-        return {d[:10]: self.get_indices(d) for d in unique_dates}
+        results = {d[:10]: self.get_indices(d) for d in unique_dates}
+
+        # Log source distribution for diagnostics
+        sources: dict[str, int] = {}
+        for v in results.values():
+            src = v.get("source", "unknown")
+            sources[src] = sources.get(src, 0) + 1
+        n_climatology = sources.get("climatology", 0)
+        n_total = len(results)
+        if n_total > 0 and n_climatology > 0:
+            pct = n_climatology / n_total * 100
+            print(f"  Space weather: {n_total} dates, sources={sources}")
+            if pct > 50:
+                print(f"  WARNING: {pct:.0f}% of space weather lookups fell back to climatology defaults")
+        return results
 
 
 def normalize_space_weather(f107: float, kp: float, ap: float) -> tuple[float, float, float]:
