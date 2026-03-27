@@ -140,8 +140,9 @@ export function GlossaryPanel({ onClose }: GlossaryPanelProps) {
         background: 'rgba(0,0,0,0.7)',
         zIndex: 10000,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
+        paddingTop: 80,
       }}
       onClick={onClose}
     >
@@ -152,7 +153,7 @@ export function GlossaryPanel({ onClose }: GlossaryPanelProps) {
           borderRadius: 12,
           width: '90%',
           maxWidth: 700,
-          maxHeight: '80vh',
+          maxHeight: 'calc(100vh - 120px)',
           overflow: 'auto',
           padding: '28px 32px',
         }}
