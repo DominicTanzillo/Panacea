@@ -164,6 +164,8 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
   const color = RISK_COLORS[level];
   const isResolved = pair.tca ? pair.tca < new Date().toISOString() : false;
   const ep = pair.ensemble_probability ?? pair.exceedance_probability ?? 0;
+  // Chart Y-axis: standardized view shows both thresholds; detail view auto-scales
+  const [detailView, setDetailView] = useState(false);
 
   const chartData = useMemo(() => {
     if (!expanded) return [];
@@ -225,12 +227,18 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
     return points;
   }, [pair.time_series, pair.forecast_pc, pair.forecast_steps, expanded]);
 
-  // Build one-line assessment
+  // Build one-line assessment — clarify whether risk is current or predicted
+  const currentlyAbove = pair.current_pc >= 5e-4;
+  const forecastAbove = pair.forecast_pc >= 5e-4;
   const assessment = (() => {
-    if (pair.current_pc >= 5e-3) return 'Collision probability is extremely elevated. Maneuver recommended.';
-    if (pair.current_pc >= 5e-4) return 'Pc exceeds the maneuver planning threshold.';
-    if (ep >= 0.5) return 'Models predict likely escalation above threshold.';
-    if (pair.risk_direction === 'de-escalating') return 'Pc is decreasing. Conjunction may resolve safely.';
+    if (currentlyAbove && forecastAbove)
+      return 'Pc is currently above maneuver threshold and predicted to remain elevated at TCA. Maneuver recommended.';
+    if (currentlyAbove && !forecastAbove)
+      return 'Pc currently above threshold but forecast to de-escalate before TCA. Continue monitoring.';
+    if (!currentlyAbove && ep >= 0.5)
+      return `Models predict ${(ep * 100).toFixed(0)}% chance Pc will exceed the maneuver threshold before TCA (not there yet).`;
+    if (pair.risk_direction === 'de-escalating')
+      return 'Pc is decreasing. Conjunction trending toward safe resolution.';
     return 'Below action threshold. Being monitored.';
   })();
 
@@ -316,7 +324,15 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
             {/* Right: Chart */}
             {chartData.length >= 2 && (
               <div>
-                <div style={{ fontSize: 12, color: '#55556a', marginBottom: 8 }}>Pc Evolution (log scale)</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: '#55556a' }}>Collision Probability Over Time</div>
+                  <button
+                    onClick={() => setDetailView(!detailView)}
+                    style={{ fontSize: 11, color: '#7c8aff', background: 'rgba(124,138,255,0.08)', border: '1px solid rgba(124,138,255,0.2)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    {detailView ? 'Standardized' : 'Detail'}
+                  </button>
+                </div>
                 <div role="img" aria-label={`Collision probability evolution chart for ${pair.sat1_name} vs ${pair.sat2_name}. Shows log-scale Pc over time leading to closest approach.`}>
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -10, bottom: 4 }}>
@@ -328,11 +344,39 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
                     <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]} tick={{ fontSize: 12, fill: '#55556a' }} tickFormatter={(v: number) => `${v}h`} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
-                    <YAxis tick={{ fontSize: 12, fill: '#55556a' }} domain={['auto', 'auto']} tickFormatter={(v: number) => v.toFixed(1)} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 12 }} labelFormatter={(v) => `TCA ${v}h`} formatter={(v: unknown) => [`${Number(v).toFixed(2)}`, 'log\u2081\u2080(Pc)']} />
-                    <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.5} label={{ value: 'Maneuver threshold (Pc = 5e-4)', position: 'insideTopRight', fill: '#ef4444', fontSize: 11 }} />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: '#55556a' }}
+                      domain={detailView ? ['auto', 'auto'] : [-5, -1.5]}
+                      tickFormatter={(v: number) => {
+                        // Show human-readable Pc at key ticks in standardized view
+                        if (!detailView) {
+                          if (v === -4) return '1e-4';
+                          if (v === -3) return '1e-3';
+                          if (v === -2) return '1e-2';
+                          if (v === -5) return '1e-5';
+                        }
+                        return v.toFixed(1);
+                      }}
+                      axisLine={false}
+                      tickLine={false}
+                      ticks={detailView ? undefined : [-5, -4, -3.3, -3, -2, -1.5]}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 12 }}
+                      labelFormatter={(v) => `TCA ${v}h`}
+                      formatter={(v: unknown) => {
+                        const log10 = Number(v);
+                        const pc = Math.pow(10, log10);
+                        const readable = pc >= 0.01 ? `${(pc*100).toFixed(1)}%` : pc >= 1e-4 ? `1 in ${Math.round(1/pc).toLocaleString()}` : pc.toExponential(1);
+                        return [`${log10.toFixed(2)} (${readable})`, 'Pc'];
+                      }}
+                    />
+                    {/* Screening threshold: 1e-4 (all public CDMs are above this) */}
+                    <ReferenceLine y={-4.0} stroke="#3b82f6" strokeDasharray="2 4" strokeWidth={1} strokeOpacity={0.4} label={!detailView ? { value: 'Screening (1e-4)', position: 'insideBottomRight', fill: '#3b82f6', fontSize: 10 } : undefined} />
+                    {/* Maneuver threshold: 5e-4 */}
+                    <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.6} label={{ value: 'Maneuver (5e-4)', position: 'insideTopRight', fill: '#ef4444', fontSize: 10 }} />
                     {pair.predicted_max_log10_pc != null && (
-                      <ReferenceLine y={pair.predicted_max_log10_pc} stroke="#f59e0b" strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Pred Max', position: 'right', fill: '#f59e0b', fontSize: 12 }} />
+                      <ReferenceLine y={pair.predicted_max_log10_pc} stroke="#f59e0b" strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Pred Max', position: 'right', fill: '#f59e0b', fontSize: 10 }} />
                     )}
                     <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} connectNulls={false} />
                     {/* Uncertainty band from autoregressive forecast */}
@@ -342,8 +386,11 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                   </AreaChart>
                 </ResponsiveContainer>
                 </div>
-                <div style={{ fontSize: 12, color: '#3a3a4a', textAlign: 'center', marginTop: 4 }}>
-                  Red line = maneuver threshold (5e-4)
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 16, fontSize: 11, color: '#3a3a4a', marginTop: 4 }}>
+                  <span><span style={{ color: '#ef4444' }}>---</span> Maneuver threshold (5e-4)</span>
+                  <span><span style={{ color: '#3b82f6' }}>--</span> Screening threshold (1e-4)</span>
+                  <span><span style={{ color: color }}>---</span> Observed</span>
+                  <span style={{ borderBottom: `1px dashed ${color}` }}>Forecast</span>
                 </div>
               </div>
             )}
