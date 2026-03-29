@@ -375,9 +375,8 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                     <ReferenceLine y={-4.0} stroke="#3b82f6" strokeDasharray="2 4" strokeWidth={1} strokeOpacity={0.4} label={!detailView ? { value: 'Screening (1e-4)', position: 'insideBottomRight', fill: '#3b82f6', fontSize: 10 } : undefined} />
                     {/* Maneuver threshold: 5e-4 */}
                     <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.6} label={{ value: 'Maneuver (5e-4)', position: 'insideTopRight', fill: '#ef4444', fontSize: 10 }} />
-                    {pair.predicted_max_log10_pc != null && (
-                      <ReferenceLine y={pair.predicted_max_log10_pc} stroke="#f59e0b" strokeDasharray="2 3" strokeWidth={1} label={{ value: 'Pred Max', position: 'right', fill: '#f59e0b', fontSize: 10 }} />
-                    )}
+                    {/* Pred Max line removed — forecast curve already shows predicted trajectory.
+                       The yellow line above the red threshold was confusing (yellow=moderate but positioned higher=worse). */}
                     <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} connectNulls={false} />
                     {/* Uncertainty band from autoregressive forecast */}
                     <Area type="monotone" dataKey="forecastUpper" stroke="none" fill={color} fillOpacity={0.08} connectNulls={false} />
