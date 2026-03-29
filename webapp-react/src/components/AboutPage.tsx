@@ -89,8 +89,8 @@ export function AboutPage({ visible, onClose, onNavigate }: AboutPageProps) {
         {/* Data */}
         <Section title="Data Sources">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <DataCard title="ESA Kelvins Challenge" stats="162,634 CDMs \u00b7 13,154 events \u00b7 103 features" desc="Real operational data from ESA's Space Debris Office. Used for pre-training and benchmark evaluation." />
-            <DataCard title="Space-Track CDMs" stats="670 pairs \u00b7 3,937 CDMs \u00b7 5 features" desc="Public conjunction data from the 18th Space Defense Squadron. Updated daily. Used for production predictions." />
+            <DataCard title="ESA Kelvins Challenge" stats="162,634 CDMs · 13,154 events · 103 features" desc="Real operational data from ESA's Space Debris Office. Used for pre-training and benchmark evaluation." />
+            <DataCard title="Space-Track CDMs" stats="866+ pairs · 5,100+ CDMs · 23 features" desc="Public conjunction data from the 18th Space Defense Squadron. Updated twice daily via automated pipeline." />
           </div>
         </Section>
 
