@@ -43,3 +43,4 @@
 {"date": "2026-03-28", "n_satellites_screened": 15109, "n_candidate_pairs": 5962143, "n_predictions_logged": 500, "top_risk_score": 0.068584, "validation": {"validated": false, "reason": "no_snapshot"}}
 {"date": "2026-03-29", "n_satellites_screened": 15121, "n_candidate_pairs": 5939132, "n_predictions_logged": 500, "top_risk_score": 0.068584, "validation": {"validated": false, "reason": "no_snapshot"}}
 {"date": "2026-03-29", "n_satellites_screened": 15090, "n_candidate_pairs": 5939342, "n_predictions_logged": 500, "top_risk_score": 0.068584, "validation": {"validated": false, "reason": "no_snapshot"}}
+{"date": "2026-03-30", "n_satellites_screened": 15178, "n_candidate_pairs": 5944656, "n_predictions_logged": 500, "top_risk_score": 0.068584, "validation": {"validated": false, "reason": "no_snapshot"}}
