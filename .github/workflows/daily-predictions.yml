@@ -58,10 +58,12 @@ jobs:
 
       - name: Prune old TLE snapshots
         run: |
-          # Keep only last 2 snapshots (today + yesterday) to avoid repo bloat
-          # Each snapshot is ~6MB; without pruning = 2.3GB/year in git history
+          # Keep last 3 DATED snapshots (today + 2 previous) for maneuver detection.
+          # Only match YYYY-MM-DD.json files — NOT supplemental.json or supplemental_ids.json.
+          # Previous bug: *.json glob was deleting dated snapshots while keeping supplemental files,
+          # which broke validate_yesterday() for over a month (no outcomes generated).
           cd data/tle_snapshots
-          ls -1 *.json 2>/dev/null | sort | head -n -2 | xargs -r rm -v
+          ls -1 20??-??-??.json 2>/dev/null | sort | head -n -3 | xargs -r rm -v
           cd ../..
 
       - name: Prune maneuver history
