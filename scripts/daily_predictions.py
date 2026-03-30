@@ -68,23 +68,13 @@ PC_ESCALATION_THRESHOLD = 5e-4
 LOG10_PC_THRESHOLD = -3.3  # log10(5e-4) ≈ -3.3
 # Sigmoid steepness for converting regression to probability
 SIGMOID_STEEPNESS = 5.0
-# Default ensemble weights (overridden by models/ensemble_weights.json if available)
+# Production ensemble weights — FIXED at 40/30/30 for the frontend.
+# The shadow ensemble (backend only) tests calibrated weights from
+# models/ensemble_weights.json separately. Production weights only change
+# when a non-linear model earns meaningful weight through calibration.
 ENSEMBLE_W_LR = 0.4       # Logistic regression (interpretable, high recall)
 ENSEMBLE_W_LSTM = 0.3      # BiLSTM (temporal pattern recognition)
 ENSEMBLE_W_REGRESSION = 0.3  # Regression signal (continuous risk tracking)
-
-# Load calibrated weights from stacking meta-learner (weekly fine-tune output)
-_CALIBRATED_WEIGHTS_PATH = ROOT / "models" / "ensemble_weights.json"
-if _CALIBRATED_WEIGHTS_PATH.exists():
-    try:
-        with open(_CALIBRATED_WEIGHTS_PATH) as _f:
-            _cw = json.load(_f)["weights"]
-        ENSEMBLE_W_LR = _cw.get("LR", ENSEMBLE_W_LR)
-        ENSEMBLE_W_LSTM = _cw.get("BiLSTM_signal", ENSEMBLE_W_LSTM)
-        ENSEMBLE_W_REGRESSION = _cw.get("GNN", ENSEMBLE_W_REGRESSION)
-        print(f"  Loaded calibrated weights: LR={ENSEMBLE_W_LR:.3f} LSTM={ENSEMBLE_W_LSTM:.3f} GNN/Reg={ENSEMBLE_W_REGRESSION:.3f}")
-    except Exception:
-        pass  # use defaults
 
 # CelesTrak groups that the webapp loads (must match webapp-react/src/lib/types.ts)
 WEBAPP_GROUPS = [
@@ -1648,13 +1638,24 @@ def main():
                     with torch.no_grad():
                         gnn_prob = float(torch.sigmoid(gnn_model(x_norm)).item())
 
-                    # Shadow ensemble: 35% LR + 30% BiLSTM + 35% GNN
+                    # Shadow ensemble: uses calibrated weights from stacking meta-learner
+                    _cw_path = ROOT / "models" / "ensemble_weights.json"
+                    sw_lr, sw_lstm, sw_gnn = 0.35, 0.30, 0.35  # defaults
+                    if _cw_path.exists():
+                        try:
+                            _cw = json.load(open(_cw_path))["weights"]
+                            sw_lr = _cw.get("LR", sw_lr)
+                            sw_lstm = _cw.get("BiLSTM_signal", sw_lstm)
+                            sw_gnn = _cw.get("GNN", sw_gnn)
+                        except Exception:
+                            pass
                     lr_prob = pair_entry.get("exceedance_probability", 0)
                     lstm_prob = pair_entry.get("lstm_escalation_prob")
                     if lstm_prob is not None:
-                        shadow_ens = 0.35 * lr_prob + 0.30 * lstm_prob + 0.35 * gnn_prob
+                        shadow_ens = sw_lr * lr_prob + sw_lstm * lstm_prob + sw_gnn * gnn_prob
                     else:
-                        shadow_ens = 0.50 * lr_prob + 0.50 * gnn_prob
+                        total = sw_lr + sw_gnn
+                        shadow_ens = (sw_lr/total) * lr_prob + (sw_gnn/total) * gnn_prob if total > 0 else lr_prob
 
                     pair_entry["shadow_ensemble"] = round(shadow_ens, 4)
                     pair_entry["gnn_probability"] = round(gnn_prob, 4)
@@ -1674,7 +1675,12 @@ def main():
                 # Store shadow metrics
                 shadow_total = shadow_correct + shadow_wrong
                 forecast_data["shadow_ensemble"] = {
-                    "weights": "35% LR + 30% BiLSTM + 35% GNN (non-linear)",
+                    "weights": {
+                        "LR": round(sw_lr, 4),
+                        "BiLSTM": round(sw_lstm, 4),
+                        "GNN": round(sw_gnn, 4),
+                        "source": "calibrated" if _cw_path.exists() else "default",
+                    },
                     "n_predictions": n_shadow,
                     "n_resolved": shadow_total,
                     "n_correct": shadow_correct,
