@@ -68,10 +68,23 @@ PC_ESCALATION_THRESHOLD = 5e-4
 LOG10_PC_THRESHOLD = -3.3  # log10(5e-4) ≈ -3.3
 # Sigmoid steepness for converting regression to probability
 SIGMOID_STEEPNESS = 5.0
-# Ensemble component weights (must sum to 1.0)
+# Default ensemble weights (overridden by models/ensemble_weights.json if available)
 ENSEMBLE_W_LR = 0.4       # Logistic regression (interpretable, high recall)
 ENSEMBLE_W_LSTM = 0.3      # BiLSTM (temporal pattern recognition)
 ENSEMBLE_W_REGRESSION = 0.3  # Regression signal (continuous risk tracking)
+
+# Load calibrated weights from stacking meta-learner (weekly fine-tune output)
+_CALIBRATED_WEIGHTS_PATH = ROOT / "models" / "ensemble_weights.json"
+if _CALIBRATED_WEIGHTS_PATH.exists():
+    try:
+        with open(_CALIBRATED_WEIGHTS_PATH) as _f:
+            _cw = json.load(_f)["weights"]
+        ENSEMBLE_W_LR = _cw.get("LR", ENSEMBLE_W_LR)
+        ENSEMBLE_W_LSTM = _cw.get("BiLSTM_signal", ENSEMBLE_W_LSTM)
+        ENSEMBLE_W_REGRESSION = _cw.get("GNN", ENSEMBLE_W_REGRESSION)
+        print(f"  Loaded calibrated weights: LR={ENSEMBLE_W_LR:.3f} LSTM={ENSEMBLE_W_LSTM:.3f} GNN/Reg={ENSEMBLE_W_REGRESSION:.3f}")
+    except Exception:
+        pass  # use defaults
 
 # CelesTrak groups that the webapp loads (must match webapp-react/src/lib/types.ts)
 WEBAPP_GROUPS = [
