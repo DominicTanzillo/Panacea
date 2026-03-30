@@ -95,6 +95,11 @@ jobs:
         run: |
           python scripts/train_supplementary.py || echo "Supplementary training failed (non-critical)"
 
+      - name: Calibrate ensemble weights (stacking meta-learner)
+        run: |
+          pip install scipy 2>/dev/null || true
+          python scripts/calibrate_ensemble.py || echo "Ensemble calibration failed (non-critical)"
+
       - name: Commit fine-tune logs and analysis
         run: |
           git config user.name "Panacea Bot"
@@ -102,5 +107,7 @@ jobs:
           git add -f data/prediction_logs/finetune_log.jsonl 2>/dev/null || true
           git add -f webapp-react/public/tuning_results.json 2>/dev/null || true
           git add -f webapp-react/public/supplementary_models.json 2>/dev/null || true
+          git add -f models/ensemble_weights.json 2>/dev/null || true
+          git add -f models/conjunction_gnn.pt 2>/dev/null || true
           git diff --staged --quiet || git commit -m ":brain: Weekly fine-tune + analysis $(date -u +%Y-%m-%d)"
           git push || echo "Push failed (non-critical)"
