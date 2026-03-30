@@ -1562,6 +1562,129 @@ def main():
     except Exception as e:
         print(f"  Merge into cdm_forecast.json failed (non-fatal): {e}")
 
+    # ── Shadow ensemble: experimental alternative with GNN ──
+    # Computes a second hidden prediction using GNN as the non-linear component.
+    # Stored in forecast JSON but not displayed on frontend. Compared against
+    # primary ensemble in track_record to determine if it's better.
+    print("\nComputing shadow ensemble (experimental) ...")
+    try:
+        import torch
+        gnn_ckpt_path = ROOT / "models" / "conjunction_gnn.pt"
+        forecast_path = ROOT / "webapp-react" / "public" / "cdm_forecast.json"
+        if gnn_ckpt_path.exists() and forecast_path.exists():
+            gnn_ckpt = torch.load(str(gnn_ckpt_path), map_location="cpu", weights_only=False)
+            if gnn_ckpt.get("trained"):
+                # Rebuild edge features for current pairs
+                sat_idx = gnn_ckpt["sat_idx"]
+                node_features_g = gnn_ckpt["node_features"]
+                node_agg_g = gnn_ckpt["node_agg"]
+                gnn_mu = gnn_ckpt["norm_mean"]
+                gnn_sd = gnn_ckpt["norm_std"]
+                input_dim = gnn_ckpt["input_dim"]
+
+                # Load the MLP
+                from scripts.train_supplementary import EdgeMLP  # noqa
+                # Can't import EdgeMLP directly since it's defined inside train_gnn
+                # Reconstruct it
+                class _EdgeMLP(torch.nn.Module):
+                    def __init__(self, input_dim, hidden=64, dropout=0.3):
+                        super().__init__()
+                        self.net = torch.nn.Sequential(
+                            torch.nn.Linear(input_dim, hidden), torch.nn.GELU(), torch.nn.Dropout(dropout),
+                            torch.nn.Linear(hidden, 32), torch.nn.GELU(), torch.nn.Dropout(dropout),
+                            torch.nn.Linear(32, 1),
+                        )
+                    def forward(self, x):
+                        return self.net(x).squeeze(-1)
+
+                gnn_model = _EdgeMLP(input_dim)
+                gnn_model.load_state_dict(gnn_ckpt["model_state_dict"])
+                gnn_model.eval()
+
+                with open(forecast_path) as f:
+                    forecast_data = json.load(f)
+
+                n_shadow = 0
+                shadow_correct = 0
+                shadow_wrong = 0
+                for pair_entry in forecast_data.get("pairs", []):
+                    n1 = pair_entry.get("sat1_norad")
+                    n2 = pair_entry.get("sat2_norad")
+                    if n1 is None or n2 is None:
+                        continue
+
+                    # Build edge feature vector matching GNN training format
+                    i = sat_idx.get(min(n1, n2))
+                    j = sat_idx.get(max(n1, n2))
+                    if i is None or j is None:
+                        continue  # satellite not in GNN graph
+
+                    pc = pair_entry.get("current_pc", 0)
+                    miss = pair_entry.get("current_miss_km", 100)
+                    n_updates = pair_entry.get("n_updates", 1)
+
+                    # Concatenate: node_i + node_j + edge_feat + graph_agg
+                    edge_feat = np.array([math.log1p(n_updates), math.log1p(miss)])
+                    row = np.concatenate([
+                        node_features_g[i], node_features_g[j],
+                        edge_feat, node_agg_g[i], node_agg_g[j]
+                    ])
+
+                    # GNN prediction
+                    x_norm = torch.tensor((row - gnn_mu) / (gnn_sd + 1e-8), dtype=torch.float32).unsqueeze(0)
+                    with torch.no_grad():
+                        gnn_prob = float(torch.sigmoid(gnn_model(x_norm)).item())
+
+                    # Shadow ensemble: 35% LR + 30% BiLSTM + 35% GNN
+                    lr_prob = pair_entry.get("exceedance_probability", 0)
+                    lstm_prob = pair_entry.get("lstm_escalation_prob")
+                    if lstm_prob is not None:
+                        shadow_ens = 0.35 * lr_prob + 0.30 * lstm_prob + 0.35 * gnn_prob
+                    else:
+                        shadow_ens = 0.50 * lr_prob + 0.50 * gnn_prob
+
+                    pair_entry["shadow_ensemble"] = round(shadow_ens, 4)
+                    pair_entry["gnn_probability"] = round(gnn_prob, 4)
+                    n_shadow += 1
+
+                    # Track shadow accuracy on resolved pairs
+                    tca_str = pair_entry.get("tca", "")
+                    now_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+                    if tca_str and tca_str <= now_str:
+                        actual = pair_entry.get("current_pc", 0) >= PC_ESCALATION_THRESHOLD
+                        shadow_pred = shadow_ens >= 0.5
+                        if shadow_pred == actual:
+                            shadow_correct += 1
+                        else:
+                            shadow_wrong += 1
+
+                # Store shadow metrics
+                shadow_total = shadow_correct + shadow_wrong
+                forecast_data["shadow_ensemble"] = {
+                    "weights": "35% LR + 30% BiLSTM + 35% GNN (non-linear)",
+                    "n_predictions": n_shadow,
+                    "n_resolved": shadow_total,
+                    "n_correct": shadow_correct,
+                    "accuracy": round(shadow_correct / max(shadow_total, 1), 4),
+                }
+                # Compare against primary
+                primary_tr = forecast_data.get("track_record", {})
+                primary_acc = primary_tr.get("n_correct", 0) / max(primary_tr.get("n_correct", 0) + primary_tr.get("n_wrong", 0), 1)
+                shadow_acc = shadow_correct / max(shadow_total, 1)
+                forecast_data["shadow_ensemble"]["vs_primary"] = round(shadow_acc - primary_acc, 4)
+
+                with open(forecast_path, "w") as f:
+                    json.dump(forecast_data, f, indent=2, default=_json_default)
+                print(f"  Shadow ensemble: {n_shadow} pairs scored, {shadow_total} resolved")
+                if shadow_total > 0:
+                    print(f"  Shadow accuracy: {shadow_correct}/{shadow_total} ({shadow_acc:.1%}) vs primary {primary_acc:.1%} (delta={shadow_acc - primary_acc:+.1%})")
+            else:
+                print("  GNN checkpoint not trained — skipping shadow ensemble")
+        else:
+            print("  GNN checkpoint or forecast not found — skipping shadow ensemble")
+    except Exception as e:
+        print(f"  Shadow ensemble failed (non-fatal): {e}")
+
     # Run conformal prediction analysis
     print("\nRunning conformal prediction analysis ...")
     conformal_results = {}

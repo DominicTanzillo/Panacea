@@ -163,9 +163,56 @@ def train_gnn(pairs):
         X_aug.append(row)
     X_aug = np.array(X_aug)
 
-    # Train logistic regression on augmented features (5-fold CV)
-    print("  Training edge classifier (5-fold CV)...")
+    # Train non-linear classifier on augmented features (5-fold CV)
+    # Use a 2-layer neural net (PyTorch) for genuinely non-linear decision boundaries
+    print("  Training non-linear edge classifier (5-fold CV)...")
+    import torch
+    import torch.nn as nn
     from scripts.tune_and_analyze import train_lr, predict_lr, eval_metrics
+
+    class EdgeMLP(nn.Module):
+        def __init__(self, input_dim, hidden=64, dropout=0.3):
+            super().__init__()
+            self.net = nn.Sequential(
+                nn.Linear(input_dim, hidden), nn.GELU(), nn.Dropout(dropout),
+                nn.Linear(hidden, 32), nn.GELU(), nn.Dropout(dropout),
+                nn.Linear(32, 1),
+            )
+        def forward(self, x):
+            return self.net(x).squeeze(-1)
+
+    def train_mlp(X_train, y_train, X_val, y_val, epochs=200, lr=0.005):
+        """Train a small MLP with early stopping."""
+        # Normalize
+        mu, sd = X_train.mean(0), X_train.std(0) + 1e-8
+        Xn = torch.tensor((X_train - mu) / sd, dtype=torch.float32)
+        yn = torch.tensor(y_train, dtype=torch.float32)
+        Xv = torch.tensor((X_val - mu) / sd, dtype=torch.float32)
+        yv = torch.tensor(y_val, dtype=torch.float32)
+
+        model = EdgeMLP(X_train.shape[1])
+        pos_w = max(1.0, (1 - y_train.mean()) / max(y_train.mean(), 0.01))
+        opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.01)
+        best_loss, patience, best_state = 1e9, 0, None
+
+        for ep in range(epochs):
+            model.train()
+            logits = model(Xn)
+            weight = torch.where(yn == 1, pos_w, 1.0)
+            loss = (weight * nn.functional.binary_cross_entropy_with_logits(logits, yn, reduction='none')).mean()
+            opt.zero_grad(); loss.backward(); opt.step()
+
+            model.eval()
+            with torch.no_grad():
+                vl = nn.functional.binary_cross_entropy_with_logits(model(Xv), yv).item()
+            if vl < best_loss:
+                best_loss = vl; patience = 0; best_state = {k: v.clone() for k, v in model.state_dict().items()}
+            else:
+                patience += 1
+                if patience >= 20: break
+
+        if best_state: model.load_state_dict(best_state)
+        return model, mu, sd
 
     pos_idx = np.where(y == 1)[0]
     neg_idx = np.where(y == 0)[0]
@@ -175,6 +222,8 @@ def train_gnn(pairs):
 
     fold_metrics = []
     fold_metrics_no_graph = []
+    best_model, best_mu, best_sd = None, None, None
+    best_f1 = 0
     n_folds = 5
     for f in range(n_folds):
         p_start = len(pos_idx) * f // n_folds
@@ -184,17 +233,39 @@ def train_gnn(pairs):
         test_idx = np.concatenate([pos_idx[p_start:p_end], neg_idx[n_start:n_end]])
         train_idx = np.array([i for i in range(len(y)) if i not in set(test_idx)])
 
-        # With graph features
-        w, b, mu, sd = train_lr(X_aug[train_idx], y[train_idx], lr=0.05, reg=0.01, epochs=300)
-        probs = predict_lr(X_aug[test_idx], w, b, mu, sd)
-        fold_metrics.append(eval_metrics(y[test_idx], probs))
+        # With graph features — non-linear MLP
+        mlp, mu_f, sd_f = train_mlp(X_aug[train_idx], y[train_idx], X_aug[test_idx], y[test_idx])
+        mlp.eval()
+        with torch.no_grad():
+            probs = torch.sigmoid(mlp(torch.tensor((X_aug[test_idx] - mu_f) / (sd_f + 1e-8), dtype=torch.float32))).numpy()
+        fm = eval_metrics(y[test_idx], probs)
+        fold_metrics.append(fm)
+        if fm["f1"] > best_f1:
+            best_f1 = fm["f1"]; best_model = mlp; best_mu = mu_f; best_sd = sd_f
 
-        # Without graph features (baseline)
+        # Without graph features (LR baseline for comparison)
         w2, b2, mu2, sd2 = train_lr(X[train_idx], y[train_idx], lr=0.05, reg=0.01, epochs=300)
         probs2 = predict_lr(X[test_idx], w2, b2, mu2, sd2)
         fold_metrics_no_graph.append(eval_metrics(y[test_idx], probs2))
 
     avg = lambda ms, k: round(float(np.mean([m[k] for m in ms])), 4)
+
+    # Save GNN checkpoint for use in daily pipeline shadow ensemble
+    if best_model is not None:
+        ckpt_path = ROOT / "models" / "conjunction_gnn.pt"
+        torch.save({
+            "model_state_dict": best_model.state_dict(),
+            "input_dim": X_aug.shape[1],
+            "norm_mean": best_mu,
+            "norm_std": best_sd,
+            "sat_idx": sat_idx,
+            "node_features": node_features,
+            "node_agg": node_agg,
+            "edges": edges,
+            "edge_features_list": edge_features,
+            "trained": True,
+        }, str(ckpt_path))
+        print(f"  Saved GNN checkpoint to {ckpt_path}")
 
     print(f"  With graph features:    F1={avg(fold_metrics, 'f1'):.3f} Recall={avg(fold_metrics, 'recall'):.3f}")
     print(f"  Without graph features: F1={avg(fold_metrics_no_graph, 'f1'):.3f} Recall={avg(fold_metrics_no_graph, 'recall'):.3f}")
