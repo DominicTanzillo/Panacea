@@ -1,29 +1,29 @@
 {
-  "generated_at": "2026-03-31T02:01:20.087767+00:00",
+  "generated_at": "2026-03-31T13:38:13.714098+00:00",
   "gnn": {
-    "n_nodes": 1580,
-    "n_edges": 905,
-    "n_positive_edges": 214,
+    "n_nodes": 1590,
+    "n_edges": 912,
+    "n_positive_edges": 215,
     "with_graph_features": {
-      "f1": 0.9861,
-      "recall": 0.9907,
-      "precision": 0.982,
-      "accuracy": 0.9934
+      "f1": 0.9813,
+      "recall": 0.986,
+      "precision": 0.9771,
+      "accuracy": 0.9912
     },
     "without_graph_features": {
-      "f1": 0.9644,
+      "f1": 0.9578,
       "recall": 1.0,
-      "precision": 0.9322,
-      "accuracy": 0.9823
+      "precision": 0.9192,
+      "accuracy": 0.9792
     },
     "graph_improvement": {
-      "f1_delta": 0.0217,
-      "recall_delta": -0.0093
+      "f1_delta": 0.0235,
+      "recall_delta": -0.014
     },
     "degree_distribution": {
-      "1": 1380,
+      "1": 1388,
       "2": 172,
-      "3": 26,
+      "3": 28,
       "4": 2
     },
     "top_connected_satellites": [
@@ -45,6 +45,10 @@
       },
       {
         "norad_id": 9022,
+        "degree": 3
+      },
+      {
+        "norad_id": 9443,
         "degree": 3
       },
       {
@@ -92,19 +96,15 @@
         "degree": 3
       },
       {
+        "norad_id": 25636,
+        "degree": 3
+      },
+      {
         "norad_id": 25730,
         "degree": 3
       },
       {
         "norad_id": 26065,
-        "degree": 3
-      },
-      {
-        "norad_id": 26080,
-        "degree": 3
-      },
-      {
-        "norad_id": 34346,
         "degree": 3
       }
     ],
@@ -112,15 +112,15 @@
     "max_degree": 4
   },
   "autoregressive": {
-    "n_training_samples": 3602,
-    "n_test_samples": 721,
+    "n_training_samples": 3614,
+    "n_test_samples": 723,
     "metrics": {
-      "mae_log10_pc": 0.0924,
-      "rmse_log10_pc": 0.1602,
-      "correlation_pc": 0.9298,
-      "mae_log10_miss": 0.1284,
-      "correlation_miss": 0.8134,
-      "uncertainty_std": 0.1601
+      "mae_log10_pc": 0.0945,
+      "rmse_log10_pc": 0.1666,
+      "correlation_pc": 0.9282,
+      "mae_log10_miss": 0.127,
+      "correlation_miss": 0.8208,
+      "uncertainty_std": 0.1666
     },
     "example_forecasts": [
       {
@@ -136,10 +136,10 @@
         "predicted": [
           null,
           null,
-          -3.361,
-          -3.52,
-          -3.524,
-          -3.6
+          -3.358,
+          -3.519,
+          -3.522,
+          -3.599
         ],
         "n_cdms": 6
       },
@@ -156,10 +156,10 @@
         "predicted": [
           null,
           null,
-          -3.802,
-          -3.727,
+          -3.801,
           -3.726,
-          -3.596
+          -3.726,
+          -3.595
         ],
         "n_cdms": 6
       },
@@ -180,61 +180,61 @@
         "predicted": [
           null,
           null,
-          -2.693,
-          -2.433,
-          -2.429,
-          -2.444,
-          -2.445,
-          -2.37,
-          -2.37,
-          -2.316
+          -2.688,
+          -2.426,
+          -2.425,
+          -2.441,
+          -2.443,
+          -2.368,
+          -2.369,
+          -2.314
         ],
         "n_cdms": 10
       }
     ]
   },
   "conformal": {
-    "n_train": 543,
-    "n_calibration": 181,
-    "n_test": 181,
+    "n_train": 547,
+    "n_calibration": 182,
+    "n_test": 183,
     "classification_conformal": [
       {
         "alpha": 0.05,
         "target_coverage": 0.95,
-        "empirical_coverage": 0.9171,
-        "q_hat": 0.5138,
-        "avg_set_size": 1.022,
-        "n_singleton": 177,
+        "empirical_coverage": 0.929,
+        "q_hat": 0.5727,
+        "avg_set_size": 1.027,
+        "n_singleton": 178,
         "n_empty": 0,
-        "n_both": 4
+        "n_both": 5
       },
       {
         "alpha": 0.1,
         "target_coverage": 0.9,
-        "empirical_coverage": 0.8453,
-        "q_hat": 0.3462,
-        "avg_set_size": 0.895,
-        "n_singleton": 162,
-        "n_empty": 19,
+        "empirical_coverage": 0.8962,
+        "q_hat": 0.4169,
+        "avg_set_size": 0.967,
+        "n_singleton": 177,
+        "n_empty": 6,
         "n_both": 0
       },
       {
         "alpha": 0.15,
         "target_coverage": 0.85,
-        "empirical_coverage": 0.8232,
-        "q_hat": 0.2747,
-        "avg_set_size": 0.867,
-        "n_singleton": 157,
-        "n_empty": 24,
+        "empirical_coverage": 0.847,
+        "q_hat": 0.2638,
+        "avg_set_size": 0.88,
+        "n_singleton": 161,
+        "n_empty": 22,
         "n_both": 0
       },
       {
         "alpha": 0.2,
         "target_coverage": 0.8,
-        "empirical_coverage": 0.8122,
-        "q_hat": 0.2494,
-        "avg_set_size": 0.84,
-        "n_singleton": 152,
+        "empirical_coverage": 0.8197,
+        "q_hat": 0.2268,
+        "avg_set_size": 0.842,
+        "n_singleton": 154,
         "n_empty": 29,
         "n_both": 0
       }
@@ -243,19 +243,19 @@
       {
         "alpha": 0.05,
         "target": 0.95,
-        "coverage": 0.9227,
+        "coverage": 0.9836,
         "interval_width": 0.0
       },
       {
         "alpha": 0.1,
         "target": 0.9,
-        "coverage": 0.9061,
+        "coverage": 0.918,
         "interval_width": 0.0
       },
       {
         "alpha": 0.2,
         "target": 0.8,
-        "coverage": 0.8287,
+        "coverage": 0.776,
         "interval_width": 0.0
       }
     ]
