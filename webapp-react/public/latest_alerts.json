@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-02T01:57:22Z",
+  "generated_at": "2026-04-02T13:30:38Z",
   "prediction_date": "2026-04-02",
   "n_cdm_alerts": 20,
   "n_tle_alerts": 0,
@@ -20,25 +20,25 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 17.0,
-      "tca_hours": 4.961639926111111
+      "tca_hours": -6.5929944477777775
     },
     {
-      "name_1": "COSMOS 1694",
-      "name_2": "COSMOS 2039",
-      "norad_1": 16142,
-      "norad_2": 20233,
-      "altitude_km": 0.0,
+      "name_1": "COSMOS 372",
+      "name_2": "COSMOS 1867 COOLANT",
+      "norad_1": 4588,
+      "norad_2": 39665,
+      "altitude_km": 768.7,
       "prediction_date": "2026-04-02",
       "source": "cdm",
-      "risk_score": 0.001272355,
-      "pc": 0.001272355,
-      "miss_distance_km": 228.0,
-      "cdm_tca": "2026-04-01T05:08:07.305000",
+      "risk_score": 0.001643324,
+      "pc": 0.001643324,
+      "miss_distance_km": 135.0,
+      "cdm_tca": "2026-04-05T01:39:43.969000",
       "sat1_type": "PAYLOAD",
-      "sat2_type": "PAYLOAD",
+      "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
-      "miss_estimate_km": 228.0,
-      "tca_hours": -20.82044757388889
+      "miss_estimate_km": 135.0,
+      "tca_hours": 60.151769163333334
     },
     {
       "name_1": "METEOR 2-4",
@@ -56,7 +56,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 470.0,
-      "tca_hours": 34.082756870555556
+      "tca_hours": 22.52812249666667
     },
     {
       "name_1": "FENGYUN 1C DEB",
@@ -74,7 +74,7 @@
       "sat2_type": "ROCKET BODY",
       "emergency_reportable": "Y",
       "miss_estimate_km": 64.0,
-      "tca_hours": 2.2107007594444443
+      "tca_hours": -9.343933614444444
     },
     {
       "name_1": "FENGYUN 1C DEB",
@@ -92,7 +92,7 @@
       "sat2_type": "ROCKET BODY",
       "emergency_reportable": "Y",
       "miss_estimate_km": 11.0,
-      "tca_hours": 21.255611315
+      "tca_hours": 9.700976941111112
     },
     {
       "name_1": "IRIDIUM 920",
@@ -110,7 +110,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 90.0,
-      "tca_hours": 41.23718075944445
+      "tca_hours": 29.682546385555554
     },
     {
       "name_1": "SL-8 R/B",
@@ -128,14 +128,14 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 322.0,
-      "tca_hours": 20.087043259444442
+      "tca_hours": 8.532408885555554
     },
     {
       "name_1": "DELTA 1 DEB *",
       "name_2": "ELECTRON KICK STAGE R/B",
       "norad_1": 8679,
       "norad_2": 62928,
-      "altitude_km": 0.0,
+      "altitude_km": 579.9,
       "prediction_date": "2026-04-02",
       "source": "cdm",
       "risk_score": 0.0004453838,
@@ -146,7 +146,7 @@
       "sat2_type": "ROCKET BODY",
       "emergency_reportable": "Y",
       "miss_estimate_km": 953.0,
-      "tca_hours": 27.910660759444443
+      "tca_hours": 16.356026385555555
     },
     {
       "name_1": "DMSP 5D-2 F8 (USA 26)",
@@ -164,7 +164,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 56.0,
-      "tca_hours": 56.47277242611111
+      "tca_hours": 44.91813805222222
     },
     {
       "name_1": "ARGOS",
@@ -182,7 +182,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 935.0,
-      "tca_hours": 20.239995481666664
+      "tca_hours": 8.685361107777778
     },
     {
       "name_1": "SL-14 R/B",
@@ -200,7 +200,7 @@
       "sat2_type": "PAYLOAD",
       "emergency_reportable": "Y",
       "miss_estimate_km": 85.0,
-      "tca_hours": 48.087680759444446
+      "tca_hours": 36.53304638555556
     },
     {
       "name_1": "AEROCUBE 2",
@@ -218,7 +218,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 410.0,
-      "tca_hours": 42.44861603722222
+      "tca_hours": 30.89398166333333
     },
     {
       "name_1": "ASUSAT",
@@ -236,7 +236,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 893.0,
-      "tca_hours": 1.3916374261111113
+      "tca_hours": -10.162996947777778
     },
     {
       "name_1": "COSMOS 858",
@@ -254,7 +254,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 302.0,
-      "tca_hours": -4.057922296111111
+      "tca_hours": -15.61255667
     },
     {
       "name_1": "MUNIN",
@@ -272,7 +272,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 374.0,
-      "tca_hours": -0.7143406294444445
+      "tca_hours": -12.268975003333335
     },
     {
       "name_1": "SL-8 R/B",
@@ -290,7 +290,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 790.0,
-      "tca_hours": -11.567687573888888
+      "tca_hours": -23.122321947777777
     },
     {
       "name_1": "CZ-4 DEB",
@@ -308,7 +308,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 19.0,
-      "tca_hours": 32.433198259444445
+      "tca_hours": 20.878563885555554
     },
     {
       "name_1": "SOHLA-1 (MAIDO-1)",
@@ -326,7 +326,25 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 748.0,
-      "tca_hours": 9.956747981666668
+      "tca_hours": -1.5978863922222222
+    },
+    {
+      "name_1": "FENGYUN 1C DEB",
+      "name_2": "METEOR 2-5 DEB",
+      "norad_1": 31888,
+      "norad_2": 45507,
+      "altitude_km": 0.0,
+      "prediction_date": "2026-04-02",
+      "source": "cdm",
+      "risk_score": 0.0002730098,
+      "pc": 0.0002730098,
+      "miss_distance_km": 90.0,
+      "cdm_tca": "2026-04-05T00:47:01.908000",
+      "sat1_type": "DEBRIS",
+      "sat2_type": "DEBRIS",
+      "emergency_reportable": "Y",
+      "miss_estimate_km": 90.0,
+      "tca_hours": 59.27341888555555
     },
     {
       "name_1": "FENGYUN 1C DEB",
@@ -344,25 +362,7 @@
       "sat2_type": "DEBRIS",
       "emergency_reportable": "Y",
       "miss_estimate_km": 186.0,
-      "tca_hours": 0.7639168705555556
-    },
-    {
-      "name_1": "OSCAR 17 (DOVE)",
-      "name_2": "CZ-6A DEB",
-      "norad_1": 20440,
-      "norad_2": 61158,
-      "altitude_km": 0.0,
-      "prediction_date": "2026-04-02",
-      "source": "cdm",
-      "risk_score": 0.0002517551,
-      "pc": 0.0002517551,
-      "miss_distance_km": 275.0,
-      "cdm_tca": "2026-04-02T00:06:05.802000",
-      "sat1_type": "PAYLOAD",
-      "sat2_type": "DEBRIS",
-      "emergency_reportable": "Y",
-      "miss_estimate_km": 275.0,
-      "tca_hours": -1.8541984072222222
+      "tca_hours": -10.790717503333335
     }
   ]
 }
