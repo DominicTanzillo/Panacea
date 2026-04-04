@@ -41,6 +41,140 @@ from src.data.sequence_builder import (
 )
 from src.evaluation.metrics import evaluate_risk
 
+import math as _math
+
+
+def cdm_store_to_dataframe(examples: list[dict]) -> "pd.DataFrame":
+    """Convert all resolved CDM store pairs into a Kelvins-compatible DataFrame.
+
+    Uses CDM Pc values directly as ground truth — no outcome matching needed.
+    A pair is "resolved" when TCA is in the past, so max Pc is final.
+    Label: max Pc >= 5e-4 -> positive (maneuver planning threshold).
+
+    Also incorporates outcome-derived labels for pairs that have both CDM
+    sequences AND outcome records (outcome labels take priority when available).
+    """
+    import pandas as pd
+
+    cdm_store_path = LOG_DIR / "cdm_store.jsonl"
+    if not cdm_store_path.exists():
+        print("  No CDM store found — cannot build training data")
+        return pd.DataFrame()
+
+    now = datetime.now(timezone.utc)
+
+    # Build lookup from (sat1, sat2) -> outcome example (for label override)
+    outcome_lookup = {}
+    for ex in examples:
+        n1 = ex.get("sat1_norad", 0)
+        n2 = ex.get("sat2_norad", 0)
+        key = (min(n1, n2), max(n1, n2))
+        outcome_lookup[key] = ex
+
+    # Load and group CDMs by pair
+    pairs: dict[tuple, list[dict]] = {}
+    with open(cdm_store_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                c = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            n1 = c.get("sat1_norad", 0)
+            n2 = c.get("sat2_norad", 0)
+            if n1 and n2:
+                pair_key = (min(n1, n2), max(n1, n2))
+                pairs.setdefault(pair_key, []).append(c)
+
+    # Convert resolved pairs to DataFrame rows
+    rows = []
+    n_resolved = 0
+    n_positive = 0
+    n_outcome_override = 0
+    for pair_key, cdms in pairs.items():
+        # Sort CDMs by creation date
+        cdms_sorted = sorted(cdms, key=lambda c: c.get("creation_date", ""))
+        tca_str = cdms_sorted[0].get("tca", "")
+        try:
+            tca_dt = datetime.strptime(tca_str[:19], "%Y-%m-%dT%H:%M:%S").replace(
+                tzinfo=timezone.utc
+            )
+        except (ValueError, AttributeError):
+            continue
+
+        # Only use resolved pairs (TCA in the past = ground truth available)
+        if tca_dt >= now:
+            continue
+        n_resolved += 1
+
+        # Ground truth: max Pc across all CDMs for this pair
+        max_pc = max(float(c.get("pc", 0) or 0) for c in cdms_sorted)
+        is_positive = max_pc >= 5e-4
+
+        # Override with outcome label if available (outcome labels incorporate
+        # maneuver detection and counterfactual analysis beyond just Pc)
+        if pair_key in outcome_lookup:
+            ex = outcome_lookup[pair_key]
+            is_positive = ex.get("risk_label", 0.0) > 0.5
+            n_outcome_override += 1
+
+        if is_positive:
+            n_positive += 1
+
+        event_id = f"st_{pair_key[0]}_{pair_key[1]}"
+
+        for c in cdms_sorted:
+            pc = float(c.get("pc", 0) or 0)
+            if pc <= 0:
+                continue
+            miss_km = float(c.get("miss_distance_km", 0) or 0)
+            miss_m = miss_km * 1000.0
+
+            created = c.get("creation_date", "")
+            ttca = 72.0
+            if created:
+                try:
+                    created_dt = datetime.strptime(
+                        created[:19], "%Y-%m-%dT%H:%M:%S"
+                    ).replace(tzinfo=timezone.utc)
+                    ttca = max(0, (tca_dt - created_dt).total_seconds() / 3600)
+                except (ValueError, AttributeError):
+                    pass
+
+            log10_pc = _math.log10(max(pc, 1e-20))
+
+            rows.append({
+                "event_id": event_id,
+                "time_to_tca": ttca,
+                "risk": log10_pc,
+                "miss_distance": miss_m,
+                "max_risk_estimate": pc,
+                "max_risk_scaling": log10_pc,
+                "relative_speed": 0.0,
+                "source": "spacetrack",
+            })
+
+        # Set last CDM's risk to encode the ground-truth label
+        # (CDMSequenceDataset derives risk_label from risk > -5)
+        if rows and rows[-1]["event_id"] == event_id:
+            if is_positive:
+                rows[-1]["risk"] = -3.0  # -> risk_label=1.0
+            else:
+                rows[-1]["risk"] = -6.0  # -> risk_label=0.0
+
+    if not rows:
+        print("  No resolved CDM store pairs found")
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+    n_events = df["event_id"].nunique()
+    print(f"  Built {len(df)} CDM rows from {n_events} resolved pairs "
+          f"({n_positive} positive, {n_outcome_override} with outcome labels)")
+    return df
+
+
 # --- Safety guardrails ---
 MIN_NEW_OUTCOMES = 20       # Don't fine-tune with fewer than this
 MAX_EPOCHS = 5              # Cap epochs to keep runtime short
@@ -653,6 +787,15 @@ def main():
         print("  No training data available — skipping fine-tuning")
         return
 
+    # Merge outcome-labeled CDM store data into training set
+    outcome_df = cdm_store_to_dataframe(examples)
+    if len(outcome_df) > 0:
+        pre_events = train_df["event_id"].nunique()
+        train_df = pd.concat([train_df, outcome_df], ignore_index=True)
+        post_events = train_df["event_id"].nunique()
+        print(f"  Merged outcomes: {pre_events} -> {post_events} events "
+              f"({post_events - pre_events} new from CDM store)")
+
     temporal_cols = checkpoint.get("temporal_cols", TEMPORAL_FEATURES)
     static_cols = checkpoint.get("static_cols", STATIC_FEATURES)
 
@@ -710,6 +853,7 @@ def main():
     with open(log_path, "a") as f:
         results["date"] = datetime.now(timezone.utc).isoformat()
         results["n_outcomes"] = len(examples)
+        results["n_outcome_cdm_rows"] = len(outcome_df) if 'outcome_df' in dir() else 0
         f.write(json.dumps(results) + "\n")
 
     # 7. Retrain CSPR pairwise risk model on accumulated CDM data
