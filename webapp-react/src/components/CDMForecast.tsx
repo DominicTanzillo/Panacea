@@ -161,8 +161,8 @@ function shortName(name: string): string {
 
 function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: boolean; onToggle: () => void }) {
   const level = riskLevel(pair);
-  const color = RISK_COLORS[level];
   const isResolved = pair.tca ? pair.tca < new Date().toISOString() : false;
+  const color = isResolved ? '#55556a' : RISK_COLORS[level];
   const ep = pair.ensemble_probability ?? pair.exceedance_probability ?? 0;
   // Chart Y-axis: standardized view shows both thresholds; detail view auto-scales
   const [detailView, setDetailView] = useState(false);
@@ -231,6 +231,11 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
   const currentlyAbove = pair.current_pc >= 5e-4;
   const forecastAbove = pair.forecast_pc >= 5e-4;
   const assessment = (() => {
+    if (isResolved) {
+      if (currentlyAbove)
+        return 'TCA has passed. Final Pc was above maneuver threshold — this conjunction required action.';
+      return 'TCA has passed. Conjunction resolved without exceeding maneuver threshold.';
+    }
     if (currentlyAbove && forecastAbove)
       return 'Pc is currently above maneuver threshold and predicted to remain elevated at TCA. Maneuver recommended.';
     if (currentlyAbove && !forecastAbove)
@@ -277,7 +282,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
           {pair.tca ? pair.tca.slice(5, 10) : '--'}
         </div>
         <div style={{ textAlign: 'center' }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}12`, padding: '2px 8px', borderRadius: 6 }}>{RISK_LABELS[level]}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}12`, padding: '2px 8px', borderRadius: 6 }}>{isResolved ? 'Resolved' : RISK_LABELS[level]}</span>
         </div>
         <span style={{ color: '#3a3a4a', fontSize: 12, textAlign: 'center', transition: 'transform 150ms', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>&#9662;</span>
       </button>
