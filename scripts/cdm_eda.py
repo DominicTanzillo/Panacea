@@ -164,7 +164,11 @@ FEATURE_NAMES = [
     "Latest log₁₀(Pc)", "Latest log₁₀(miss km)", "Time to TCA (hrs)",
     "Pc trend (slope)", "Miss distance trend", "Pc acceleration",
     "Max log₁₀(Pc)", "Min log₁₀(Pc)", "N updates (log)",
-    "Sat1 RCS class", "Sat2 RCS class", "Has debris"
+    "Sat1 RCS class", "Sat2 RCS class", "Has debris",
+    "Pc range (volatility)", "Miss range", "Pc last delta",
+    "Miss last delta", "Max Pc rate", "Time coverage",
+    "First log₁₀(Pc)", "Emergency flag",
+    "F10.7 (solar)", "Kp (geomagnetic)", "Ap (geomagnetic)",
 ]
 
 if model.weights is not None and model._feature_std is not None:
