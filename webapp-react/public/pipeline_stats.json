@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-05T13:14:20.125684Z",
+  "generated_at": "2026-04-06T02:05:16.146634Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -449,15 +449,22 @@
       "n_candidate_pairs": 5957196,
       "n_predictions_logged": 500,
       "n_maneuvers": 3652
+    },
+    {
+      "date": "2026-04-06",
+      "n_satellites_screened": 15148,
+      "n_candidate_pairs": 5999674,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2542
     }
   ],
   "cdm_stats": {
-    "total_cdms": 5708,
-    "last_fetch": "2026-04-05T13:07:32.714048+00:00",
-    "fetch_count": 42,
-    "pc_high": 1392,
-    "pc_moderate": 4316,
-    "emergency_count": 5708
+    "total_cdms": 5754,
+    "last_fetch": "2026-04-06T01:57:56.343957+00:00",
+    "fetch_count": 43,
+    "pc_high": 1405,
+    "pc_moderate": 4349,
+    "emergency_count": 5754
   },
   "forecast_model": {
     "n_pairs_total": 986,
@@ -495,20 +502,13 @@
   },
   "space_weather": {
     "current": {
-      "date": "2026-04-05",
+      "date": "2026-04-06",
       "f107": 130.66,
       "kp": 2.3,
       "ap": 10.0,
-      "source": "cache"
+      "source": "swpc"
     },
     "history": [
-      {
-        "date": "2026-03-07",
-        "f107": 135.93,
-        "kp": 0.6,
-        "ap": 8.0,
-        "source": "cache"
-      },
       {
         "date": "2026-03-08",
         "f107": 135.93,
@@ -711,6 +711,13 @@
         "kp": 2.3,
         "ap": 10.0,
         "source": "cache"
+      },
+      {
+        "date": "2026-04-06",
+        "f107": 130.66,
+        "kp": 2.3,
+        "ap": 10.0,
+        "source": "swpc"
       }
     ]
   }
