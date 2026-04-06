@@ -229,7 +229,12 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
 
   // Build one-line assessment — clarify whether risk is current or predicted
   const currentlyAbove = pair.current_pc >= 5e-4;
-  const forecastAbove = pair.forecast_pc >= 5e-4;
+  // Use autoregressive forecast endpoint when available (matches chart line),
+  // otherwise fall back to LogReg forecast_pc
+  const effectiveForecastPc = pair.forecast_steps?.length
+    ? 10 ** pair.forecast_steps[pair.forecast_steps.length - 1].predicted_log10_pc
+    : pair.forecast_pc;
+  const forecastAbove = effectiveForecastPc >= 5e-4;
   const assessment = (() => {
     if (isResolved) {
       if (currentlyAbove)
