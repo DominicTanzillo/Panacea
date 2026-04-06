@@ -2153,6 +2153,8 @@ def export_pipeline_stats():
                 continue
             try:
                 rec = json.loads(line)
+                if rec.get("model") and rec["model"] != "pi_tft":
+                    continue  # Skip non-PI-TFT entries (e.g. CSPR pairwise)
                 ft_history.append({
                     "date": rec.get("date", "")[:10],
                     "pre_auc_pr": rec.get("pre_auc_pr", 0),
