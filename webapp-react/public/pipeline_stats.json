@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-07T01:56:11.810821Z",
+  "generated_at": "2026-04-07T13:37:25.324406Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -462,15 +462,22 @@
       "n_candidate_pairs": 6022254,
       "n_predictions_logged": 500,
       "n_maneuvers": 39
+    },
+    {
+      "date": "2026-04-07",
+      "n_satellites_screened": 15029,
+      "n_candidate_pairs": 6053392,
+      "n_predictions_logged": 500,
+      "n_maneuvers": 2721
     }
   ],
   "cdm_stats": {
-    "total_cdms": 5754,
-    "last_fetch": "2026-04-07T01:54:09.112558+00:00",
-    "fetch_count": 45,
-    "pc_high": 1405,
-    "pc_moderate": 4349,
-    "emergency_count": 5754
+    "total_cdms": 5783,
+    "last_fetch": "2026-04-07T13:30:21.360748+00:00",
+    "fetch_count": 46,
+    "pc_high": 1415,
+    "pc_moderate": 4368,
+    "emergency_count": 5783
   },
   "forecast_model": {
     "n_pairs_total": 1005,
@@ -512,7 +519,7 @@
       "f107": 130.66,
       "kp": 2.3,
       "ap": 10.0,
-      "source": "swpc"
+      "source": "cache"
     },
     "history": [
       {
@@ -723,7 +730,7 @@
         "f107": 130.66,
         "kp": 2.3,
         "ap": 10.0,
-        "source": "swpc"
+        "source": "cache"
       }
     ]
   }
