@@ -213,16 +213,15 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
     if (!expanded) return [];
     const sorted = pair.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
     const seen = new Set<number>();
-    type ChartPoint = { hoursToTCA: number; 'log10(Pc)': number | undefined; predMax?: number; predUpper?: number; predLower?: number };
+    type ChartPoint = { hoursToTCA: number; 'log10(Pc)': number | undefined; forecast?: number; predMax?: number; predUpper?: number; predLower?: number };
     const points: ChartPoint[] = sorted
       .filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
       .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc }));
 
-    // Add BiLSTM predicted max as a horizontal band spanning the chart
+    // BiLSTM predicted max as horizontal band
     if (predMaxLog10 != null && points.length >= 2) {
       const epUpper = pair.exceedance_upper ?? pair.ensemble_probability;
       const epLower = pair.exceedance_lower ?? pair.ensemble_probability;
-      // Convert ensemble uncertainty to log10 Pc uncertainty (rough scaling)
       const uncSpread = epUpper != null && epLower != null
         ? Math.max(Math.abs(epUpper - epLower) * 2, 0.15)
         : 0.3;
@@ -233,8 +232,33 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
       }
     }
 
+    // Dotted forecast line: smooth curve from last CDM to predicted peak at TCA
+    if (points.length > 0 && points[points.length - 1].hoursToTCA < 0) {
+      const lastPoint = points[points.length - 1];
+      const startHour = lastPoint.hoursToTCA;
+      const startPc = lastPoint['log10(Pc)']!;
+      // Target: BiLSTM predicted max if available, otherwise linear extrapolation
+      const endPc = predMaxLog10 ?? (pair.forecast_pc > 0 ? Math.log10(Math.max(pair.forecast_pc, 1e-20)) : startPc);
+      // Bridge point so forecast connects to observed
+      lastPoint.forecast = startPc;
+      // Smooth curve to TCA
+      const span = Math.abs(startHour);
+      const nSteps = Math.max(3, Math.min(Math.ceil(span / 2), 12));
+      for (let i = 1; i <= nSteps; i++) {
+        const t = i / nSteps;
+        const h = Math.round(startHour + t * (0 - startHour));
+        const ease = t * t;  // ease-in: slow start, accelerates toward prediction
+        const pc = startPc + ease * (endPc - startPc);
+        points.push({ hoursToTCA: h, 'log10(Pc)': undefined, forecast: pc,
+          predMax: predMaxLog10 ?? undefined,
+          predUpper: predMaxLog10 != null ? predMaxLog10 + 0.3 : undefined,
+          predLower: predMaxLog10 != null ? predMaxLog10 - 0.3 : undefined,
+        });
+      }
+    }
+
     return points;
-  }, [pair.time_series, predMaxLog10, pair.exceedance_upper, pair.exceedance_lower, pair.ensemble_probability, expanded]);
+  }, [pair.time_series, predMaxLog10, pair.forecast_pc, pair.exceedance_upper, pair.exceedance_lower, pair.ensemble_probability, expanded]);
 
   // Build one-line assessment — clarify whether risk is current or predicted
   const currentlyAbove = pair.current_pc >= 5e-4;
@@ -403,12 +427,15 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                     <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.6} label={{ value: 'Maneuver (5e-4)', position: 'insideTopRight', fill: '#ef4444', fontSize: 10 }} />
                     {/* Observed Pc data */}
                     <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} connectNulls={false} />
-                    {/* BiLSTM predicted max Pc — horizontal band with uncertainty */}
+                    {/* Dotted forecast line from last CDM to predicted peak at TCA */}
+                    <Area type="monotone" dataKey="forecast" stroke={color} strokeWidth={2} strokeDasharray="4 3" fill="none" dot={false} connectNulls={false} />
+                    {/* BiLSTM predicted peak — amber dashed horizontal with uncertainty band */}
                     {predMaxLog10 != null && (
                       <>
                         <Area type="monotone" dataKey="predUpper" stroke="none" fill="#f59e0b" fillOpacity={0.06} connectNulls />
                         <Area type="monotone" dataKey="predLower" stroke="none" fill="#111118" fillOpacity={0.95} connectNulls />
-                        <Area type="monotone" dataKey="predMax" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="6 3" fill="none" connectNulls />
+                        <ReferenceLine y={predMaxLog10} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.7}
+                          label={{ value: `Pred. Peak (10^${predMaxLog10.toFixed(1)})`, position: 'insideTopLeft', fill: '#f59e0b', fontSize: 10 }} />
                       </>
                     )}
                   </AreaChart>
@@ -418,7 +445,8 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                   <span><span style={{ color: '#ef4444' }}>---</span> Maneuver (5e-4)</span>
                   <span><span style={{ color: '#3b82f6' }}>--</span> Screening (1e-4)</span>
                   <span><span style={{ color: color }}>---</span> Observed</span>
-                  {predMaxLog10 != null && <span><span style={{ color: '#f59e0b' }}>---</span> BiLSTM predicted peak</span>}
+                  <span style={{ borderBottom: `1px dashed ${color}` }}>Forecast</span>
+                  {predMaxLog10 != null && <span><span style={{ color: '#f59e0b' }}>---</span> Pred. Peak</span>}
                 </div>
               </div>
             )}
