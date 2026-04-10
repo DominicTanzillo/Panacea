@@ -143,9 +143,10 @@ interface ForecastData {
 type RiskLevel = 'HIGH' | 'MODERATE' | 'LOW';
 
 function riskLevel(pair: ForecastPair): RiskLevel {
-  if (pair.current_pc >= 5e-3) return 'HIGH';        // Pc already very high
-  if (pair.current_pc >= 5e-4) return 'MODERATE';    // Already above maneuver threshold
-  return 'LOW';                                       // Below threshold but tracked
+  const ep = pair.ensemble_probability ?? pair.exceedance_probability ?? 0;
+  if (pair.current_pc >= 5e-3 || ep >= 0.8) return 'HIGH';
+  if (pair.current_pc >= 5e-4 || ep >= 0.4) return 'MODERATE';
+  return 'LOW';
 }
 
 const RISK_COLORS: Record<RiskLevel, string> = {
@@ -205,72 +206,41 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
   // Chart Y-axis: standardized view shows both thresholds; detail view auto-scales
   const [detailView, setDetailView] = useState(false);
 
+  // BiLSTM predicted max Pc — shown as horizontal reference line on chart
+  const predMaxLog10 = pair.predicted_max_log10_pc;
+
   const chartData = useMemo(() => {
     if (!expanded) return [];
     const sorted = pair.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
     const seen = new Set<number>();
-    type ChartPoint = { hoursToTCA: number; 'log10(Pc)': number | undefined; forecast: number | undefined; forecastUpper?: number; forecastLower?: number };
+    type ChartPoint = { hoursToTCA: number; 'log10(Pc)': number | undefined; predMax?: number; predUpper?: number; predLower?: number };
     const points: ChartPoint[] = sorted
       .filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
-      .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc, forecast: undefined as number | undefined }));
+      .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc }));
 
-    if (points.length > 0 && points[points.length - 1].hoursToTCA < 0) {
-      const lastPoint = points[points.length - 1];
-      // Bridge: set forecast on last real point so dashed line connects
-      lastPoint.forecast = lastPoint['log10(Pc)'];
-
-      // Prefer autoregressive forecast_steps (real model predictions with uncertainty)
-      if (pair.forecast_steps && pair.forecast_steps.length > 0) {
-        const lastHour = lastPoint.hoursToTCA;
-        const stepSpan = Math.abs(lastHour) / (pair.forecast_steps.length + 1);
-        for (let i = 0; i < pair.forecast_steps.length; i++) {
-          const fs = pair.forecast_steps[i];
-          // Distribute forecast steps evenly between last CDM and TCA
-          const h = Math.round(lastHour + (i + 1) * stepSpan);
-          const unc = fs.uncertainty_log10_pc || 0;
-          points.push({
-            hoursToTCA: h,
-            'log10(Pc)': undefined,
-            forecast: fs.predicted_log10_pc,
-            forecastUpper: fs.predicted_log10_pc + unc,
-            forecastLower: fs.predicted_log10_pc - unc,
-          });
-        }
-        // Final point at TCA (0h) using last forecast step
-        const lastFs = pair.forecast_steps[pair.forecast_steps.length - 1];
-        const lastUnc = lastFs.uncertainty_log10_pc || 0;
-        points.push({
-          hoursToTCA: 0,
-          'log10(Pc)': undefined,
-          forecast: lastFs.predicted_log10_pc,
-          forecastUpper: lastFs.predicted_log10_pc + lastUnc * 1.2,
-          forecastLower: lastFs.predicted_log10_pc - lastUnc * 1.2,
-        });
-      } else if (pair.forecast_pc > 0) {
-        // Fallback: simple interpolation when no autoregressive forecast available
-        const startHour = lastPoint.hoursToTCA;
-        const startPc = lastPoint['log10(Pc)']!;
-        const endPc = Math.log10(Math.max(pair.forecast_pc, 1e-20));
-        const span = Math.abs(startHour);
-        const nSteps = Math.max(2, Math.min(Math.ceil(span / 2), 12));
-        for (let i = 1; i <= nSteps; i++) {
-          const t = i / nSteps;
-          const h = Math.round(startHour + t * (0 - startHour));
-          const ease = t * t;
-          const pc = startPc + ease * (endPc - startPc);
-          points.push({ hoursToTCA: h, 'log10(Pc)': undefined, forecast: pc });
-        }
+    // Add BiLSTM predicted max as a horizontal band spanning the chart
+    if (predMaxLog10 != null && points.length >= 2) {
+      const epUpper = pair.exceedance_upper ?? pair.ensemble_probability;
+      const epLower = pair.exceedance_lower ?? pair.ensemble_probability;
+      // Convert ensemble uncertainty to log10 Pc uncertainty (rough scaling)
+      const uncSpread = epUpper != null && epLower != null
+        ? Math.max(Math.abs(epUpper - epLower) * 2, 0.15)
+        : 0.3;
+      for (const pt of points) {
+        pt.predMax = predMaxLog10;
+        pt.predUpper = predMaxLog10 + uncSpread;
+        pt.predLower = predMaxLog10 - uncSpread;
       }
     }
+
     return points;
-  }, [pair.time_series, pair.forecast_pc, pair.forecast_steps, expanded]);
+  }, [pair.time_series, predMaxLog10, pair.exceedance_upper, pair.exceedance_lower, pair.ensemble_probability, expanded]);
 
   // Build one-line assessment — clarify whether risk is current or predicted
   const currentlyAbove = pair.current_pc >= 5e-4;
-  // Use autoregressive forecast endpoint when available (matches chart line),
-  // otherwise fall back to LogReg forecast_pc
-  const effectiveForecastPc = pair.forecast_steps?.length
-    ? 10 ** pair.forecast_steps[pair.forecast_steps.length - 1].predicted_log10_pc
+  // Use BiLSTM predicted max Pc when available, otherwise fall back to forecast_pc
+  const effectiveForecastPc = predMaxLog10 != null
+    ? 10 ** predMaxLog10
     : pair.forecast_pc;
   const forecastAbove = effectiveForecastPc >= 5e-4;
   const assessment = (() => {
@@ -431,21 +401,24 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                     <ReferenceLine y={-4.0} stroke="#3b82f6" strokeDasharray="2 4" strokeWidth={1} strokeOpacity={0.4} label={!detailView ? { value: 'Screening (1e-4)', position: 'insideBottomRight', fill: '#3b82f6', fontSize: 10 } : undefined} />
                     {/* Maneuver threshold: 5e-4 */}
                     <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.6} label={{ value: 'Maneuver (5e-4)', position: 'insideTopRight', fill: '#ef4444', fontSize: 10 }} />
-                    {/* Pred Max line removed — forecast curve already shows predicted trajectory.
-                       The yellow line above the red threshold was confusing (yellow=moderate but positioned higher=worse). */}
+                    {/* Observed Pc data */}
                     <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} connectNulls={false} />
-                    {/* Uncertainty band from autoregressive forecast */}
-                    <Area type="monotone" dataKey="forecastUpper" stroke="none" fill={color} fillOpacity={0.08} connectNulls={false} />
-                    <Area type="monotone" dataKey="forecastLower" stroke="none" fill="#111118" fillOpacity={0.9} connectNulls={false} />
-                    <Area type="monotone" dataKey="forecast" stroke={color} strokeWidth={2} strokeDasharray="4 3" fill="none" dot={{ r: 4, fill: color, strokeWidth: 2, stroke: '#111118' }} connectNulls={false} />
+                    {/* BiLSTM predicted max Pc — horizontal band with uncertainty */}
+                    {predMaxLog10 != null && (
+                      <>
+                        <Area type="monotone" dataKey="predUpper" stroke="none" fill="#f59e0b" fillOpacity={0.06} connectNulls />
+                        <Area type="monotone" dataKey="predLower" stroke="none" fill="#111118" fillOpacity={0.95} connectNulls />
+                        <Area type="monotone" dataKey="predMax" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="6 3" fill="none" connectNulls />
+                      </>
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 16, fontSize: 11, color: '#3a3a4a', marginTop: 4 }}>
-                  <span><span style={{ color: '#ef4444' }}>---</span> Maneuver threshold (5e-4)</span>
-                  <span><span style={{ color: '#3b82f6' }}>--</span> Screening threshold (1e-4)</span>
+                  <span><span style={{ color: '#ef4444' }}>---</span> Maneuver (5e-4)</span>
+                  <span><span style={{ color: '#3b82f6' }}>--</span> Screening (1e-4)</span>
                   <span><span style={{ color: color }}>---</span> Observed</span>
-                  <span style={{ borderBottom: `1px dashed ${color}` }}>Forecast</span>
+                  {predMaxLog10 != null && <span><span style={{ color: '#f59e0b' }}>---</span> BiLSTM predicted peak</span>}
                 </div>
               </div>
             )}
