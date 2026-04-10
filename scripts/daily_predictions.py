@@ -1422,8 +1422,10 @@ def main():
             track_record["lead_time_stats"] = lead_time_stats
             forecast_data["track_record"] = track_record
 
-            # Featured calls: curated gallery of most impressive correct predictions
-            # Includes time_series for Pc evolution charts in the webapp
+            # Featured calls: curated gallery of most impressive correct predictions.
+            # Quality filters: require 3+ CDMs (chart needs data), favor high Pc,
+            # dramatic trajectories, and meaningful lead times.
+            MIN_CDMS_FOR_GALLERY = 3
             featured_escalations = []  # TP: correctly predicted escalation
             featured_safe = []         # TN: correctly predicted safe resolution
             for p in predictions:
@@ -1431,22 +1433,26 @@ def main():
                 if not tca_str or tca_str > now_str:
                     continue
                 ts = p.get("time_series", [])
-                if not ts:
-                    continue
+                if len(ts) < MIN_CDMS_FOR_GALLERY:
+                    continue  # need enough data for a real chart
                 lead_h = ts[-1].get("time_to_tca_hours", 0)
                 predicted_action = p.get("action_recommended", False)
                 actual_exceeded = p.get("current_pc", 0) >= THRESHOLD
                 correct = predicted_action == actual_exceeded
                 if not correct:
                     continue
+                current_pc = p.get("current_pc", 0)
                 ep = p.get("ensemble_probability") or p.get("exceedance_probability", 0)
+                # Pc range in the sequence (dramatic = interesting)
+                pcs = [u.get("pc", 0) for u in ts if u.get("pc", 0) > 0]
+                pc_range = math.log10(max(pcs) / max(min(pcs), 1e-20)) if len(pcs) >= 2 else 0
                 call_entry = {
                     "sat1_name": p["sat1_name"],
                     "sat2_name": p["sat2_name"],
                     "sat1_norad": p["sat1_norad"],
                     "sat2_norad": p["sat2_norad"],
                     "tca": tca_str,
-                    "current_pc": p.get("current_pc", 0),
+                    "current_pc": current_pc,
                     "forecast_pc": min(p.get("forecast_pc", 0), 1.0),
                     "ensemble_probability": ep,
                     "risk_direction": p.get("risk_direction", ""),
@@ -1457,26 +1463,32 @@ def main():
                 }
                 if predicted_action and actual_exceeded:
                     call_entry["call_type"] = "escalation"
-                    # Score: lead time * confidence (higher = more impressive)
-                    call_entry["impressiveness"] = lead_h * ep
+                    # Impressive = high Pc + long lead time + volatile trajectory
+                    call_entry["impressiveness"] = (
+                        math.log10(max(current_pc, 1e-10)) + 4  # higher Pc = better
+                    ) * lead_h * (1 + pc_range)
                     featured_escalations.append(call_entry)
                 elif not predicted_action and not actual_exceeded:
+                    # Only interesting if Pc was initially elevated (close to threshold)
+                    max_pc = max(pcs) if pcs else 0
+                    if max_pc < THRESHOLD * 0.3:
+                        continue  # too boring — Pc was never close
                     call_entry["call_type"] = "safe"
-                    # For safe calls, favor ones with moderate initial Pc (more interesting)
-                    initial_pc = ts[0].get("pc", 0) if ts else 0
-                    call_entry["impressiveness"] = lead_h * max(initial_pc / THRESHOLD, 0.1)
+                    call_entry["impressiveness"] = (
+                        max_pc / THRESHOLD  # closer to threshold = more interesting
+                    ) * lead_h * (1 + pc_range)
                     featured_safe.append(call_entry)
 
             featured_escalations.sort(key=lambda x: x["impressiveness"], reverse=True)
             featured_safe.sort(key=lambda x: x["impressiveness"], reverse=True)
-            # Keep top 8 escalations + top 4 safe = 12 featured calls
-            featured = featured_escalations[:8] + featured_safe[:4]
+            # Keep top 6 escalations + top 3 safe = 9 featured calls
+            featured = featured_escalations[:6] + featured_safe[:3]
             for f in featured:
                 del f["impressiveness"]
             forecast_data["featured_calls"] = featured
             if featured:
-                print(f"  Featured calls: {len(featured_escalations[:8])} escalations, "
-                      f"{len(featured_safe[:4])} safe resolutions")
+                print(f"  Featured calls: {len(featured_escalations[:6])} escalations, "
+                      f"{len(featured_safe[:3])} safe resolutions")
 
             # Append daily snapshot to prediction_history.jsonl for confidence evolution tracking.
             # Each line records today's prediction for one pair, enabling time-series
