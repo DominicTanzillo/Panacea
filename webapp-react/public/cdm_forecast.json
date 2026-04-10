@@ -144,7 +144,8 @@
           "uncertainty_log10_miss": 0.0584,
           "hours_ahead": 11.199999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 29.2
     },
     {
       "sat1_name": "CZ-6A R/B",
@@ -239,7 +240,8 @@
           "uncertainty_log10_miss": 0.0435,
           "hours_ahead": 16.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 47.6
     },
     {
       "sat1_name": "CZ-4C R/B",
@@ -275,7 +277,8 @@
       ],
       "ensemble_probability": 0.9159,
       "exceedance_upper": 0.9428,
-      "exceedance_lower": 0.8807
+      "exceedance_lower": 0.8807,
+      "prediction_lead_hours": 67.0
     },
     {
       "sat1_name": "KOSEN-1",
@@ -319,7 +322,8 @@
       ],
       "ensemble_probability": 0.8729,
       "exceedance_upper": 0.906,
-      "exceedance_lower": 0.8333
+      "exceedance_lower": 0.8333,
+      "prediction_lead_hours": 36.8
     },
     {
       "sat1_name": "NOAA 13",
@@ -454,7 +458,8 @@
           "uncertainty_log10_miss": 0.0373,
           "hours_ahead": 1.7000000476837158
         }
-      ]
+      ],
+      "prediction_lead_hours": 18.9
     },
     {
       "sat1_name": "CZ-4 DEB",
@@ -597,7 +602,8 @@
           "uncertainty_log10_miss": 0.0661,
           "hours_ahead": 0.20000000298023224
         }
-      ]
+      ],
+      "prediction_lead_hours": 22.2
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -684,7 +690,8 @@
           "uncertainty_log10_miss": 0.0544,
           "hours_ahead": 10.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 19.4
     },
     {
       "sat1_name": "COSMOS 2251 DEB",
@@ -827,7 +834,8 @@
           "uncertainty_log10_miss": 0.0437,
           "hours_ahead": 9.399999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 14.4
     },
     {
       "sat1_name": "ARIANE 1 R/B",
@@ -914,7 +922,8 @@
           "uncertainty_log10_miss": 0.0506,
           "hours_ahead": 14.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 21.9
     },
     {
       "sat1_name": "COSMOS 1375 DEB",
@@ -950,7 +959,8 @@
       ],
       "ensemble_probability": 0.3652,
       "exceedance_upper": 0.4063,
-      "exceedance_lower": 0.3274
+      "exceedance_lower": 0.3274,
+      "prediction_lead_hours": 70.0
     },
     {
       "sat1_name": "SL-16 DEB",
@@ -1037,7 +1047,8 @@
           "uncertainty_log10_miss": 0.077,
           "hours_ahead": 43.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 17.2
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -1073,7 +1084,8 @@
       ],
       "ensemble_probability": 0.2427,
       "exceedance_upper": 0.2819,
-      "exceedance_lower": 0.2102
+      "exceedance_lower": 0.2102,
+      "prediction_lead_hours": 71.2
     },
     {
       "sat1_name": "DELTA 1 DEB",
@@ -1109,7 +1121,8 @@
       ],
       "ensemble_probability": 0.195,
       "exceedance_upper": 0.2297,
-      "exceedance_lower": 0.1687
+      "exceedance_lower": 0.1687,
+      "prediction_lead_hours": 67.6
     },
     {
       "sat1_name": "COSMOS 1603",
@@ -1204,7 +1217,8 @@
           "uncertainty_log10_miss": 0.0756,
           "hours_ahead": 18.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 46.3
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -1240,7 +1254,8 @@
       ],
       "ensemble_probability": 0.0866,
       "exceedance_upper": 0.1105,
-      "exceedance_lower": 0.0705
+      "exceedance_lower": 0.0705,
+      "prediction_lead_hours": 60.5
     },
     {
       "sat1_name": "SL-8 DEB",
@@ -1319,7 +1334,8 @@
           "uncertainty_log10_miss": 0.0503,
           "hours_ahead": 38.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 14.7
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -1414,7 +1430,8 @@
           "uncertainty_log10_miss": 0.0514,
           "hours_ahead": 14.300000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 42.4
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -1450,7 +1467,8 @@
       ],
       "ensemble_probability": 0.0522,
       "exceedance_upper": 0.0688,
-      "exceedance_lower": 0.0416
+      "exceedance_lower": 0.0416,
+      "prediction_lead_hours": 66.4
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -1494,7 +1512,8 @@
       ],
       "ensemble_probability": 0.0402,
       "exceedance_upper": 0.0504,
-      "exceedance_lower": 0.0341
+      "exceedance_lower": 0.0341,
+      "prediction_lead_hours": 45.7
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -1530,7 +1549,8 @@
       ],
       "ensemble_probability": 0.0364,
       "exceedance_upper": 0.0456,
-      "exceedance_lower": 0.0309
+      "exceedance_lower": 0.0309,
+      "prediction_lead_hours": 22.7
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -1617,7 +1637,8 @@
           "uncertainty_log10_miss": 0.0406,
           "hours_ahead": 16.700000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 54.6
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -1653,7 +1674,8 @@
       ],
       "ensemble_probability": 0.0214,
       "exceedance_upper": 0.0305,
-      "exceedance_lower": 0.0159
+      "exceedance_lower": 0.0159,
+      "prediction_lead_hours": 59.3
     },
     {
       "sat1_name": "COSMOS 2278",
@@ -1780,7 +1802,8 @@
           "uncertainty_log10_miss": 0.0657,
           "hours_ahead": 39.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.1
     },
     {
       "sat1_name": "COSMOS 1670",
@@ -1939,7 +1962,8 @@
           "uncertainty_log10_miss": 0.058,
           "hours_ahead": 22.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 20.5
     },
     {
       "sat1_name": "AUREOLE 3",
@@ -2042,7 +2066,8 @@
           "uncertainty_log10_miss": 0.087,
           "hours_ahead": 11.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 16.3
     },
     {
       "sat1_name": "IRIDIUM 71",
@@ -2201,7 +2226,8 @@
           "uncertainty_log10_miss": 0.044,
           "hours_ahead": 18.700000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 12.8
     },
     {
       "sat1_name": "ADEOS",
@@ -2328,7 +2354,8 @@
           "uncertainty_log10_miss": 0.0659,
           "hours_ahead": 25.200000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 40.1
     },
     {
       "sat1_name": "EXPLORER 7",
@@ -2439,7 +2466,8 @@
           "uncertainty_log10_miss": 0.0651,
           "hours_ahead": 13.199999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 12.3
     },
     {
       "sat1_name": "COSMOS 1816",
@@ -2574,7 +2602,8 @@
           "uncertainty_log10_miss": 0.139,
           "hours_ahead": 13.199999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.8
     },
     {
       "sat1_name": "IRIDIUM 920",
@@ -2757,7 +2786,8 @@
           "uncertainty_log10_miss": 0.0503,
           "hours_ahead": 3.9000000953674316
         }
-      ]
+      ],
+      "prediction_lead_hours": 6.6
     },
     {
       "sat1_name": "COSMOS 372",
@@ -2916,7 +2946,8 @@
           "uncertainty_log10_miss": 0.0531,
           "hours_ahead": 10.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 13.3
     },
     {
       "sat1_name": "METEOR 2-19",
@@ -3035,7 +3066,8 @@
           "uncertainty_log10_miss": 0.0773,
           "hours_ahead": 9.199999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 10.1
     },
     {
       "sat1_name": "COSMOS 1574",
@@ -3130,7 +3162,8 @@
           "uncertainty_log10_miss": 0.1011,
           "hours_ahead": 32.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 16.5
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -3225,7 +3258,8 @@
           "uncertainty_log10_miss": 0.075,
           "hours_ahead": 35.099998474121094
         }
-      ]
+      ],
+      "prediction_lead_hours": 9.4
     },
     {
       "sat1_name": "GGSE 5",
@@ -3312,7 +3346,8 @@
           "uncertainty_log10_miss": 0.0732,
           "hours_ahead": 2.799999952316284
         }
-      ]
+      ],
+      "prediction_lead_hours": 20.2
     },
     {
       "sat1_name": "COSMOS 807",
@@ -3431,7 +3466,8 @@
           "uncertainty_log10_miss": 0.07,
           "hours_ahead": 21.399999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.8
     },
     {
       "sat1_name": "GB 1",
@@ -3534,7 +3570,8 @@
           "uncertainty_log10_miss": 0.1109,
           "hours_ahead": 22.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 15.4
     },
     {
       "sat1_name": "FR 1",
@@ -3709,7 +3746,8 @@
           "uncertainty_log10_miss": 0.0849,
           "hours_ahead": 11.300000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.8
     },
     {
       "sat1_name": "GEOS 3",
@@ -3876,7 +3914,8 @@
           "uncertainty_log10_miss": 0.1065,
           "hours_ahead": 24.399999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "COSMOS 970 DEB",
@@ -4019,7 +4058,8 @@
           "uncertainty_log10_miss": 0.0644,
           "hours_ahead": 8.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 4.7
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -4106,7 +4146,8 @@
           "uncertainty_log10_miss": 0.0852,
           "hours_ahead": 46.70000076293945
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.5
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -4225,7 +4266,8 @@
           "uncertainty_log10_miss": 0.0734,
           "hours_ahead": 4.800000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.4
     },
     {
       "sat1_name": "SL-3 R/B",
@@ -4368,7 +4410,8 @@
           "uncertainty_log10_miss": 0.0433,
           "hours_ahead": 0.4000000059604645
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.2
     },
     {
       "sat1_name": "THORAD AGENA D DEB",
@@ -4479,7 +4522,8 @@
           "uncertainty_log10_miss": 0.0434,
           "hours_ahead": 2.4000000953674316
         }
-      ]
+      ],
+      "prediction_lead_hours": 4.8
     },
     {
       "sat1_name": "SL-3 R/B",
@@ -4670,7 +4714,8 @@
           "uncertainty_log10_miss": 0.071,
           "hours_ahead": 2.799999952316284
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.1
     },
     {
       "sat1_name": "P 76-5",
@@ -4765,7 +4810,8 @@
           "uncertainty_log10_miss": 0.0605,
           "hours_ahead": 24.799999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 46.6
     },
     {
       "sat1_name": "THORAD AGENA D DEB",
@@ -4884,7 +4930,8 @@
           "uncertainty_log10_miss": 0.0894,
           "hours_ahead": 45.900001525878906
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.4
     },
     {
       "sat1_name": "COSMOS 2278",
@@ -5019,7 +5066,8 @@
           "uncertainty_log10_miss": 0.0779,
           "hours_ahead": 29.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 13.9
     },
     {
       "sat1_name": "SL-3 DEB",
@@ -5146,7 +5194,8 @@
           "uncertainty_log10_miss": 0.0859,
           "hours_ahead": 6.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 2.7
     },
     {
       "sat1_name": "SL-3 R/B",
@@ -5281,7 +5330,8 @@
           "uncertainty_log10_miss": 0.0482,
           "hours_ahead": 23.799999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 29.9
     },
     {
       "sat1_name": "COSMOS 2056",
@@ -5416,7 +5466,8 @@
           "uncertainty_log10_miss": 0.1217,
           "hours_ahead": 28.200000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "SL-14 R/B",
@@ -5519,7 +5570,8 @@
           "uncertainty_log10_miss": 0.025,
           "hours_ahead": 9.600000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 28.8
     },
     {
       "sat1_name": "COSMOS 726",
@@ -5622,7 +5674,8 @@
           "uncertainty_log10_miss": 0.0497,
           "hours_ahead": 10.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 26.9
     },
     {
       "sat1_name": "COSMOS 724",
@@ -5773,7 +5826,8 @@
           "uncertainty_log10_miss": 0.0434,
           "hours_ahead": 3.9000000953674316
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.7
     },
     {
       "sat1_name": "DELTA 1 DEB",
@@ -5884,7 +5938,8 @@
           "uncertainty_log10_miss": 0.0447,
           "hours_ahead": 16.700000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 16.2
     },
     {
       "sat1_name": "SL-24 R/B",
@@ -6043,7 +6098,8 @@
           "uncertainty_log10_miss": 0.0414,
           "hours_ahead": 20.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 27.6
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -6122,7 +6178,8 @@
           "uncertainty_log10_miss": 0.0887,
           "hours_ahead": 31.200000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 56.8
     },
     {
       "sat1_name": "ELECTRON KICK STAGE R/B",
@@ -6305,7 +6362,8 @@
           "uncertainty_log10_miss": 0.0922,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -6464,7 +6522,8 @@
           "uncertainty_log10_miss": 0.0684,
           "hours_ahead": 42.400001525878906
         }
-      ]
+      ],
+      "prediction_lead_hours": 9.2
     },
     {
       "sat1_name": "DMSP 5D-2 F11 DEB",
@@ -6567,7 +6626,8 @@
           "uncertainty_log10_miss": 0.0676,
           "hours_ahead": 48.599998474121094
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.3
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -6662,7 +6722,8 @@
           "uncertainty_log10_miss": 0.1061,
           "hours_ahead": 42.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "THORAD AGENA D DEB",
@@ -6781,7 +6842,8 @@
           "uncertainty_log10_miss": 0.0567,
           "hours_ahead": 11.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 28.6
     },
     {
       "sat1_name": "COSMOS 1302",
@@ -6940,7 +7002,8 @@
           "uncertainty_log10_miss": 0.0421,
           "hours_ahead": 21.700000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 21.4
     },
     {
       "sat1_name": "COSMOS 1320",
@@ -7075,7 +7138,8 @@
           "uncertainty_log10_miss": 0.0815,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.9
     },
     {
       "sat1_name": "CZ-2D DEB",
@@ -7202,7 +7266,8 @@
           "uncertainty_log10_miss": 0.0741,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 2.4
     },
     {
       "sat1_name": "TRANSIT 4A",
@@ -7353,7 +7418,8 @@
           "uncertainty_log10_miss": 0.0665,
           "hours_ahead": 11.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.0
     },
     {
       "sat1_name": "SL-14 R/B",
@@ -7456,7 +7522,8 @@
           "uncertainty_log10_miss": 0.0644,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.8
     },
     {
       "sat1_name": "PORCUPINE 1",
@@ -7567,7 +7634,8 @@
           "uncertainty_log10_miss": 0.0736,
           "hours_ahead": 5.199999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 6.4
     },
     {
       "sat1_name": "BLITS",
@@ -7686,7 +7754,8 @@
           "uncertainty_log10_miss": 0.0363,
           "hours_ahead": 4.400000095367432
         }
-      ]
+      ],
+      "prediction_lead_hours": 10.3
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -7821,7 +7890,8 @@
           "uncertainty_log10_miss": 0.0501,
           "hours_ahead": 9.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.9
     },
     {
       "sat1_name": "GEOSAT",
@@ -7956,7 +8026,8 @@
           "uncertainty_log10_miss": 0.0569,
           "hours_ahead": 6.599999904632568
         }
-      ]
+      ],
+      "prediction_lead_hours": 28.1
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -8067,7 +8138,8 @@
           "uncertainty_log10_miss": 0.0462,
           "hours_ahead": 35.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 4.8
     },
     {
       "sat1_name": "IRIDIUM 26",
@@ -8194,7 +8266,8 @@
           "uncertainty_log10_miss": 0.0807,
           "hours_ahead": 24.399999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 18.3
     },
     {
       "sat1_name": "THOR ABLESTAR DEB",
@@ -8321,7 +8394,8 @@
           "uncertainty_log10_miss": 0.0559,
           "hours_ahead": 36.400001525878906
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.9
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -8424,7 +8498,8 @@
           "uncertainty_log10_miss": 0.0607,
           "hours_ahead": 21.700000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 22.5
     },
     {
       "sat1_name": "COSMOS 1603",
@@ -8551,7 +8626,8 @@
           "uncertainty_log10_miss": 0.0493,
           "hours_ahead": 6.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 39.8
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -8678,7 +8754,8 @@
           "uncertainty_log10_miss": 0.0959,
           "hours_ahead": 25.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.4
     },
     {
       "sat1_name": "COSMOS 1860",
@@ -8813,7 +8890,8 @@
           "uncertainty_log10_miss": 0.1233,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "COSMOS 1900",
@@ -8916,7 +8994,8 @@
           "uncertainty_log10_miss": 0.0679,
           "hours_ahead": 31.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 6.8
     },
     {
       "sat1_name": "RUBIN 3/SL-8",
@@ -9091,7 +9170,8 @@
           "uncertainty_log10_miss": 0.048,
           "hours_ahead": 0.4000000059604645
         }
-      ]
+      ],
+      "prediction_lead_hours": 5.3
     },
     {
       "sat1_name": "COSMOS 1850",
@@ -9178,7 +9258,8 @@
           "uncertainty_log10_miss": 0.0193,
           "hours_ahead": 15.300000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 36.1
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -9281,7 +9362,8 @@
           "uncertainty_log10_miss": 0.0666,
           "hours_ahead": 0.4000000059604645
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.4
     },
     {
       "sat1_name": "COSMOS 1694",
@@ -9368,7 +9450,8 @@
           "uncertainty_log10_miss": 0.0463,
           "hours_ahead": 46.900001525878906
         }
-      ]
+      ],
+      "prediction_lead_hours": 54.6
     },
     {
       "sat1_name": "YAOGAN 1",
@@ -9479,7 +9562,8 @@
           "uncertainty_log10_miss": 0.0493,
           "hours_ahead": 43.79999923706055
         }
-      ]
+      ],
+      "prediction_lead_hours": 36.1
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -9582,7 +9666,8 @@
           "uncertainty_log10_miss": 0.0693,
           "hours_ahead": 2.9000000953674316
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.8
     },
     {
       "sat1_name": "ANNA 1B",
@@ -9725,7 +9810,8 @@
           "uncertainty_log10_miss": 0.0571,
           "hours_ahead": 10.600000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 5.6
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -9868,7 +9954,8 @@
           "uncertainty_log10_miss": 0.0689,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 2.3
     },
     {
       "sat1_name": "SDS-1",
@@ -10011,7 +10098,8 @@
           "uncertainty_log10_miss": 0.0279,
           "hours_ahead": 3.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 25.0
     },
     {
       "sat1_name": "COSMOS 1486",
@@ -10194,7 +10282,8 @@
           "uncertainty_log10_miss": 0.089,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.1
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -10361,7 +10450,8 @@
           "uncertainty_log10_miss": 0.0522,
           "hours_ahead": 6.800000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 16.4
     },
     {
       "sat1_name": "NIMBUS 6",
@@ -10488,7 +10578,8 @@
           "uncertainty_log10_miss": 0.0508,
           "hours_ahead": 23.600000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 41.7
     },
     {
       "sat1_name": "JAWSAT",
@@ -10591,7 +10682,8 @@
           "uncertainty_log10_miss": 0.03,
           "hours_ahead": 31.600000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 41.2
     },
     {
       "sat1_name": "OKEAN 4",
@@ -10686,7 +10778,8 @@
           "uncertainty_log10_miss": 0.0489,
           "hours_ahead": 3.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 23.4
     },
     {
       "sat1_name": "AEROCUBE 2",
@@ -10853,7 +10946,8 @@
           "uncertainty_log10_miss": 0.0233,
           "hours_ahead": 0.6000000238418579
         }
-      ]
+      ],
+      "prediction_lead_hours": 15.5
     },
     {
       "sat1_name": "OAO 2",
@@ -10980,7 +11074,8 @@
           "uncertainty_log10_miss": 0.0597,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.3
     },
     {
       "sat1_name": "COSMOS 2251 DEB",
@@ -11187,7 +11282,8 @@
           "uncertainty_log10_miss": 0.0717,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 5.2
     },
     {
       "sat1_name": "METEOR 1-14",
@@ -11370,7 +11466,8 @@
           "uncertainty_log10_miss": 0.1163,
           "hours_ahead": 15.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "COSMOS 1104",
@@ -11473,7 +11570,8 @@
           "uncertainty_log10_miss": 0.0385,
           "hours_ahead": 8.399999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 26.2
     },
     {
       "sat1_name": "COSMOS 1741",
@@ -11576,7 +11674,8 @@
           "uncertainty_log10_miss": 0.0627,
           "hours_ahead": 31.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 46.6
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -11655,7 +11754,8 @@
           "uncertainty_log10_miss": 0.0833,
           "hours_ahead": 2.4000000953674316
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.1
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -11790,7 +11890,8 @@
           "uncertainty_log10_miss": 0.0333,
           "hours_ahead": 26.299999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 32.3
     },
     {
       "sat1_name": "ARGOS",
@@ -11941,7 +12042,8 @@
           "uncertainty_log10_miss": 0.06,
           "hours_ahead": 2.4000000953674316
         }
-      ]
+      ],
+      "prediction_lead_hours": 17.0
     },
     {
       "sat1_name": "COSMOS 1833",
@@ -12060,7 +12162,8 @@
           "uncertainty_log10_miss": 0.0746,
           "hours_ahead": 7.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.0
     },
     {
       "sat1_name": "NOAA 16 DEB",
@@ -12235,7 +12338,8 @@
           "uncertainty_log10_miss": 0.0703,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.7
     },
     {
       "sat1_name": "ARIANE 1 DEB",
@@ -12362,7 +12466,8 @@
           "uncertainty_log10_miss": 0.0584,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.3
     },
     {
       "sat1_name": "DELTA 1 DEB",
@@ -12449,7 +12554,8 @@
           "uncertainty_log10_miss": 0.121,
           "hours_ahead": 17.299999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "COSMOS 372",
@@ -12536,7 +12642,8 @@
           "uncertainty_log10_miss": 0.0445,
           "hours_ahead": 15.300000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 59.9
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -12580,7 +12687,8 @@
       ],
       "ensemble_probability": 0.9482,
       "exceedance_upper": 0.9646,
-      "exceedance_lower": 0.924
+      "exceedance_lower": 0.924,
+      "prediction_lead_hours": 7.4
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -12667,7 +12775,8 @@
           "uncertainty_log10_miss": 0.0624,
           "hours_ahead": 69.9000015258789
         }
-      ]
+      ],
+      "prediction_lead_hours": 5.3
     },
     {
       "sat1_name": "COSMOS 2251 DEB",
@@ -12786,7 +12895,8 @@
           "uncertainty_log10_miss": 0.0572,
           "hours_ahead": 19.100000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 38.2
     },
     {
       "sat1_name": "COROT",
@@ -12937,7 +13047,8 @@
           "uncertainty_log10_miss": 0.0363,
           "hours_ahead": 6.300000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 13.3
     },
     {
       "sat1_name": "NOAA 16 DEB",
@@ -13104,7 +13215,8 @@
           "uncertainty_log10_miss": 0.0475,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 4.8
     },
     {
       "sat1_name": "COSMOS 886 DEB",
@@ -13239,7 +13351,8 @@
           "uncertainty_log10_miss": 0.0541,
           "hours_ahead": 11.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 6.0
     },
     {
       "sat1_name": "THOR BURNER 2 R/B",
@@ -13358,7 +13471,8 @@
           "uncertainty_log10_miss": 0.0755,
           "hours_ahead": 3.9000000953674316
         }
-      ]
+      ],
+      "prediction_lead_hours": 6.0
     },
     {
       "sat1_name": "TIROS 5",
@@ -13394,7 +13508,8 @@
       ],
       "ensemble_probability": 0.9506,
       "exceedance_upper": 0.9657,
-      "exceedance_lower": 0.928
+      "exceedance_lower": 0.928,
+      "prediction_lead_hours": 69.3
     },
     {
       "sat1_name": "NOAA 12",
@@ -13505,7 +13620,8 @@
           "uncertainty_log10_miss": 0.0474,
           "hours_ahead": 2.0999999046325684
         }
-      ]
+      ],
+      "prediction_lead_hours": 14.2
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -13624,7 +13740,8 @@
           "uncertainty_log10_miss": 0.0317,
           "hours_ahead": 4.599999904632568
         }
-      ]
+      ],
+      "prediction_lead_hours": 29.3
     },
     {
       "sat1_name": "COSMOS 968",
@@ -13767,7 +13884,8 @@
           "uncertainty_log10_miss": 0.0538,
           "hours_ahead": 22.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 11.0
     },
     {
       "sat1_name": "METEOR 2-4",
@@ -13862,7 +13980,8 @@
           "uncertainty_log10_miss": 0.0526,
           "hours_ahead": 5.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 39.9
     },
     {
       "sat1_name": "SL-16 R/B",
@@ -13981,7 +14100,8 @@
           "uncertainty_log10_miss": 0.0408,
           "hours_ahead": 22.799999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 42.9
     },
     {
       "sat1_name": "COSMOS 586",
@@ -14116,7 +14236,8 @@
           "uncertainty_log10_miss": 0.037,
           "hours_ahead": 16.700000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 8.0
     },
     {
       "sat1_name": "DELTA 1 DEB *",
@@ -14235,7 +14356,8 @@
           "uncertainty_log10_miss": 0.049,
           "hours_ahead": 2.799999952316284
         }
-      ]
+      ],
+      "prediction_lead_hours": 8.2
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -14378,7 +14500,8 @@
           "uncertainty_log10_miss": 0.035,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.1
     },
     {
       "sat1_name": "CZ-4 DEB",
@@ -14465,7 +14588,8 @@
           "uncertainty_log10_miss": 0.0532,
           "hours_ahead": 0.699999988079071
         }
-      ]
+      ],
+      "prediction_lead_hours": 37.9
     },
     {
       "sat1_name": "DELTA 1 DEB (YO)",
@@ -14576,7 +14700,8 @@
           "uncertainty_log10_miss": 0.0389,
           "hours_ahead": 12.600000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 22.8
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -14735,7 +14860,8 @@
           "uncertainty_log10_miss": 0.1055,
           "hours_ahead": 8.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 6.6
     },
     {
       "sat1_name": "COSMOS 2061",
@@ -14862,7 +14988,8 @@
           "uncertainty_log10_miss": 0.0482,
           "hours_ahead": 14.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.5
     },
     {
       "sat1_name": "SECOR 1B",
@@ -15045,7 +15172,8 @@
           "uncertainty_log10_miss": 0.0362,
           "hours_ahead": 9.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.8
     },
     {
       "sat1_name": "COSMOS 2251 DEB",
@@ -15089,7 +15217,8 @@
       ],
       "ensemble_probability": 0.9356,
       "exceedance_upper": 0.9529,
-      "exceedance_lower": 0.9104
+      "exceedance_lower": 0.9104,
+      "prediction_lead_hours": 0.9
     },
     {
       "sat1_name": "IRIDIUM 33",
@@ -15184,7 +15313,8 @@
           "uncertainty_log10_miss": 0.0213,
           "hours_ahead": 19.600000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 41.9
     },
     {
       "sat1_name": "SCOUT X-4 R/B",
@@ -15271,7 +15401,8 @@
           "uncertainty_log10_miss": 0.0593,
           "hours_ahead": 26.600000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 28.1
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -15358,7 +15489,8 @@
           "uncertainty_log10_miss": 0.0481,
           "hours_ahead": 10.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.5
     },
     {
       "sat1_name": "COSMOS 252 DEB",
@@ -15453,7 +15585,8 @@
           "uncertainty_log10_miss": 0.0575,
           "hours_ahead": 39.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 37.1
     },
     {
       "sat1_name": "COSMOS 858",
@@ -15489,7 +15622,8 @@
       ],
       "ensemble_probability": 0.9014,
       "exceedance_upper": 0.9279,
-      "exceedance_lower": 0.8665
+      "exceedance_lower": 0.8665,
+      "prediction_lead_hours": 50.7
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -15600,7 +15734,8 @@
           "uncertainty_log10_miss": 0.0464,
           "hours_ahead": 6.800000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 44.4
     },
     {
       "sat1_name": "OSCAR 17 (DOVE)",
@@ -15775,7 +15910,8 @@
           "uncertainty_log10_miss": 0.0389,
           "hours_ahead": 0.30000001192092896
         }
-      ]
+      ],
+      "prediction_lead_hours": 18.0
     },
     {
       "sat1_name": "COSMOS 1860 FUEL CORE",
@@ -15910,7 +16046,8 @@
           "uncertainty_log10_miss": 0.0824,
           "hours_ahead": 36.29999923706055
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.4
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -16005,7 +16142,8 @@
           "uncertainty_log10_miss": 0.0316,
           "hours_ahead": 19.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 31.9
     },
     {
       "sat1_name": "DMSP 5D-3 F17 DEB",
@@ -16116,7 +16254,8 @@
           "uncertainty_log10_miss": 0.0375,
           "hours_ahead": 16.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 32.9
     },
     {
       "sat1_name": "COSMOS 970 DEB *",
@@ -16195,7 +16334,8 @@
           "uncertainty_log10_miss": 0.0685,
           "hours_ahead": 43.70000076293945
         }
-      ]
+      ],
+      "prediction_lead_hours": 12.3
     },
     {
       "sat1_name": "COSMOS 1937",
@@ -16298,7 +16438,8 @@
           "uncertainty_log10_miss": 0.0545,
           "hours_ahead": 6.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 47.7
     },
     {
       "sat1_name": "COSMOS 375 DEB",
@@ -16401,7 +16542,8 @@
           "uncertainty_log10_miss": 0.0774,
           "hours_ahead": 22.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 47.2
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -16560,7 +16702,8 @@
           "uncertainty_log10_miss": 0.0918,
           "hours_ahead": 1.600000023841858
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.9
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -16687,7 +16830,8 @@
           "uncertainty_log10_miss": 0.0394,
           "hours_ahead": 3.200000047683716
         }
-      ]
+      ],
+      "prediction_lead_hours": 29.2
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -16782,7 +16926,8 @@
           "uncertainty_log10_miss": 0.0465,
           "hours_ahead": 34.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 53.4
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -16826,7 +16971,8 @@
       ],
       "ensemble_probability": 0.9123,
       "exceedance_upper": 0.9332,
-      "exceedance_lower": 0.8829
+      "exceedance_lower": 0.8829,
+      "prediction_lead_hours": 1.3
     },
     {
       "sat1_name": "PICOSAT 1&2 (TETHERED)",
@@ -16913,7 +17059,8 @@
           "uncertainty_log10_miss": 0.0748,
           "hours_ahead": 38.099998474121094
         }
-      ]
+      ],
+      "prediction_lead_hours": 44.9
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -17048,7 +17195,8 @@
           "uncertainty_log10_miss": 0.1121,
           "hours_ahead": 16.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "CZ-6A R/B",
@@ -17084,7 +17232,8 @@
       ],
       "ensemble_probability": 0.8431,
       "exceedance_upper": 0.8801,
-      "exceedance_lower": 0.8021
+      "exceedance_lower": 0.8021,
+      "prediction_lead_hours": 66.5
     },
     {
       "sat1_name": "THOR AGENA D R/B",
@@ -17235,7 +17384,8 @@
           "uncertainty_log10_miss": 0.0375,
           "hours_ahead": 5.800000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 17.7
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -17338,7 +17488,8 @@
           "uncertainty_log10_miss": 0.0764,
           "hours_ahead": 26.200000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 39.1
     },
     {
       "sat1_name": "IRIDIUM 33",
@@ -17425,7 +17576,8 @@
           "uncertainty_log10_miss": 0.0256,
           "hours_ahead": 9.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 22.5
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -17520,7 +17672,8 @@
           "uncertainty_log10_miss": 0.0804,
           "hours_ahead": 35.099998474121094
         }
-      ]
+      ],
+      "prediction_lead_hours": 15.8
     },
     {
       "sat1_name": "COSMOS 1707",
@@ -17663,7 +17816,8 @@
           "uncertainty_log10_miss": 0.0422,
           "hours_ahead": 3.700000047683716
         }
-      ]
+      ],
+      "prediction_lead_hours": 29.6
     },
     {
       "sat1_name": "COSMOS 372",
@@ -17766,7 +17920,8 @@
           "uncertainty_log10_miss": 0.0601,
           "hours_ahead": 0.800000011920929
         }
-      ]
+      ],
+      "prediction_lead_hours": 14.8
     },
     {
       "sat1_name": "METEOR 1-5",
@@ -17861,7 +18016,8 @@
           "uncertainty_log10_miss": 0.0268,
           "hours_ahead": 13.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 50.6
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -17956,7 +18112,8 @@
           "uncertainty_log10_miss": 0.0797,
           "hours_ahead": 10.699999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 17.3
     },
     {
       "sat1_name": "COSMOS 1867 COOLANT",
@@ -18139,7 +18296,8 @@
           "uncertainty_log10_miss": 0.0411,
           "hours_ahead": 15.800000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 15.6
     },
     {
       "sat1_name": "CBERS 1",
@@ -18274,7 +18432,8 @@
           "uncertainty_log10_miss": 0.046,
           "hours_ahead": 8.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 17.1
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -18361,7 +18520,8 @@
           "uncertainty_log10_miss": 0.09,
           "hours_ahead": 45.70000076293945
         }
-      ]
+      ],
+      "prediction_lead_hours": 43.5
     },
     {
       "sat1_name": "NOAA 16 DEB",
@@ -18488,7 +18648,8 @@
           "uncertainty_log10_miss": 0.0786,
           "hours_ahead": 0.699999988079071
         }
-      ]
+      ],
+      "prediction_lead_hours": 11.7
     },
     {
       "sat1_name": "DMSP 5D-2 F13 DEB",
@@ -18687,7 +18848,8 @@
           "uncertainty_log10_miss": 0.0521,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.1
     },
     {
       "sat1_name": "DMSP 5D-2 F13 DEB",
@@ -18822,7 +18984,8 @@
           "uncertainty_log10_miss": 0.0544,
           "hours_ahead": 1.2000000476837158
         }
-      ]
+      ],
+      "prediction_lead_hours": 28.7
     },
     {
       "sat1_name": "THOR ABLESTAR DEB",
@@ -18925,7 +19088,8 @@
           "uncertainty_log10_miss": 0.0623,
           "hours_ahead": 26.700000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 24.3
     },
     {
       "sat1_name": "THORAD AGENA D DEB",
@@ -19012,7 +19176,8 @@
           "uncertainty_log10_miss": 0.0588,
           "hours_ahead": 19.299999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 20.6
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -19107,7 +19272,8 @@
           "uncertainty_log10_miss": 0.025,
           "hours_ahead": 12.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 43.4
     },
     {
       "sat1_name": "COSMOS 2251 DEB",
@@ -19218,7 +19384,8 @@
           "uncertainty_log10_miss": 0.1021,
           "hours_ahead": 16.299999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 27.9
     },
     {
       "sat1_name": "SL-16 DEB",
@@ -19305,7 +19472,8 @@
           "uncertainty_log10_miss": 0.0505,
           "hours_ahead": 14.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 14.8
     },
     {
       "sat1_name": "COSMOS 968",
@@ -19416,7 +19584,8 @@
           "uncertainty_log10_miss": 0.0601,
           "hours_ahead": 19.299999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 5.7
     },
     {
       "sat1_name": "OV1-21 R/B",
@@ -19452,7 +19621,8 @@
       ],
       "ensemble_probability": 0.8589,
       "exceedance_upper": 0.8868,
-      "exceedance_lower": 0.823
+      "exceedance_lower": 0.823,
+      "prediction_lead_hours": 7.3
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -19488,7 +19658,8 @@
       ],
       "ensemble_probability": 0.8619,
       "exceedance_upper": 0.888,
-      "exceedance_lower": 0.8274
+      "exceedance_lower": 0.8274,
+      "prediction_lead_hours": 31.1
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -19591,7 +19762,8 @@
           "uncertainty_log10_miss": 0.0549,
           "hours_ahead": 14.100000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 9.0
     },
     {
       "sat1_name": "SL-8 DEB *",
@@ -19670,7 +19842,8 @@
           "uncertainty_log10_miss": 0.0557,
           "hours_ahead": 24.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 47.5
     },
     {
       "sat1_name": "DMSP 5D-2 F13 DEB",
@@ -19813,7 +19986,8 @@
           "uncertainty_log10_miss": 0.0615,
           "hours_ahead": 0.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.6
     },
     {
       "sat1_name": "DMSP 5D-2 F13 DEB",
@@ -19972,7 +20146,8 @@
           "uncertainty_log10_miss": 0.0667,
           "hours_ahead": 1.5
         }
-      ]
+      ],
+      "prediction_lead_hours": 11.4
     },
     {
       "sat1_name": "DMSP 5D-3 F16 DEB",
@@ -20115,7 +20290,8 @@
           "uncertainty_log10_miss": 0.0764,
           "hours_ahead": 10.100000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 4.8
     },
     {
       "sat1_name": "COSMOS 684",
@@ -20202,7 +20378,8 @@
           "uncertainty_log10_miss": 0.0629,
           "hours_ahead": 32.400001525878906
         }
-      ]
+      ],
+      "prediction_lead_hours": 51.0
     },
     {
       "sat1_name": "NIMBUS 2 DEB",
@@ -20321,7 +20498,8 @@
           "uncertainty_log10_miss": 0.0764,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 2.2
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -20416,7 +20594,8 @@
           "uncertainty_log10_miss": 0.0255,
           "hours_ahead": 18.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 34.3
     },
     {
       "sat1_name": "SCOUT A DEB",
@@ -20559,7 +20738,8 @@
           "uncertainty_log10_miss": 0.0492,
           "hours_ahead": 11.300000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.1
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -20662,7 +20842,8 @@
           "uncertainty_log10_miss": 0.0163,
           "hours_ahead": 14.300000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 55.7
     },
     {
       "sat1_name": "CZ-2C R/B",
@@ -20805,7 +20986,8 @@
           "uncertainty_log10_miss": 0.0489,
           "hours_ahead": 2.200000047683716
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.9
     },
     {
       "sat1_name": "THOR ABLESTAR DEB",
@@ -20932,7 +21114,8 @@
           "uncertainty_log10_miss": 0.0524,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.3
     },
     {
       "sat1_name": "NOAA 16 DEB",
@@ -21051,7 +21234,8 @@
           "uncertainty_log10_miss": 0.0696,
           "hours_ahead": 23.799999237060547
         }
-      ]
+      ],
+      "prediction_lead_hours": 6.4
     },
     {
       "sat1_name": "DMSP 5D-2 F8 (USA 26)",
@@ -21146,7 +21330,8 @@
           "uncertainty_log10_miss": 0.0591,
           "hours_ahead": 15.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 62.1
     },
     {
       "sat1_name": "COSMOS 2038",
@@ -21225,7 +21410,8 @@
           "uncertainty_log10_miss": 0.0484,
           "hours_ahead": 35.79999923706055
         }
-      ]
+      ],
+      "prediction_lead_hours": 59.2
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -21384,7 +21570,8 @@
           "uncertainty_log10_miss": 0.061,
           "hours_ahead": 8.300000190734863
         }
-      ]
+      ],
+      "prediction_lead_hours": 20.0
     },
     {
       "sat1_name": "COSMOS 374 DEB",
@@ -21527,7 +21714,8 @@
           "uncertainty_log10_miss": 0.0642,
           "hours_ahead": 9.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.3
     },
     {
       "sat1_name": "SL-8 R/B",
@@ -21630,7 +21818,8 @@
           "uncertainty_log10_miss": 0.0623,
           "hours_ahead": 2.799999952316284
         }
-      ]
+      ],
+      "prediction_lead_hours": 24.8
     },
     {
       "sat1_name": "DELTA 1 DEB",
@@ -21757,7 +21946,8 @@
           "uncertainty_log10_miss": 0.1058,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.0
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -21860,7 +22050,8 @@
           "uncertainty_log10_miss": 0.0849,
           "hours_ahead": 4.199999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 15.1
     },
     {
       "sat1_name": "DMSP 5D-2 F11 DEB",
@@ -22067,7 +22258,8 @@
           "uncertainty_log10_miss": 0.0597,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.3
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -22202,7 +22394,8 @@
           "uncertainty_log10_miss": 0.0842,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 0.2
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -22297,7 +22490,8 @@
           "uncertainty_log10_miss": 0.0445,
           "hours_ahead": 0.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 4.2
     },
     {
       "sat1_name": "COSMOS 1814",
@@ -22408,7 +22602,8 @@
           "uncertainty_log10_miss": 0.0374,
           "hours_ahead": 5.199999809265137
         }
-      ]
+      ],
+      "prediction_lead_hours": 40.6
     },
     {
       "sat1_name": "SL-14 R/B",
@@ -22487,7 +22682,8 @@
           "uncertainty_log10_miss": 0.046,
           "hours_ahead": 22.600000381469727
         }
-      ]
+      ],
+      "prediction_lead_hours": 1.6
     },
     {
       "sat1_name": "STEX",
@@ -22590,7 +22786,8 @@
           "uncertainty_log10_miss": 0.0655,
           "hours_ahead": 19.200000762939453
         }
-      ]
+      ],
+      "prediction_lead_hours": 3.2
     },
     {
       "sat1_name": "FENGYUN 1C DEB",
@@ -22717,7 +22914,8 @@
           "uncertainty_log10_miss": 0.0553,
           "hours_ahead": 3.0
         }
-      ]
+      ],
+      "prediction_lead_hours": 5.0
     },
     {
       "sat1_name": "COSMOS 1275 DEB",
@@ -22852,7 +23050,8 @@
           "uncertainty_log10_miss": 0.0656,
           "hours_ahead": 10.899999618530273
         }
-      ]
+      ],
+      "prediction_lead_hours": 7.3
     },
     {
       "sat1_name": "CZ-6A DEB",
@@ -22955,7 +23154,8 @@
           "uncertainty_log10_miss": 0.0692,
           "hours_ahead": 38.20000076293945
         }
-      ]
+      ],
+      "prediction_lead_hours": 23.8
     }
   ],
   "track_record": {
@@ -23766,7 +23966,58 @@
         "n_updates": 15,
         "correct": true
       }
-    ]
+    ],
+    "lead_time_stats": {
+      "buckets": [
+        {
+          "label": "<6h",
+          "n": 60,
+          "correct": 38,
+          "tp": 35,
+          "fp": 22,
+          "fn": 0,
+          "tn": 3
+        },
+        {
+          "label": "6-12h",
+          "n": 28,
+          "correct": 19,
+          "tp": 18,
+          "fp": 9,
+          "fn": 0,
+          "tn": 1
+        },
+        {
+          "label": "12-24h",
+          "n": 34,
+          "correct": 18,
+          "tp": 17,
+          "fp": 16,
+          "fn": 0,
+          "tn": 1
+        },
+        {
+          "label": "1-2 days",
+          "n": 44,
+          "correct": 20,
+          "tp": 19,
+          "fp": 24,
+          "fn": 0,
+          "tn": 1
+        },
+        {
+          "label": "2+ days",
+          "n": 12,
+          "correct": 6,
+          "tp": 6,
+          "fp": 6,
+          "fn": 0,
+          "tn": 0
+        }
+      ],
+      "median_hours": 12.3,
+      "mean_hours": 18.0
+    }
   },
   "regression_metrics": {
     "mae_log10_pc": 0.1104,
@@ -23794,5 +24045,554 @@
     "n_train": 3210,
     "n_test": 803,
     "n_pairs": 1068
-  }
+  },
+  "featured_calls": [
+    {
+      "sat1_name": "TIROS 5",
+      "sat2_name": "THORAD AGENA D DEB",
+      "sat1_norad": 309,
+      "sat2_norad": 4612,
+      "tca": "2026-03-19T03:10:41.455000",
+      "current_pc": 0.001552458,
+      "forecast_pc": 0.0015524576883763075,
+      "ensemble_probability": 0.9506,
+      "risk_direction": "stable",
+      "n_updates": 2,
+      "prediction_lead_hours": 69.3,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -2.81,
+          "pc": 0.001552458037622273,
+          "miss_distance_km": 281.0,
+          "time_to_tca_hours": 69.3
+        }
+      ],
+      "current_miss_km": 281.0,
+      "call_type": "escalation"
+    },
+    {
+      "sat1_name": "COSMOS 372",
+      "sat2_name": "COSMOS 1867 COOLANT",
+      "sat1_norad": 4588,
+      "sat2_norad": 39663,
+      "tca": "2026-03-27T00:27:54.800000",
+      "current_pc": 0.0007291805,
+      "forecast_pc": 4.017829724034527e-06,
+      "ensemble_probability": 0.9548,
+      "risk_direction": "stable",
+      "n_updates": 3,
+      "prediction_lead_hours": 59.9,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -2.88,
+          "pc": 0.0013055719900876284,
+          "miss_distance_km": 398.0,
+          "time_to_tca_hours": 66.7
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -2.88,
+          "pc": 0.0013055719900876284,
+          "miss_distance_km": 398.0,
+          "time_to_tca_hours": 66.6
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.14,
+          "pc": 0.0007291805231943727,
+          "miss_distance_km": 316.0,
+          "time_to_tca_hours": 59.9
+        }
+      ],
+      "current_miss_km": 316.0,
+      "call_type": "escalation"
+    },
+    {
+      "sat1_name": "CZ-6A R/B",
+      "sat2_name": "CZ-8A R/B",
+      "sat1_norad": 63921,
+      "sat2_norad": 66924,
+      "tca": "2026-03-24T00:32:24.089000",
+      "current_pc": 0.0006027914,
+      "forecast_pc": 0.0006027914932928979,
+      "ensemble_probability": 0.8431,
+      "risk_direction": "stable",
+      "n_updates": 2,
+      "prediction_lead_hours": 66.5,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.22,
+          "pc": 0.0006027913768775761,
+          "miss_distance_km": 106.0,
+          "time_to_tca_hours": 66.5
+        }
+      ],
+      "current_miss_km": 106.0,
+      "call_type": "escalation"
+    },
+    {
+      "sat1_name": "COSMOS 1694",
+      "sat2_name": "COSMOS 2039",
+      "sat1_norad": 16142,
+      "sat2_norad": 20233,
+      "tca": "2026-04-01T05:08:07.305000",
+      "current_pc": 0.001041278,
+      "forecast_pc": 0.0006144549697637558,
+      "ensemble_probability": 0.9783,
+      "risk_direction": "stable",
+      "n_updates": 6,
+      "prediction_lead_hours": 54.6,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -2.9,
+          "pc": 0.0012723549734801054,
+          "miss_distance_km": 228.0,
+          "time_to_tca_hours": 69.7
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.11,
+          "pc": 0.000781866314355284,
+          "miss_distance_km": 236.0,
+          "time_to_tca_hours": 64.4
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -2.98,
+          "pc": 0.0010412780102342367,
+          "miss_distance_km": 248.0,
+          "time_to_tca_hours": 54.6
+        }
+      ],
+      "current_miss_km": 248.0,
+      "call_type": "escalation"
+    },
+    {
+      "sat1_name": "COSMOS 2038",
+      "sat2_name": "COSMOS 2251 DEB",
+      "sat1_norad": 20232,
+      "sat2_norad": 34878,
+      "tca": "2026-03-31T23:55:04.025000",
+      "current_pc": 0.0005621868,
+      "forecast_pc": 0.0006382733699865639,
+      "ensemble_probability": 0.821,
+      "risk_direction": "stable",
+      "n_updates": 4,
+      "prediction_lead_hours": 59.2,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.26,
+          "pc": 0.0005558310076594353,
+          "miss_distance_km": 587.0,
+          "time_to_tca_hours": 64.5
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.25,
+          "pc": 0.0005621868185698986,
+          "miss_distance_km": 567.0,
+          "time_to_tca_hours": 59.2
+        }
+      ],
+      "current_miss_km": 567.0,
+      "call_type": "escalation"
+    },
+    {
+      "sat1_name": "COSMOS 858",
+      "sat2_name": "THOR ABLESTAR DEB",
+      "sat1_norad": 9443,
+      "sat2_norad": 465,
+      "tca": "2026-03-18T15:10:43.594000",
+      "current_pc": 0.001180024,
+      "forecast_pc": 0.0011800240026786923,
+      "ensemble_probability": 0.9014,
+      "risk_direction": "stable",
+      "n_updates": 1,
+      "prediction_lead_hours": 50.7,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -2.93,
+          "pc": 0.0011800240026786923,
+          "miss_distance_km": 518.0,
+          "time_to_tca_hours": 50.7
+        }
+      ],
+      "current_miss_km": 518.0,
+      "call_type": "escalation"
+    },
+    {
+      "sat1_name": "COSMOS 1741",
+      "sat2_name": "NOAA 16 DEB",
+      "sat1_norad": 16681,
+      "sat2_norad": 41081,
+      "tca": "2026-03-25T11:19:18.154000",
+      "current_pc": 0.001210731,
+      "forecast_pc": 0.024075264111161232,
+      "ensemble_probability": 0.9748,
+      "risk_direction": "stable",
+      "n_updates": 6,
+      "prediction_lead_hours": 46.6,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.48,
+          "pc": 0.0003320956020615995,
+          "miss_distance_km": 955.0,
+          "time_to_tca_hours": 70.6
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.48,
+          "pc": 0.0003320956020615995,
+          "miss_distance_km": 955.0,
+          "time_to_tca_hours": 70.5
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -2.87,
+          "pc": 0.0013577010249719024,
+          "miss_distance_km": 521.0,
+          "time_to_tca_hours": 53.7
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -2.87,
+          "pc": 0.0013577010249719024,
+          "miss_distance_km": 521.0,
+          "time_to_tca_hours": 53.6
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -2.92,
+          "pc": 0.0012107309885323048,
+          "miss_distance_km": 554.0,
+          "time_to_tca_hours": 46.6
+        }
+      ],
+      "current_miss_km": 554.0,
+      "call_type": "escalation"
+    },
+    {
+      "sat1_name": "COSMOS 1937",
+      "sat2_name": "CZ-2D DEB",
+      "sat1_norad": 19038,
+      "sat2_norad": 36292,
+      "tca": "2026-03-17T12:00:45.732000",
+      "current_pc": 0.0005341569,
+      "forecast_pc": 0.0020821725483983755,
+      "ensemble_probability": 0.9338,
+      "risk_direction": "stable",
+      "n_updates": 8,
+      "prediction_lead_hours": 47.7,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.64,
+          "pc": 0.00022916539455763996,
+          "miss_distance_km": 191.0,
+          "time_to_tca_hours": 71.5
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.78,
+          "pc": 0.00016688879986759275,
+          "miss_distance_km": 792.0,
+          "time_to_tca_hours": 62.2
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.62,
+          "pc": 0.00024174479767680168,
+          "miss_distance_km": 254.0,
+          "time_to_tca_hours": 55.0
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.62,
+          "pc": 0.00024174479767680168,
+          "miss_distance_km": 254.0,
+          "time_to_tca_hours": 54.9
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.27,
+          "pc": 0.0005341569194570184,
+          "miss_distance_km": 63.0,
+          "time_to_tca_hours": 47.7
+        }
+      ],
+      "current_miss_km": 63.0,
+      "call_type": "escalation"
+    },
+    {
+      "sat1_name": "COSMOS 1814",
+      "sat2_name": "DMSP 5D-2 F13 DEB",
+      "sat1_norad": 17303,
+      "sat2_norad": 40418,
+      "tca": "2026-04-10T05:04:15.677000",
+      "current_pc": 0.000340284,
+      "forecast_pc": 0.0005370347644202411,
+      "ensemble_probability": 0.6761,
+      "risk_direction": "stable",
+      "n_updates": 6,
+      "prediction_lead_hours": 40.6,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.54,
+          "pc": 0.00028573939925991,
+          "miss_distance_km": 777.0,
+          "time_to_tca_hours": 55.4
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.54,
+          "pc": 0.00028573939925991,
+          "miss_distance_km": 777.0,
+          "time_to_tca_hours": 55.3
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.64,
+          "pc": 0.00023173300724010915,
+          "miss_distance_km": 979.0,
+          "time_to_tca_hours": 48.8
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.64,
+          "pc": 0.00023173300724010915,
+          "miss_distance_km": 979.0,
+          "time_to_tca_hours": 48.7
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.47,
+          "pc": 0.000340283993864432,
+          "miss_distance_km": 727.0,
+          "time_to_tca_hours": 40.7
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -3.47,
+          "pc": 0.000340283993864432,
+          "miss_distance_km": 727.0,
+          "time_to_tca_hours": 40.6
+        }
+      ],
+      "current_miss_km": 727.0,
+      "call_type": "safe"
+    },
+    {
+      "sat1_name": "CZ-6A DEB",
+      "sat2_name": "CZ-6A DEB",
+      "sat1_norad": 55557,
+      "sat2_norad": 57834,
+      "tca": "2026-03-14T21:55:36.682000",
+      "current_pc": 0.0003443186,
+      "forecast_pc": 0.000627961300779134,
+      "ensemble_probability": 0.7457,
+      "risk_direction": "stable",
+      "n_updates": 5,
+      "prediction_lead_hours": 23.8,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.9,
+          "pc": 0.00012482110469136387,
+          "miss_distance_km": 208.0,
+          "time_to_tca_hours": 65.3
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.83,
+          "pc": 0.00014910480240359902,
+          "miss_distance_km": 36.0,
+          "time_to_tca_hours": 57.4
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.64,
+          "pc": 0.00022745740716345608,
+          "miss_distance_km": 54.0,
+          "time_to_tca_hours": 47.2
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.66,
+          "pc": 0.00022056470334064215,
+          "miss_distance_km": 67.0,
+          "time_to_tca_hours": 40.9
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.46,
+          "pc": 0.00034431859967298806,
+          "miss_distance_km": 64.0,
+          "time_to_tca_hours": 23.8
+        }
+      ],
+      "current_miss_km": 64.0,
+      "call_type": "safe"
+    },
+    {
+      "sat1_name": "COSMOS 1275 DEB",
+      "sat2_name": "UNKNOWN",
+      "sat1_norad": 12732,
+      "sat2_norad": 81427,
+      "tca": "2026-03-19T20:00:38.334000",
+      "current_pc": 0.0003784405,
+      "forecast_pc": 0.0005127065815031528,
+      "ensemble_probability": 0.3899,
+      "risk_direction": "stable",
+      "n_updates": 9,
+      "prediction_lead_hours": 7.3,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.84,
+          "pc": 0.00014414380711968988,
+          "miss_distance_km": 215.0,
+          "time_to_tca_hours": 70.2
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.91,
+          "pc": 0.00012212300498504192,
+          "miss_distance_km": 218.0,
+          "time_to_tca_hours": 62.6
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.92,
+          "pc": 0.00011986299796262756,
+          "miss_distance_km": 214.0,
+          "time_to_tca_hours": 55.2
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.98,
+          "pc": 0.00010481120261829346,
+          "miss_distance_km": 217.0,
+          "time_to_tca_hours": 45.1
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.52,
+          "pc": 0.00030255920137278736,
+          "miss_distance_km": 153.0,
+          "time_to_tca_hours": 38.5
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -3.43,
+          "pc": 0.0003706071001943201,
+          "miss_distance_km": 146.0,
+          "time_to_tca_hours": 31.0
+        },
+        {
+          "update_idx": 7,
+          "log10_pc": -3.46,
+          "pc": 0.00034940920886583626,
+          "miss_distance_km": 147.0,
+          "time_to_tca_hours": 21.9
+        },
+        {
+          "update_idx": 8,
+          "log10_pc": -3.44,
+          "pc": 0.0003601101052481681,
+          "miss_distance_km": 146.0,
+          "time_to_tca_hours": 15.2
+        },
+        {
+          "update_idx": 9,
+          "log10_pc": -3.42,
+          "pc": 0.0003784405125770718,
+          "miss_distance_km": 143.0,
+          "time_to_tca_hours": 7.3
+        }
+      ],
+      "current_miss_km": 143.0,
+      "call_type": "safe"
+    },
+    {
+      "sat1_name": "FENGYUN 1C DEB",
+      "sat2_name": "SL-16 DEB",
+      "sat1_norad": 33718,
+      "sat2_norad": 22292,
+      "tca": "2026-03-31T03:18:09.154000",
+      "current_pc": 0.000392215,
+      "forecast_pc": 0.0004320066364016384,
+      "ensemble_probability": 0.3651,
+      "risk_direction": "stable",
+      "n_updates": 9,
+      "prediction_lead_hours": 5.0,
+      "time_series": [
+        {
+          "update_idx": 1,
+          "log10_pc": -3.98,
+          "pc": 0.00010480269702384248,
+          "miss_distance_km": 61.0,
+          "time_to_tca_hours": 43.9
+        },
+        {
+          "update_idx": 2,
+          "log10_pc": -3.98,
+          "pc": 0.00010480269702384248,
+          "miss_distance_km": 61.0,
+          "time_to_tca_hours": 38.6
+        },
+        {
+          "update_idx": 3,
+          "log10_pc": -3.82,
+          "pc": 0.0001510223955847323,
+          "miss_distance_km": 58.0,
+          "time_to_tca_hours": 28.8
+        },
+        {
+          "update_idx": 4,
+          "log10_pc": -3.82,
+          "pc": 0.0001510223955847323,
+          "miss_distance_km": 58.0,
+          "time_to_tca_hours": 28.7
+        },
+        {
+          "update_idx": 5,
+          "log10_pc": -3.76,
+          "pc": 0.00017223409668076783,
+          "miss_distance_km": 51.0,
+          "time_to_tca_hours": 21.7
+        },
+        {
+          "update_idx": 6,
+          "log10_pc": -3.76,
+          "pc": 0.00017223409668076783,
+          "miss_distance_km": 51.0,
+          "time_to_tca_hours": 21.6
+        },
+        {
+          "update_idx": 7,
+          "log10_pc": -3.41,
+          "pc": 0.00039221500628627837,
+          "miss_distance_km": 41.0,
+          "time_to_tca_hours": 5.1
+        },
+        {
+          "update_idx": 8,
+          "log10_pc": -3.41,
+          "pc": 0.00039221500628627837,
+          "miss_distance_km": 41.0,
+          "time_to_tca_hours": 5.0
+        }
+      ],
+      "current_miss_km": 41.0,
+      "call_type": "safe"
+    }
+  ]
 }

@@ -52,6 +52,8 @@ interface ForecastPair {
   }[];
   // AI summary
   ai_summary?: string;
+  // Prediction lead time
+  prediction_lead_hours?: number;
 }
 
 interface ModelMetrics {
@@ -86,6 +88,24 @@ interface TrackRecordExample {
   correct: boolean;
 }
 
+interface LeadTimeBucket {
+  label: string;
+  n: number;
+  correct: number;
+  tp: number;
+  fp: number;
+  fn: number;
+  tn: number;
+}
+
+interface LeadTimeStats {
+  buckets: LeadTimeBucket[];
+  median_hours?: number;
+  mean_hours?: number;
+  min_hours?: number;
+  max_hours?: number;
+}
+
 interface TrackRecord {
   correct: number;
   total: number;
@@ -94,6 +114,7 @@ interface TrackRecord {
   fn: number;
   tn: number;
   examples?: TrackRecordExample[];
+  lead_time_stats?: LeadTimeStats;
 }
 
 interface ConformalMetrics {
@@ -156,6 +177,23 @@ function formatPct(v: number): string {
 function shortName(name: string): string {
   // Trim common suffixes for compact display
   return name.replace(/ DEB$/, '').replace(/ R\/B$/, ' R/B').slice(0, 22);
+}
+
+function formatLeadTime(hours: number): string {
+  if (hours >= 48) return `${(hours / 24).toFixed(1)}d`;
+  if (hours >= 1) return `${hours.toFixed(0)}h`;
+  return `${(hours * 60).toFixed(0)}m`;
+}
+
+function getLeadTimeHours(pair: ForecastPair): number | null {
+  // For pairs with pipeline-computed lead time, use that
+  if (pair.prediction_lead_hours != null) return pair.prediction_lead_hours;
+  // Fallback: compute from last CDM's time_to_tca_hours
+  if (pair.time_series.length > 0) {
+    const sorted = pair.time_series.slice().sort((a, b) => a.time_to_tca_hours - b.time_to_tca_hours);
+    return sorted[0].time_to_tca_hours;
+  }
+  return null;
 }
 
 
@@ -253,6 +291,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
   })();
 
   const trendColor = pair.risk_direction === 'escalating' ? '#ef4444' : pair.risk_direction === 'de-escalating' ? '#22c55e' : '#7c7c96';
+  const leadHours = getLeadTimeHours(pair);
 
   return (
     <div style={{ background: '#111118', borderRadius: 8, border: '1px solid #1e1e2c', overflow: 'hidden' }}>
@@ -263,7 +302,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
         aria-label={`${expanded ? 'Collapse' : 'Expand'} forecast: ${pair.sat1_name} vs ${pair.sat2_name}, risk level ${level}`}
         style={{
           width: '100%', display: 'grid',
-          gridTemplateColumns: '4px 1fr 90px 90px 80px 80px 64px 24px',
+          gridTemplateColumns: '4px 1fr 90px 90px 80px 70px 70px 64px 24px',
           gap: 8, alignItems: 'center', padding: '10px 16px',
           background: 'transparent', border: 'none', cursor: 'pointer',
           textAlign: 'left', fontFamily: 'inherit', transition: 'background 100ms',
@@ -285,6 +324,10 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
         </div>
         <div style={{ textAlign: 'right', fontSize: 13, fontFamily: "'JetBrains Mono', monospace", color: '#7c7c96' }}>
           {pair.tca ? pair.tca.slice(5, 10) : '--'}
+        </div>
+        <div style={{ textAlign: 'right', fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: leadHours != null && leadHours >= 24 ? '#3b82f6' : '#55556a' }}
+          title={leadHours != null ? `Prediction based on data from ${leadHours.toFixed(1)} hours before closest approach` : undefined}>
+          {leadHours != null ? formatLeadTime(leadHours) : '--'}
         </div>
         <div style={{ textAlign: 'center' }}>
           <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}12`, padding: '2px 8px', borderRadius: 6 }}>{isResolved ? 'Resolved' : RISK_LABELS[level]}</span>
@@ -314,6 +357,9 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                 <MetricRow label="Miss Distance" value={`${pair.current_miss_km.toFixed(0)} km`} />
                 <MetricRow label="CDM Updates" value={String(pair.n_updates)} />
                 <MetricRow label="TCA" value={pair.tca ? pair.tca.slice(0, 16).replace('T', ' ') : '--'} />
+                {leadHours != null && (
+                  <MetricRow label="Prediction Lead (advance warning: hours before closest approach)" value={formatLeadTime(leadHours)} color={leadHours >= 24 ? '#3b82f6' : '#7c7c96'} />
+                )}
                 {pair.predicted_max_log10_pc != null && (
                   <MetricRow label="BiLSTM Max Pc (deep learning model's predicted peak collision probability)" value={`10^${pair.predicted_max_log10_pc.toFixed(1)}`} color={pair.predicted_max_log10_pc > -3.3 ? '#ef4444' : '#22c55e'} />
                 )}
@@ -444,6 +490,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
             fn: tr.fn ?? tr.n_false_negatives ?? 0,
             tn: tr.tn ?? tr.n_true_negatives ?? 0,
             examples: tr.examples,
+            lead_time_stats: tr.lead_time_stats,
           };
         }
         return raw;
@@ -500,10 +547,11 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
               What This Shows
             </div>
             <p style={{ fontSize: 15, color: '#e8e8f0', lineHeight: 1.5, maxWidth: 700, marginBottom: 16 }}>
-              Each day, this system receives updated collision data (<GlossaryTooltip term="CDM">CDMs</GlossaryTooltip>) on {data.n_pairs} monitored conjunction pairs.
-              It predicts which pairs will escalate to dangerous levels (<GlossaryTooltip term="Pc">Pc</GlossaryTooltip> exceeding
-              5 &times; 10<sup>-4</sup>, the maneuver planning threshold) before closest approach, giving
-              operators advance warning to plan avoidance maneuvers.
+              Like a <strong>CHA₂DS₂-VASc score for satellites</strong>: rather than predicting collisions
+              directly, this system screens whether collision probability (<GlossaryTooltip term="Pc">Pc</GlossaryTooltip>)
+              will <em>escalate</em> above the maneuver planning threshold (5 &times; 10<sup>-4</sup>) before closest
+              approach. It tells operators when to start planning an avoidance maneuver — not whether
+              a collision will occur. A sensitive early warning from {data.n_pairs} monitored <GlossaryTooltip term="CDM">CDM</GlossaryTooltip> conjunction pairs, updated daily.
             </p>
             {data.track_record && data.track_record.total > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
@@ -532,6 +580,45 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
               <span style={{ color: '#55556a', marginLeft: 'auto' }}>{data.model_metrics.n_training_pairs} train / {data.model_metrics.n_test_pairs} test</span>
             </div>
           )}
+
+          {/* ── Advance Warning: Lead Time Analysis ─────────── */}
+          {data.track_record?.lead_time_stats && data.track_record.lead_time_stats.buckets.some(b => b.n > 0) && (() => {
+            const lts = data.track_record!.lead_time_stats!;
+            const totalBucketPairs = lts.buckets.reduce((s, b) => s + b.n, 0);
+            return (
+              <div style={{ padding: '12px 0 14px', borderBottom: '1px solid #1e1e2c' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: '#55556a', fontWeight: 600 }}>
+                    Advance Warning
+                    {lts.median_hours != null && (
+                      <span style={{ fontWeight: 400, marginLeft: 8, color: '#3a3a4a' }}>
+                        median <span style={{ color: '#3b82f6', fontFamily: "'JetBrains Mono', monospace" }}>{formatLeadTime(lts.median_hours)}</span> before TCA
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {lts.buckets.filter(b => b.n > 0).map(bucket => {
+                    const acc = bucket.n > 0 ? bucket.correct / bucket.n : 0;
+                    const pct = totalBucketPairs > 0 ? bucket.n / totalBucketPairs : 0;
+                    return (
+                      <div key={bucket.label} style={{ flex: 1, padding: '8px 10px', background: '#0c0c12', borderRadius: 6, fontSize: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <span style={{ fontWeight: 600, color: '#7c7c96' }}>{bucket.label}</span>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color: acc >= 0.8 ? '#22c55e' : acc >= 0.6 ? '#f59e0b' : '#7c7c96' }}>
+                            {(acc * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        <div style={{ color: '#3a3a4a', marginTop: 2 }}>
+                          {bucket.n} pairs ({(pct * 100).toFixed(0)}%) &middot; {bucket.fn === 0 ? '0 missed' : <span style={{ color: '#ef4444' }}>{bucket.fn} missed</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Filters ────────────────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid #1e1e2c' }}>
@@ -564,7 +651,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
           {/* ── Column headers ─────────────────────────────── */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '4px 1fr 90px 90px 80px 80px 64px 24px',
+            gridTemplateColumns: '4px 1fr 90px 90px 80px 70px 70px 64px 24px',
             gap: 8, padding: '12px 16px', fontSize: 12, fontWeight: 600,
             color: '#3a3a4a', textTransform: 'uppercase', letterSpacing: '0.04em',
           }}>
@@ -574,6 +661,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
             <span style={{ textAlign: 'right' }} title="Probability this pair will reach dangerous levels (Pc >= 5e-4, the maneuver threshold)">P(Exceed)</span>
             <span style={{ textAlign: 'right' }}>Trend</span>
             <span style={{ textAlign: 'right' }}>TCA</span>
+            <span style={{ textAlign: 'right' }} title="How far before closest approach the prediction was made">Lead</span>
             <span style={{ textAlign: 'center' }}>Risk</span>
             <span />
           </div>

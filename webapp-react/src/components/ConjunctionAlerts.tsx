@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import {
+  XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer, Area, AreaChart,
+} from 'recharts';
 import type { ScreeningPair } from '../lib/api';
 import { FullPagePanel } from './Overlay';
-import { GlossaryTooltip } from './Glossary';
 
 interface ConjunctionAlertsProps {
   pairs: ScreeningPair[];
@@ -10,11 +12,6 @@ interface ConjunctionAlertsProps {
   onSelectPair: (pair: ScreeningPair) => void;
 }
 
-const TIER_COLORS: Record<string, string> = {
-  HIGH: '#ef4444',
-  MODERATE: '#f59e0b',
-  LOW: '#22c55e',
-};
 
 export function riskTier(pair: ScreeningPair): string {
   if (pair.source === 'cdm' && pair.pc != null) {
@@ -42,199 +39,264 @@ function formatPc(pc: number): string {
   return pc.toExponential(1);
 }
 
-function formatTCA(hours: number): string {
-  if (hours < 24) return `${hours.toFixed(1)}h`;
-  return `${(hours / 24).toFixed(1)}d`;
-}
-
-const OBJ_TYPE_SHORT: Record<string, string> = { PAYLOAD: 'Satellite', ROCKET_BODY: 'Rocket Body', DEBRIS: 'Debris', UNKNOWN: 'Unknown' };
-function shortObjType(t?: string): string {
-  if (!t) return '';
-  return OBJ_TYPE_SHORT[t.toUpperCase()] || t.slice(0, 3).toUpperCase();
+function formatLeadTime(hours: number): string {
+  if (hours >= 48) return `${(hours / 24).toFixed(1)} days`;
+  if (hours >= 1) return `${hours.toFixed(0)} hours`;
+  return `${(hours * 60).toFixed(0)} min`;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: ConjunctionAlertsProps) {
-  const cdmCount = pairs.filter(p => p.source === 'cdm').length;
-  const highCount = pairs.filter(p => riskTier(p) === 'HIGH').length;
-  const modCount = pairs.filter(p => riskTier(p) === 'MODERATE').length;
+interface FeaturedCall {
+  sat1_name: string;
+  sat2_name: string;
+  sat1_norad: number;
+  sat2_norad: number;
+  tca: string;
+  current_pc: number;
+  forecast_pc: number;
+  ensemble_probability: number;
+  risk_direction: string;
+  n_updates: number;
+  prediction_lead_hours: number;
+  current_miss_km: number;
+  call_type: 'escalation' | 'safe';
+  time_series: { update_idx: number; log10_pc: number; pc: number; miss_distance_km: number; time_to_tca_hours: number }[];
+}
 
-  // Fetch forecast data for ML track record
+function FeaturedCallCard({ call }: { call: FeaturedCall }) {
+  const isEscalation = call.call_type === 'escalation';
+  const color = isEscalation ? '#ef4444' : '#22c55e';
+  const badgeText = isEscalation ? 'Escalation Detected' : 'Safe Resolution';
+
+  const chartData = useMemo(() => {
+    const sorted = call.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
+    return sorted.map(u => ({
+      hoursToTCA: -Math.round(u.time_to_tca_hours),
+      'log10(Pc)': u.log10_pc,
+    }));
+  }, [call.time_series]);
+
+  return (
+    <div style={{
+      background: '#111118', borderRadius: 10, border: '1px solid #1e1e2c',
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid #1e1e2c' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {call.sat1_name} <span style={{ color: '#3a3a4a' }}>vs</span> {call.sat2_name}
+            </div>
+            <div style={{ fontSize: 12, color: '#55556a', marginTop: 2 }}>
+              TCA: {call.tca.slice(0, 16).replace('T', ' ')} UTC
+            </div>
+          </div>
+          <span style={{
+            fontSize: 11, fontWeight: 700, color, background: `${color}12`,
+            padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
+          }}>
+            {badgeText}
+          </span>
+        </div>
+
+        {/* Key badges */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: '#3b82f6', background: 'rgba(59,130,246,0.08)', padding: '2px 10px', borderRadius: 4, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
+            Called {formatLeadTime(call.prediction_lead_hours)} in advance
+          </span>
+          <span style={{ fontSize: 12, color: '#7c7c96', background: '#0c0c12', padding: '2px 10px', borderRadius: 4 }}>
+            Pc: {formatPc(call.current_pc)}
+          </span>
+          <span style={{ fontSize: 12, color: '#7c7c96', background: '#0c0c12', padding: '2px 10px', borderRadius: 4 }}>
+            Miss: {call.current_miss_km.toFixed(0)} km
+          </span>
+          <span style={{ fontSize: 12, color: '#7c7c96', background: '#0c0c12', padding: '2px 10px', borderRadius: 4 }}>
+            {call.n_updates} CDMs
+          </span>
+        </div>
+      </div>
+
+      {/* Pc evolution chart */}
+      {chartData.length >= 2 && (
+        <div style={{ padding: '12px 16px 8px' }}>
+          <div style={{ fontSize: 11, color: '#3a3a4a', marginBottom: 4 }}>Collision Probability Evolution</div>
+          <ResponsiveContainer width="100%" height={120}>
+            <AreaChart data={chartData} margin={{ top: 4, right: 8, left: -10, bottom: 4 }}>
+              <defs>
+                <linearGradient id={`fcg-${call.sat1_norad}-${call.sat2_norad}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]}
+                tick={{ fontSize: 10, fill: '#3a3a4a' }}
+                tickFormatter={(v: number) => `${v}h`}
+                axisLine={{ stroke: '#1e1e2c' }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#3a3a4a' }} domain={[-5, -1.5]}
+                tickFormatter={(v: number) => {
+                  if (v === -4) return '1e-4';
+                  if (v === -3) return '1e-3';
+                  if (v === -2) return '1e-2';
+                  return '';
+                }}
+                axisLine={false} tickLine={false}
+                ticks={[-4, -3.3, -3, -2]} />
+              <Tooltip
+                contentStyle={{ background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 11 }}
+                labelFormatter={(v) => `TCA ${v}h`}
+                formatter={(v: unknown) => {
+                  const log10 = Number(v);
+                  const pc = Math.pow(10, log10);
+                  const readable = pc >= 0.01 ? `${(pc*100).toFixed(1)}%` : pc >= 1e-4 ? `1 in ${Math.round(1/pc).toLocaleString()}` : pc.toExponential(1);
+                  return [`${log10.toFixed(2)} (${readable})`, 'Pc'];
+                }}
+              />
+              <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} strokeOpacity={0.5}
+                label={{ value: '5e-4', position: 'insideTopRight', fill: '#ef4444', fontSize: 9 }} />
+              <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2}
+                fill={`url(#fcg-${call.sat1_norad}-${call.sat2_norad})`}
+                dot={{ r: 2, fill: color, strokeWidth: 0 }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Outcome summary */}
+      <div style={{
+        padding: '10px 16px 14px', borderTop: '1px solid #1e1e2c',
+        fontSize: 12, color: '#7c7c96', lineHeight: 1.5,
+      }}>
+        {isEscalation ? (
+          <>Model predicted Pc would exceed the maneuver threshold with <strong style={{ color: '#e8e8f0' }}>{(call.ensemble_probability * 100).toFixed(0)}% confidence</strong>, {formatLeadTime(call.prediction_lead_hours)} before closest approach. Pc reached {formatPc(call.current_pc)} — prediction confirmed.</>
+        ) : (
+          <>Despite initial Pc of {formatPc(call.time_series[0]?.pc ?? 0)}, model correctly predicted this conjunction would resolve safely. Final Pc: {formatPc(call.current_pc)}.</>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: ConjunctionAlertsProps) {
+  void onSelectPair;  // kept for interface compat
+
+  // Fetch forecast data for featured calls + track record
   const [forecast, setForecast] = useState<any>(null);
   useEffect(() => {
     if (!visible) return;
     fetch('./cdm_forecast.json').then(r => r.ok ? r.json() : null).then(setForecast).catch(() => setForecast(null));
   }, [visible]);
-  const tr = forecast?.track_record;
 
-  const sorted = [...pairs].sort((a, b) => {
-    const order: Record<string, number> = { HIGH: 0, MODERATE: 1, LOW: 2 };
-    return (order[riskTier(a)] ?? 2) - (order[riskTier(b)] ?? 2);
-  });
+  const tr = forecast?.track_record;
+  const featuredCalls: FeaturedCall[] = useMemo(() => forecast?.featured_calls ?? [], [forecast]);
+  const escalations = useMemo(() => featuredCalls.filter(c => c.call_type === 'escalation'), [featuredCalls]);
+  const safeResolutions = useMemo(() => featuredCalls.filter(c => c.call_type === 'safe'), [featuredCalls]);
+
+  // Fallback: compute featured from track_record examples when featured_calls not yet available
+  const hasFeatured = featuredCalls.length > 0;
+
+  // Active conjunctions summary
+  const activeCount = pairs.length;
+  const highCount = pairs.filter(p => riskTier(p) === 'HIGH').length;
 
   return (
     <FullPagePanel
       visible={visible}
       onClose={onClose}
-      title="Active Conjunctions"
-      subtitle={`${pairs.length} pairs monitored${cdmCount > 0 ? ` \u00b7 ${cdmCount} from Space-Track CDMs` : ''}`}
+      title="Prediction Gallery"
+      subtitle="CHA₂DS₂-VASc for satellites — screening for risk escalation, not predicting collisions"
       maxWidth={900}
     >
-      {pairs.length === 0 ? (
-        <div style={{ padding: 48, textAlign: 'center', fontSize: 14, color: '#7c7c96' }}>
-          No active conjunction alerts. The pipeline screens satellite pairs daily. Alerts appear when Pc exceeds screening thresholds.
-        </div>
-      ) : (
-        <>
-          {/* ML context banner */}
-          <div style={{ padding: '16px 20px', background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.12)', borderRadius: 8, margin: '16px 0' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', marginBottom: 6 }}>ML Ensemble Active</div>
-            <p style={{ fontSize: 13, color: '#7c7c96', lineHeight: 1.5, margin: 0 }}>
-              Three machine learning models work together to score each pair. Track Record shows past accuracy.
-              {' '}<GlossaryTooltip term="CDM">CDM</GlossaryTooltip>-sourced pairs include collision probability escalation predictions. Click any pair to view its trajectory on the globe.
-            </p>
-            {tr && tr.total > 0 && (
-              <div style={{ display: 'flex', gap: 20, marginTop: 12, fontSize: 13 }}>
-                <span style={{ color: '#e8e8f0' }}>
-                  Track Record: <strong style={{ fontFamily: "'JetBrains Mono', monospace" }}>{tr.correct}/{tr.total}</strong> correct
-                  ({((tr.correct / tr.total) * 100).toFixed(0)}%)
-                </span>
-                <span style={{ color: '#22c55e' }}>{tr.tp} true positives</span>
-                {tr.fn > 0 && <span style={{ color: '#ef4444' }}>{tr.fn} missed</span>}
-                <span style={{ color: '#7c7c96' }}>{tr.fp} false alarms</span>
+      {/* Track record summary */}
+      {tr && tr.total > 0 && (
+        <div style={{ padding: '20px 0', borderBottom: '1px solid #1e1e2c' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+            <div style={{ padding: '12px 14px', background: '#111118', borderRadius: 8, border: '1px solid #1e1e2c' }}>
+              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>
+                {((tr.correct ?? tr.n_correct ?? 0) / tr.total * 100).toFixed(0)}%
               </div>
-            )}
+              <div style={{ fontSize: 12, color: '#55556a', marginTop: 2 }}>Overall Accuracy</div>
+              <div style={{ fontSize: 11, color: '#3a3a4a' }}>{tr.correct ?? tr.n_correct}/{tr.total} resolved</div>
+            </div>
+            <div style={{ padding: '12px 14px', background: '#111118', borderRadius: 8, border: '1px solid #1e1e2c' }}>
+              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#22c55e' }}>
+                {tr.tp ?? tr.n_true_positives ?? 0}
+              </div>
+              <div style={{ fontSize: 12, color: '#55556a', marginTop: 2 }}>Escalations Caught</div>
+              <div style={{ fontSize: 11, color: '#3a3a4a' }}>True positives</div>
+            </div>
+            <div style={{ padding: '12px 14px', background: '#111118', borderRadius: 8, border: '1px solid #1e1e2c' }}>
+              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: (tr.fn ?? tr.n_false_negatives ?? 0) === 0 ? '#22c55e' : '#ef4444' }}>
+                {tr.fn ?? tr.n_false_negatives ?? 0}
+              </div>
+              <div style={{ fontSize: 12, color: '#55556a', marginTop: 2 }}>Missed Events</div>
+              <div style={{ fontSize: 11, color: '#3a3a4a' }}>Zero = never missed</div>
+            </div>
+            <div style={{ padding: '12px 14px', background: '#111118', borderRadius: 8, border: '1px solid #1e1e2c' }}>
+              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>
+                {activeCount}
+              </div>
+              <div style={{ fontSize: 12, color: '#55556a', marginTop: 2 }}>Active Pairs</div>
+              <div style={{ fontSize: 11, color: '#3a3a4a' }}>{highCount > 0 ? `${highCount} high risk` : 'Monitoring'}</div>
+            </div>
           </div>
-
-          {/* Summary strip */}
-          <div style={{ display: 'flex', gap: 24, padding: '20px 0', borderBottom: '1px solid #1e1e2c', fontSize: 14 }}>
-            {highCount > 0 && <span style={{ color: '#ef4444', fontWeight: 600 }}>{highCount} High Risk</span>}
-            {modCount > 0 && <span style={{ color: '#f59e0b', fontWeight: 600 }}>{modCount} Moderate</span>}
-            <span style={{ color: '#55556a' }}>{pairs.length - highCount - modCount} Low</span>
-          </div>
-
-          {/* Table header */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '4px 1fr 100px 100px 80px 72px 32px',
-            gap: 12,
-            padding: '12px 16px',
-            fontSize: 12,
-            fontWeight: 600,
-            color: '#55556a',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            borderBottom: '1px solid #1e1e2c',
-          }}>
-            <span />
-            <span>Conjunction Pair</span>
-            <span style={{ textAlign: 'right' }} title="Collision Probability (0-1). Higher values = more dangerous.">Pc</span>
-            <span style={{ textAlign: 'right' }} title="Closest approach distance in kilometers">Miss Dist</span>
-            <span style={{ textAlign: 'right' }} title="Time of Closest Approach - when the objects pass nearest">TCA</span>
-            <span style={{ textAlign: 'center' }}>Risk</span>
-            <span />
-          </div>
-
-          {/* Pair rows */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {sorted.map((pair) => {
-              const tier = riskTier(pair);
-              const color = TIER_COLORS[tier];
-              const isCDM = pair.source === 'cdm';
-
-              return (
-                <button
-                  key={`${pair.norad_1}-${pair.norad_2}`}
-                  onClick={() => onSelectPair(pair)}
-                  aria-label={`View conjunction: ${pair.name_1} vs ${pair.name_2}, risk level ${tier}`}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '4px 1fr 100px 100px 80px 72px 32px',
-                    gap: 12,
-                    alignItems: 'center',
-                    padding: '12px 16px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderBottom: '1px solid #111118',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontFamily: 'inherit',
-                    transition: 'background 100ms',
-                    width: '100%',
-                  }}
-                  onMouseEnter={e => { (e.currentTarget).style.background = '#111118'; }}
-                  onMouseLeave={e => { (e.currentTarget).style.background = 'transparent'; }}
-                >
-                  {/* Risk bar */}
-                  <div style={{ width: 4, height: 32, borderRadius: 2, background: color }} />
-
-                  {/* Names */}
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {pair.name_1}
-                      </span>
-                      {isCDM && (
-                        <span style={{ fontSize: 12, fontWeight: 600, color: '#3b82f6', background: 'rgba(59,130,246,0.08)', padding: '1px 6px', borderRadius: 4, flexShrink: 0 }}>CDM</span>
-                      )}
-                      {isCDM && pair.emergency_reportable === 'Y' && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.08)', padding: '1px 6px', borderRadius: 4, flexShrink: 0 }}>EMRG</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 13, color: '#55556a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      vs {pair.name_2}
-                      {isCDM && pair.sat1_type && pair.sat2_type && (
-                        <span style={{ marginLeft: 8, color: '#3a3a4a' }}>{shortObjType(pair.sat1_type)} / {shortObjType(pair.sat2_type)}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Pc */}
-                  <div style={{ textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 600, color: isCDM && pair.pc ? color : '#55556a' }}>
-                    {isCDM && pair.pc != null ? formatPc(pair.pc) : '--'}
-                  </div>
-
-                  {/* Miss distance */}
-                  <div style={{ textAlign: 'right', fontFamily: "'JetBrains Mono', monospace", fontSize: 14, color: '#7c7c96' }}>
-                    {pair.miss_distance_km != null ? `${pair.miss_distance_km.toFixed(1)} km` : '--'}
-                  </div>
-
-                  {/* TCA */}
-                  <div style={{ textAlign: 'right', fontSize: 13, color: '#7c7c96' }}>
-                    {pair.tca_hours != null ? formatTCA(pair.tca_hours) : '--'}
-                  </div>
-
-                  {/* Risk badge */}
-                  <div style={{ textAlign: 'center' }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color, background: `${color}12`, padding: '3px 8px', borderRadius: 6 }}>
-                      {tier === 'HIGH' ? '\u26A0 ' : tier === 'MODERATE' ? '-- ' : '\u2713 '}{tier}
-                    </span>
-                  </div>
-
-                  {/* Arrow */}
-                  <span style={{ color: '#3a3a4a', fontSize: 14, textAlign: 'center' }}>&rarr;</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Footer */}
-          <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 13, color: '#55556a' }}>
-            {cdmCount > 0 ? 'Space-Track CDM data' : 'Orbital proximity screening'} &middot; click a pair to view trajectory on globe
-          </div>
-
-          {/* Risk level legend */}
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #1e1e2c', fontSize: 12, color: '#55556a', lineHeight: 1.6 }}>
-            <span style={{ fontWeight: 600, color: '#7c7c96' }}>Risk Levels: </span>
-            <span style={{ color: TIER_COLORS.HIGH, fontWeight: 600 }}>{'\u26A0'} HIGH</span> = Pc above maneuver threshold
-            {' | '}
-            <span style={{ color: TIER_COLORS.MODERATE, fontWeight: 600 }}>-- MODERATE</span> = Pc approaching threshold
-            {' | '}
-            <span style={{ color: TIER_COLORS.LOW, fontWeight: 600 }}>{'\u2713'} LOW</span> = Pc well below threshold
-          </div>
-        </>
+        </div>
       )}
+
+      {hasFeatured ? (
+        <>
+          {/* Escalation calls */}
+          {escalations.length > 0 && (
+            <div style={{ padding: '20px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ fontSize: 13, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                  Correctly Predicted Escalations
+                </div>
+                <div style={{ fontSize: 12, color: '#3a3a4a' }}>
+                  Model flagged these pairs before Pc exceeded the maneuver threshold
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                {escalations.map(call => (
+                  <FeaturedCallCard key={`${call.sat1_norad}-${call.sat2_norad}-${call.tca}`} call={call} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Safe resolution calls */}
+          {safeResolutions.length > 0 && (
+            <div style={{ padding: '20px 0', borderTop: '1px solid #1e1e2c' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ fontSize: 13, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                  Correctly Predicted Safe Resolutions
+                </div>
+                <div style={{ fontSize: 12, color: '#3a3a4a' }}>
+                  Model correctly assessed these would not escalate
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                {safeResolutions.map(call => (
+                  <FeaturedCallCard key={`${call.sat1_norad}-${call.sat2_norad}-${call.tca}`} call={call} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ padding: 48, textAlign: 'center', fontSize: 14, color: '#7c7c96' }}>
+          Featured predictions will appear after the next pipeline run resolves conjunction pairs.
+          The pipeline runs daily at 00:00 UTC and curates the most impressive correct predictions.
+        </div>
+      )}
+
+      {/* Footer */}
+      <div style={{ padding: '16px 0', borderTop: '1px solid #1e1e2c', textAlign: 'center', fontSize: 12, color: '#3a3a4a', lineHeight: 1.5 }}>
+        Updated each pipeline run. Like CHA₂DS₂-VASc screening for stroke risk, these predictions flag when
+        to <em>act</em> (plan a maneuver) — not whether a collision will happen.
+        Escalation = Pc exceeded 5 &times; 10<sup>-4</sup> (start planning). Safe = risk stayed below threshold through closest approach.
+      </div>
     </FullPagePanel>
   );
 }

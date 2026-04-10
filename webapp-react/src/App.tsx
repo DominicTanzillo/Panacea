@@ -366,8 +366,8 @@ function App() {
         </SceneErrorBoundary>
       </div>
 
-      {/* Borders toggle */}
-      <button
+      {/* Borders toggle — hide when an overlay panel is open */}
+      {!activeOverlay && <button
         onClick={() => setShowBorders(!showBorders)}
         aria-label="Toggle country borders"
         style={{
@@ -389,7 +389,7 @@ function App() {
         }}
       >
         Borders
-      </button>
+      </button>}
 
       {/* Threat HUD — shows on globe view when nothing else is open */}
       {showThreatHUD && (
