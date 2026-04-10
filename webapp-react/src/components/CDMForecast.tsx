@@ -232,29 +232,36 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
       }
     }
 
-    // Dotted forecast line: smooth curve from last CDM to predicted peak at TCA
+    // Dotted forecast line: smooth curve from last CDM to predicted peak at TCA (0h)
+    // Always extends to 0h so the chart never ends early
     if (points.length > 0 && points[points.length - 1].hoursToTCA < 0) {
       const lastPoint = points[points.length - 1];
       const startHour = lastPoint.hoursToTCA;
       const startPc = lastPoint['log10(Pc)']!;
-      // Target: BiLSTM predicted max if available, otherwise linear extrapolation
       const endPc = predMaxLog10 ?? (pair.forecast_pc > 0 ? Math.log10(Math.max(pair.forecast_pc, 1e-20)) : startPc);
-      // Bridge point so forecast connects to observed
+      const uncSpread = predMaxLog10 != null ? 0.3 : undefined;
+      // Bridge: set forecast on last observed point so lines connect
       lastPoint.forecast = startPc;
-      // Smooth curve to TCA
+      // Intermediate steps
       const span = Math.abs(startHour);
-      const nSteps = Math.max(3, Math.min(Math.ceil(span / 2), 12));
-      for (let i = 1; i <= nSteps; i++) {
+      const nSteps = Math.max(3, Math.min(Math.ceil(span / 2), 10));
+      for (let i = 1; i < nSteps; i++) {
         const t = i / nSteps;
-        const h = Math.round(startHour + t * (0 - startHour));
-        const ease = t * t;  // ease-in: slow start, accelerates toward prediction
+        const h = Math.round(startHour * (1 - t));
+        const ease = t * t;
         const pc = startPc + ease * (endPc - startPc);
         points.push({ hoursToTCA: h, 'log10(Pc)': undefined, forecast: pc,
           predMax: predMaxLog10 ?? undefined,
-          predUpper: predMaxLog10 != null ? predMaxLog10 + 0.3 : undefined,
-          predLower: predMaxLog10 != null ? predMaxLog10 - 0.3 : undefined,
+          predUpper: uncSpread != null ? predMaxLog10! + uncSpread : undefined,
+          predLower: uncSpread != null ? predMaxLog10! - uncSpread : undefined,
         });
       }
+      // Final point always exactly at TCA (0h)
+      points.push({ hoursToTCA: 0, 'log10(Pc)': undefined, forecast: endPc,
+        predMax: predMaxLog10 ?? undefined,
+        predUpper: uncSpread != null ? predMaxLog10! + uncSpread : undefined,
+        predLower: uncSpread != null ? predMaxLog10! - uncSpread : undefined,
+      });
     }
 
     return points;
