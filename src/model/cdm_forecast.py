@@ -741,7 +741,7 @@ class CDMForecastModel:
             "action_recommended": action,
             "current_pc": current_pc,
             "current_miss_km": meta["latest_miss_km"],
-            "n_updates": n,
+            "n_updates": len(time_series),
             "time_series": time_series,
             **meta,
         }

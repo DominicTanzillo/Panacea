@@ -67,7 +67,6 @@ interface FeaturedCall {
 function FeaturedCallCard({ call }: { call: FeaturedCall }) {
   const isEscalation = call.call_type === 'escalation';
   const color = isEscalation ? '#ef4444' : '#22c55e';
-  const badgeText = isEscalation ? 'Escalation Detected' : 'Safe Resolution';
 
   const chartData = useMemo(() => {
     const sorted = call.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
@@ -78,101 +77,72 @@ function FeaturedCallCard({ call }: { call: FeaturedCall }) {
   }, [call.time_series]);
 
   return (
-    <div style={{
-      background: '#111118', borderRadius: 10, border: '1px solid #1e1e2c',
-      overflow: 'hidden',
-    }}>
-      {/* Header */}
-      <div style={{ padding: '14px 16px', borderBottom: '1px solid #1e1e2c' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {call.sat1_name} <span style={{ color: '#3a3a4a' }}>vs</span> {call.sat2_name}
-            </div>
-            <div style={{ fontSize: 12, color: '#55556a', marginTop: 2 }}>
-              TCA: {call.tca.slice(0, 16).replace('T', ' ')} UTC
-            </div>
+    <div style={{ background: '#111118', borderRadius: 10, border: '1px solid #1e1e2c', overflow: 'hidden' }}>
+      {/* Header: names + lead time + outcome */}
+      <div style={{ padding: '12px 16px 10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+            {call.sat1_name} <span style={{ color: '#3a3a4a', fontWeight: 400 }}>vs</span> {call.sat2_name}
           </div>
-          <span style={{
-            fontSize: 11, fontWeight: 700, color, background: `${color}12`,
-            padding: '3px 10px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0,
-          }}>
-            {badgeText}
+          <span style={{ fontSize: 11, fontWeight: 700, color, background: `${color}10`, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
+            {isEscalation ? 'Escalation' : 'Safe'}
           </span>
         </div>
-
-        {/* Key badges */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 12, color: '#3b82f6', background: 'rgba(59,130,246,0.08)', padding: '2px 10px', borderRadius: 4, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
-            Called {formatLeadTime(call.prediction_lead_hours)} in advance
-          </span>
-          <span style={{ fontSize: 12, color: '#7c7c96', background: '#0c0c12', padding: '2px 10px', borderRadius: 4 }}>
-            Pc: {formatPc(call.current_pc)}
-          </span>
-          <span style={{ fontSize: 12, color: '#7c7c96', background: '#0c0c12', padding: '2px 10px', borderRadius: 4 }}>
-            Miss: {call.current_miss_km.toFixed(0)} km
-          </span>
-          <span style={{ fontSize: 12, color: '#7c7c96', background: '#0c0c12', padding: '2px 10px', borderRadius: 4 }}>
-            {call.n_updates} CDMs
-          </span>
+        <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#55556a' }}>
+          <span><strong style={{ color: '#3b82f6' }}>{formatLeadTime(call.prediction_lead_hours)}</strong> advance warning</span>
+          <span>Pc {formatPc(call.current_pc)}</span>
+          <span>{call.n_updates} CDMs</span>
         </div>
       </div>
 
-      {/* Pc evolution chart */}
-      {chartData.length >= 2 && (
-        <div style={{ padding: '12px 16px 8px' }}>
-          <div style={{ fontSize: 11, color: '#3a3a4a', marginBottom: 4 }}>Collision Probability Evolution</div>
-          <ResponsiveContainer width="100%" height={120}>
-            <AreaChart data={chartData} margin={{ top: 4, right: 8, left: -10, bottom: 4 }}>
-              <defs>
-                <linearGradient id={`fcg-${call.sat1_norad}-${call.sat2_norad}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity={0.15} />
-                  <stop offset="100%" stopColor={color} stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]}
-                tick={{ fontSize: 10, fill: '#3a3a4a' }}
-                tickFormatter={(v: number) => `${v}h`}
-                axisLine={{ stroke: '#1e1e2c' }} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#3a3a4a' }} domain={[-5, -1.5]}
-                tickFormatter={(v: number) => {
-                  if (v === -4) return '1e-4';
-                  if (v === -3) return '1e-3';
-                  if (v === -2) return '1e-2';
-                  return '';
-                }}
-                axisLine={false} tickLine={false}
-                ticks={[-4, -3.3, -3, -2]} />
-              <Tooltip
-                contentStyle={{ background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 11 }}
-                labelFormatter={(v) => `TCA ${v}h`}
-                formatter={(v: unknown) => {
-                  const log10 = Number(v);
-                  const pc = Math.pow(10, log10);
-                  const readable = pc >= 0.01 ? `${(pc*100).toFixed(1)}%` : pc >= 1e-4 ? `1 in ${Math.round(1/pc).toLocaleString()}` : pc.toExponential(1);
-                  return [`${log10.toFixed(2)} (${readable})`, 'Pc'];
-                }}
-              />
-              <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} strokeOpacity={0.5}
-                label={{ value: '5e-4', position: 'insideTopRight', fill: '#ef4444', fontSize: 9 }} />
-              <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2}
-                fill={`url(#fcg-${call.sat1_norad}-${call.sat2_norad})`}
-                dot={{ r: 2, fill: color, strokeWidth: 0 }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {/* Pc evolution chart — always present since we require 3+ CDMs */}
+      <div style={{ padding: '0 12px 6px' }}>
+        <ResponsiveContainer width="100%" height={110}>
+          <AreaChart data={chartData} margin={{ top: 4, right: 8, left: -10, bottom: 4 }}>
+            <defs>
+              <linearGradient id={`fcg-${call.sat1_norad}-${call.sat2_norad}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+                <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]}
+              tick={{ fontSize: 10, fill: '#3a3a4a' }}
+              tickFormatter={(v: number) => `${v}h`}
+              axisLine={{ stroke: '#1e1e2c' }} tickLine={false} />
+            <YAxis tick={{ fontSize: 10, fill: '#3a3a4a' }} domain={[-5, -1.5]}
+              tickFormatter={(v: number) => {
+                if (v === -4) return '1e-4';
+                if (v === -3) return '1e-3';
+                if (v === -2) return '1e-2';
+                return '';
+              }}
+              axisLine={false} tickLine={false}
+              ticks={[-4, -3.3, -3, -2]} />
+            <Tooltip
+              contentStyle={{ background: '#111118', border: '1px solid #2a2a3a', borderRadius: 6, fontSize: 11 }}
+              labelFormatter={(v) => `TCA ${v}h`}
+              formatter={(v: unknown) => {
+                const log10 = Number(v);
+                const pc = Math.pow(10, log10);
+                const readable = pc >= 0.01 ? `${(pc*100).toFixed(1)}%` : pc >= 1e-4 ? `1 in ${Math.round(1/pc).toLocaleString()}` : pc.toExponential(1);
+                return [`${log10.toFixed(2)} (${readable})`, 'Pc'];
+              }}
+            />
+            <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} strokeOpacity={0.5}
+              label={{ value: '5e-4', position: 'insideTopRight', fill: '#ef4444', fontSize: 9 }} />
+            <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2}
+              fill={`url(#fcg-${call.sat1_norad}-${call.sat2_norad})`}
+              dot={{ r: 2.5, fill: color, strokeWidth: 0 }} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
 
-      {/* Outcome summary */}
-      <div style={{
-        padding: '10px 16px 14px', borderTop: '1px solid #1e1e2c',
-        fontSize: 12, color: '#7c7c96', lineHeight: 1.5,
-      }}>
-        {isEscalation ? (
-          <>Model predicted Pc would exceed the maneuver threshold with <strong style={{ color: '#e8e8f0' }}>{(call.ensemble_probability * 100).toFixed(0)}% confidence</strong>, {formatLeadTime(call.prediction_lead_hours)} before closest approach. Pc reached {formatPc(call.current_pc)} — prediction confirmed.</>
-        ) : (
-          <>Despite initial Pc of {formatPc(call.time_series[0]?.pc ?? 0)}, model correctly predicted this conjunction would resolve safely. Final Pc: {formatPc(call.current_pc)}.</>
-        )}
+      {/* One-line outcome */}
+      <div style={{ padding: '6px 16px 10px', fontSize: 11, color: '#3a3a4a' }}>
+        {isEscalation
+          ? <>{(call.ensemble_probability * 100).toFixed(0)}% confidence &middot; Pc peaked at {formatPc(call.current_pc)} &middot; {call.current_miss_km.toFixed(0)} km miss</>
+          : <>Peak Pc {formatPc(Math.max(...call.time_series.map(u => u.pc)))} stayed below threshold &middot; {call.current_miss_km.toFixed(0)} km miss</>
+        }
       </div>
     </div>
   );
