@@ -1288,7 +1288,10 @@ def main():
                 print(f"  Capped export to {MAX_EXPORT}/{len(all_export)} pairs (webapp perf)")
             forecast_data["n_pairs_exported"] = len(export_pairs)
             for p in export_pairs:
-                forecast_data["pairs"].append({
+                # Compute prediction lead time: hours before TCA when last CDM was available
+                ts = p.get("time_series", [])
+                lead_hours = ts[-1]["time_to_tca_hours"] if ts else None
+                pair_entry = {
                     "sat1_name": p["sat1_name"],
                     "sat2_name": p["sat2_name"],
                     "sat1_norad": p["sat1_norad"],
@@ -1305,7 +1308,10 @@ def main():
                     "action_recommended": p["action_recommended"],
                     "n_updates": p["n_updates"],
                     "time_series": p["time_series"],
-                })
+                }
+                if lead_hours is not None:
+                    pair_entry["prediction_lead_hours"] = round(lead_hours, 1)
+                forecast_data["pairs"].append(pair_entry)
             # Build prediction vs outcome track record for resolved pairs
             track_record = {
                 "n_correct": 0, "n_wrong": 0,
@@ -1358,7 +1364,119 @@ def main():
                               key=lambda e: e.get("exceedance_probability", 0), reverse=True)
             # Keep up to 20 wrong + 30 right = 50 examples for the webapp
             track_record["examples"] = wrong_ex[:20] + right_ex[:30]
+
+            # Lead time analysis: accuracy broken down by how far in advance
+            # the prediction was made (last CDM's time_to_tca_hours)
+            lead_time_buckets = [
+                {"label": "<6h", "min": 0, "max": 6},
+                {"label": "6-12h", "min": 6, "max": 12},
+                {"label": "12-24h", "min": 12, "max": 24},
+                {"label": "1-2 days", "min": 24, "max": 48},
+                {"label": "2+ days", "min": 48, "max": 9999},
+            ]
+            all_lead_hours = []
+            bucket_stats = []
+            for bucket in lead_time_buckets:
+                b = {"label": bucket["label"], "n": 0, "correct": 0,
+                     "tp": 0, "fp": 0, "fn": 0, "tn": 0}
+                bucket_stats.append(b)
+
+            for p in predictions:
+                tca_str = p.get("tca", "")
+                if not tca_str or tca_str > now_str:
+                    continue  # only resolved pairs
+                ts = p.get("time_series", [])
+                if not ts:
+                    continue
+                lead_h = ts[-1].get("time_to_tca_hours", 0)
+                all_lead_hours.append(lead_h)
+                predicted_action = p.get("action_recommended", False)
+                actual_exceeded = p.get("current_pc", 0) >= THRESHOLD
+                correct = predicted_action == actual_exceeded
+                for i, bucket in enumerate(lead_time_buckets):
+                    if bucket["min"] <= lead_h < bucket["max"]:
+                        bucket_stats[i]["n"] += 1
+                        if correct:
+                            bucket_stats[i]["correct"] += 1
+                        if predicted_action and actual_exceeded:
+                            bucket_stats[i]["tp"] += 1
+                        elif predicted_action and not actual_exceeded:
+                            bucket_stats[i]["fp"] += 1
+                        elif not predicted_action and actual_exceeded:
+                            bucket_stats[i]["fn"] += 1
+                        else:
+                            bucket_stats[i]["tn"] += 1
+                        break
+
+            lead_time_stats = {
+                "buckets": bucket_stats,
+            }
+            if all_lead_hours:
+                all_lead_hours.sort()
+                n_lh = len(all_lead_hours)
+                lead_time_stats["median_hours"] = round(all_lead_hours[n_lh // 2], 1)
+                lead_time_stats["mean_hours"] = round(sum(all_lead_hours) / n_lh, 1)
+                lead_time_stats["min_hours"] = round(all_lead_hours[0], 1)
+                lead_time_stats["max_hours"] = round(all_lead_hours[-1], 1)
+
+            track_record["lead_time_stats"] = lead_time_stats
             forecast_data["track_record"] = track_record
+
+            # Featured calls: curated gallery of most impressive correct predictions
+            # Includes time_series for Pc evolution charts in the webapp
+            featured_escalations = []  # TP: correctly predicted escalation
+            featured_safe = []         # TN: correctly predicted safe resolution
+            for p in predictions:
+                tca_str = p.get("tca", "")
+                if not tca_str or tca_str > now_str:
+                    continue
+                ts = p.get("time_series", [])
+                if not ts:
+                    continue
+                lead_h = ts[-1].get("time_to_tca_hours", 0)
+                predicted_action = p.get("action_recommended", False)
+                actual_exceeded = p.get("current_pc", 0) >= THRESHOLD
+                correct = predicted_action == actual_exceeded
+                if not correct:
+                    continue
+                ep = p.get("ensemble_probability") or p.get("exceedance_probability", 0)
+                call_entry = {
+                    "sat1_name": p["sat1_name"],
+                    "sat2_name": p["sat2_name"],
+                    "sat1_norad": p["sat1_norad"],
+                    "sat2_norad": p["sat2_norad"],
+                    "tca": tca_str,
+                    "current_pc": p.get("current_pc", 0),
+                    "forecast_pc": min(p.get("forecast_pc", 0), 1.0),
+                    "ensemble_probability": ep,
+                    "risk_direction": p.get("risk_direction", ""),
+                    "n_updates": p.get("n_updates", 0),
+                    "prediction_lead_hours": round(lead_h, 1),
+                    "time_series": ts,
+                    "current_miss_km": p.get("current_miss_km", 0),
+                }
+                if predicted_action and actual_exceeded:
+                    call_entry["call_type"] = "escalation"
+                    # Score: lead time * confidence (higher = more impressive)
+                    call_entry["impressiveness"] = lead_h * ep
+                    featured_escalations.append(call_entry)
+                elif not predicted_action and not actual_exceeded:
+                    call_entry["call_type"] = "safe"
+                    # For safe calls, favor ones with moderate initial Pc (more interesting)
+                    initial_pc = ts[0].get("pc", 0) if ts else 0
+                    call_entry["impressiveness"] = lead_h * max(initial_pc / THRESHOLD, 0.1)
+                    featured_safe.append(call_entry)
+
+            featured_escalations.sort(key=lambda x: x["impressiveness"], reverse=True)
+            featured_safe.sort(key=lambda x: x["impressiveness"], reverse=True)
+            # Keep top 8 escalations + top 4 safe = 12 featured calls
+            featured = featured_escalations[:8] + featured_safe[:4]
+            for f in featured:
+                del f["impressiveness"]
+            forecast_data["featured_calls"] = featured
+            if featured:
+                print(f"  Featured calls: {len(featured_escalations[:8])} escalations, "
+                      f"{len(featured_safe[:4])} safe resolutions")
 
             # Append daily snapshot to prediction_history.jsonl for confidence evolution tracking.
             # Each line records today's prediction for one pair, enabling time-series
