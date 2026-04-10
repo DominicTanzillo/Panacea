@@ -499,12 +499,15 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
       .catch(() => setData(null));
   }, [visible]);
 
-  // Future events first, then resolved (past TCA) clearly separated.
+  // Future events sorted by TCA ascending (soonest first),
+  // then resolved (past TCA) sorted by TCA descending (most recent first).
   const activePairs = useMemo(() => {
     if (!data) return [];
     const now = new Date().toISOString();
-    const future = data.pairs.filter(p => !p.tca || p.tca > now);
-    const past = data.pairs.filter(p => p.tca && p.tca <= now);
+    const future = data.pairs.filter(p => !p.tca || p.tca > now)
+      .sort((a, b) => (a.tca || '').localeCompare(b.tca || ''));
+    const past = data.pairs.filter(p => p.tca && p.tca <= now)
+      .sort((a, b) => (b.tca || '').localeCompare(a.tca || ''));
     return [...future, ...past];
   }, [data]);
 
