@@ -2144,8 +2144,8 @@ def generate_webapp_alerts(candidates: list[dict], tles: list[dict], today_str: 
         print(f"  Fetching TLEs for {len(missing_norads)} CDM objects not in catalog...")
         try:
             from src.data.spacetrack_crossref import _get_session
-            session = _get_session()
-            if session:
+            session, authenticated = _get_session()
+            if session and authenticated:
                 # Batch fetch TLEs from Space-Track GP catalog
                 norad_list = ",".join(str(n) for n in sorted(missing_norads))
                 url = (f"https://www.space-track.org/basicspacedata/query"

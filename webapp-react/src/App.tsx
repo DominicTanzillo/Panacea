@@ -366,8 +366,8 @@ function App() {
         </SceneErrorBoundary>
       </div>
 
-      {/* Borders toggle — hide when an overlay panel is open */}
-      {!activeOverlay && <button
+      {/* Borders toggle — hide when an overlay or detail panel is open */}
+      {!activeOverlay && !selectedAlertPair && <button
         onClick={() => setShowBorders(!showBorders)}
         aria-label="Toggle country borders"
         style={{
