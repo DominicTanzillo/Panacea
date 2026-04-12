@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-12T02:09:15.236938+00:00",
+  "generated_at": "2026-04-12T04:52:26.947047+00:00",
   "gnn": {
     "n_nodes": 1881,
     "n_edges": 1102,
@@ -7,7 +7,7 @@
     "with_graph_features": {
       "f1": 0.9838,
       "recall": 0.9927,
-      "precision": 0.9749,
+      "precision": 0.975,
       "accuracy": 0.9918
     },
     "without_graph_features": {
