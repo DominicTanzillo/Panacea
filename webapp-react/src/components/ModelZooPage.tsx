@@ -761,13 +761,13 @@ function BiLSTMProgress({ pstats }: { pstats: any }) {
               tick={{ fill: '#55556a', fontSize: 11 }} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
             <YAxis domain={[0, 'auto']} tick={{ fill: '#55556a', fontSize: 12 }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={TOOLTIP_STYLE}
-              labelFormatter={(day: number) => {
+              labelFormatter={(day: any) => {
                 const entry = ftData.find((d: any) => d.day === day);
                 return entry?.label ?? '';
               }}
-              formatter={(value: number, name: string, props: any) => {
+              formatter={(value: any, name: any, props: any) => {
                 const suffix = props.payload?.stratified ? '' : ' (unstratified)';
-                return [`${value.toFixed(3)}${suffix}`, name];
+                return [`${Number(value).toFixed(3)}${suffix}`, name];
               }} />
             {boundaryDay !== null && (
               <ReferenceLine x={boundaryDay} stroke="#7c7c96" strokeDasharray="6 4" strokeWidth={1}
