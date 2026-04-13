@@ -95,9 +95,11 @@ function formatPcDisplay(pc: number): string {
 interface ForecastMatch {
   exceedance_probability: number;
   ensemble_probability?: number | null;
+  current_pc?: number;
   forecast_pc: number;
   risk_direction: string;
   n_updates: number;
+  prediction_lead_hours?: number;
   time_series: { time_to_tca_hours: number; log10_pc: number; pc: number }[];
   forecast_steps?: { step: number; predicted_log10_pc: number; uncertainty_log10_pc: number; hours_ahead: number }[];
   predicted_max_log10_pc?: number | null;

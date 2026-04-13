@@ -442,7 +442,7 @@ This negative result has implications beyond our system. Any approach attempting
 
 ### 5.8 Limitations
 
-1. **Dataset size**: 826 pairs is small. The BiLSTM and GNN would benefit from 10x more data.
+1. **Dataset size**: 1,099 Space-Track pairs (growing daily) is still small for deep learning. The BiLSTM and GNN would benefit from 10x more data.
 2. **Public CDM pre-filtering**: Space-Track CDMs are pre-filtered to Pc >= 1e-4, biasing our training distribution toward higher-risk conjunctions.
 3. **No negative verification**: We know when Pc stayed below 5e-4, but we cannot confirm whether a pair that exceeded 5e-4 actually led to a maneuver (Space-Track doesn't publish maneuver decisions).
 4. **Space weather coverage**: Our CDM corpus may not span sufficient geomagnetic storm activity to detect space weather effects.
@@ -490,16 +490,17 @@ Minimal dependencies: numpy, requests. Optional `[full]` extras add torch, sciki
 ### 6.4 Webapp
 
 An interactive React dashboard at the project's GitHub Pages site provides:
-- 3D globe with 25,000+ tracked objects
-- CDM forecast visualization with ensemble predictions and uncertainty bars
-- Pipeline metrics and model comparison
-- Track record of past prediction accuracy
+- **3D globe** with 25,000+ tracked objects and orbital approach animations for conjunction pairs
+- **Forecast tab** with Pc evolution charts for each active conjunction pair, showing observed CDM data alongside model predictions with clear visual distinction (white observed line, cyan dashed forecast, red maneuver threshold)
+- **Prediction gallery** showcasing the system's track record: 938/1,097 correct predictions (85.5% accuracy), 183 true positives, **zero false negatives** across 60+ days of deployment. Each featured prediction shows a verdict banner ("Predicted escalation 45h before TCA — Confirmed"), an inline Pc sparkline, and a 3D flyby visualization with trajectory data computed from historical TLEs
+- **Model zoo** with detailed performance metrics, cross-validation results, and a BiLSTM fine-tuning history chart with proportional date spacing showing the transition from unstratified to stratified validation
+- **Pipeline dashboard** with grid search results, feature importance, and daily operational metrics
 
 ---
 
 ## 7. Conclusion
 
-PANACEA demonstrates that meaningful Pc escalation prediction is achievable with public CDM data alone. Like a CHA₂DS₂-VASc score for satellites, the system screens for risk escalation rather than predicting collisions -- telling operators when to act, not whether a collision will occur. In 30+ days of continuous production deployment, the ensemble has maintained **100% recall across 1,046 resolved predictions** (zero missed escalations) with a median advance warning of 15 hours before closest approach. The system never fails to identify a conjunction requiring attention, even when predicting 2+ days ahead.
+PANACEA demonstrates that meaningful Pc escalation prediction is achievable with public CDM data alone. Like a CHA₂DS₂-VASc score for satellites, the system screens for risk escalation rather than predicting collisions -- telling operators when to act, not whether a collision will occur. In 60+ days of continuous production deployment, the ensemble has maintained **100% recall across 1,097 resolved predictions** (zero missed escalations, 183 true positives) with a median advance warning of 18.6 hours before closest approach. The system has never failed to identify a conjunction requiring attention, even when predicting 2+ days ahead.
 
 Combined with split-conformal prediction providing 97% coverage guarantees, this represents a practical, calibrated early warning system. It is open-source, continuously retrained, and pip-installable. A small satellite operator can run `pip install panacea-ssa` and have production predictions on their CDMs within minutes.
 
