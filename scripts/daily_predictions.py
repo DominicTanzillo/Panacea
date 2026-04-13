@@ -26,7 +26,7 @@ import argparse
 import numpy as np
 import requests
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
@@ -1485,6 +1485,45 @@ def main():
             featured = featured_escalations[:6] + featured_safe[:3]
             for f in featured:
                 del f["impressiveness"]
+            # Enrich featured calls with trajectory data for flyby visualization.
+            # For resolved pairs (TCA in past), propagate centered on TCA so the
+            # flyby animation shows the actual closest approach geometry.
+            try:
+                from src.data.counterfactual import compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
+                if SGP4_AVAILABLE:
+                    n_fc_traj = 0
+                    for fc in featured:
+                        fc_tle1 = tle_by_id.get(fc["sat1_norad"])
+                        fc_tle2 = tle_by_id.get(fc["sat2_norad"])
+                        if not fc_tle1 or not fc_tle2:
+                            continue
+                        # Compute start epoch: 60h before TCA so trajectory spans the approach
+                        tca_str = fc.get("tca", "")
+                        try:
+                            tca_dt = datetime.strptime(tca_str[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                            start_dt = tca_dt - timedelta(hours=60)
+                        except (ValueError, AttributeError):
+                            start_dt = None
+                        fc_traj = compute_forward_trajectory(
+                            fc_tle1, fc_tle2, hours_forward=120.0, step_minutes=20.0,
+                            start_time=start_dt,
+                        )
+                        if fc_traj:
+                            fc["trajectory"] = fc_traj
+                            n_fc_traj += 1
+                        # Trail: ±30 min around TCA (60h from start_dt)
+                        if start_dt:
+                            fc_trail = compute_tca_trail(
+                                fc_tle1, fc_tle2, tca_hours=60.0,
+                                start_time=start_dt,
+                            )
+                            if fc_trail:
+                                fc["trail"] = fc_trail
+                    if n_fc_traj:
+                        print(f"  Featured calls: {n_fc_traj}/{len(featured)} enriched with trajectory")
+            except (ImportError, Exception):
+                pass
+
             forecast_data["featured_calls"] = featured
             if featured:
                 print(f"  Featured calls: {len(featured_escalations[:6])} escalations, "

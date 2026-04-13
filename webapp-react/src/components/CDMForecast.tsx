@@ -213,24 +213,10 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
     if (!expanded) return [];
     const sorted = pair.time_series.slice().sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours);
     const seen = new Set<number>();
-    type ChartPoint = { hoursToTCA: number; 'log10(Pc)': number | undefined; forecast?: number; predMax?: number; predUpper?: number; predLower?: number };
+    type ChartPoint = { hoursToTCA: number; 'log10(Pc)': number | undefined; forecast?: number };
     const points: ChartPoint[] = sorted
       .filter(u => { const h = -Math.round(u.time_to_tca_hours); if (seen.has(h)) return false; seen.add(h); return true; })
       .map(u => ({ hoursToTCA: -Math.round(u.time_to_tca_hours), 'log10(Pc)': u.log10_pc }));
-
-    // BiLSTM predicted max as horizontal band
-    if (predMaxLog10 != null && points.length >= 2) {
-      const epUpper = pair.exceedance_upper ?? pair.ensemble_probability;
-      const epLower = pair.exceedance_lower ?? pair.ensemble_probability;
-      const uncSpread = epUpper != null && epLower != null
-        ? Math.max(Math.abs(epUpper - epLower) * 2, 0.15)
-        : 0.3;
-      for (const pt of points) {
-        pt.predMax = predMaxLog10;
-        pt.predUpper = predMaxLog10 + uncSpread;
-        pt.predLower = predMaxLog10 - uncSpread;
-      }
-    }
 
     // Dotted forecast line: smooth curve from last CDM to predicted peak at TCA (0h)
     // Always extends to 0h so the chart never ends early
@@ -239,7 +225,6 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
       const startHour = lastPoint.hoursToTCA;
       const startPc = lastPoint['log10(Pc)']!;
       const endPc = predMaxLog10 ?? (pair.forecast_pc > 0 ? Math.log10(Math.max(pair.forecast_pc, 1e-20)) : startPc);
-      const uncSpread = predMaxLog10 != null ? 0.3 : undefined;
       // Bridge: set forecast on last observed point so lines connect
       lastPoint.forecast = startPc;
       // Intermediate steps
@@ -250,22 +235,14 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
         const h = Math.round(startHour * (1 - t));
         const ease = t * t;
         const pc = startPc + ease * (endPc - startPc);
-        points.push({ hoursToTCA: h, 'log10(Pc)': undefined, forecast: pc,
-          predMax: predMaxLog10 ?? undefined,
-          predUpper: uncSpread != null ? predMaxLog10! + uncSpread : undefined,
-          predLower: uncSpread != null ? predMaxLog10! - uncSpread : undefined,
-        });
+        points.push({ hoursToTCA: h, 'log10(Pc)': undefined, forecast: pc });
       }
       // Final point always exactly at TCA (0h)
-      points.push({ hoursToTCA: 0, 'log10(Pc)': undefined, forecast: endPc,
-        predMax: predMaxLog10 ?? undefined,
-        predUpper: uncSpread != null ? predMaxLog10! + uncSpread : undefined,
-        predLower: uncSpread != null ? predMaxLog10! - uncSpread : undefined,
-      });
+      points.push({ hoursToTCA: 0, 'log10(Pc)': undefined, forecast: endPc });
     }
 
     return points;
-  }, [pair.time_series, predMaxLog10, pair.forecast_pc, pair.exceedance_upper, pair.exceedance_lower, pair.ensemble_probability, expanded]);
+  }, [pair.time_series, predMaxLog10, pair.forecast_pc, expanded]);
 
   // Build one-line assessment — clarify whether risk is current or predicted
   const currentlyAbove = pair.current_pc >= 5e-4;
@@ -382,7 +359,7 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
             {chartData.length >= 2 && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 12, color: '#55556a' }}>Collision Probability Over Time</div>
+                  <div style={{ fontSize: 12, color: '#7c7c96', fontWeight: 600 }}>Collision Probability Over Time</div>
                   <button
                     onClick={() => setDetailView(!detailView)}
                     style={{ fontSize: 11, color: '#7c8aff', background: 'rgba(124,138,255,0.08)', border: '1px solid rgba(124,138,255,0.2)', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontFamily: 'inherit' }}
@@ -395,17 +372,16 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                   <AreaChart data={chartData} margin={{ top: 8, right: 12, left: -10, bottom: 4 }}>
                     <defs>
                       <linearGradient id={`pcG-${pair.sat1_norad}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={color} stopOpacity={0.2} />
-                        <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+                        <stop offset="0%" stopColor="#e8e8f0" stopOpacity={0.12} />
+                        <stop offset="100%" stopColor="#e8e8f0" stopOpacity={0.01} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
-                    <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]} tick={{ fontSize: 12, fill: '#55556a' }} tickFormatter={(v: number) => `${v}h`} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
+                    <XAxis dataKey="hoursToTCA" type="number" domain={['dataMin', 0]} tick={{ fontSize: 12, fill: '#7c7c96' }} tickFormatter={(v: number) => `${v}h`} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
                     <YAxis
-                      tick={{ fontSize: 11, fill: '#55556a' }}
+                      tick={{ fontSize: 11, fill: '#7c7c96' }}
                       domain={detailView ? ['auto', 'auto'] : [-5, -1.5]}
                       tickFormatter={(v: number) => {
-                        // Show human-readable Pc at key ticks in standardized view
                         if (!detailView) {
                           if (v === -4) return '1e-4';
                           if (v === -3) return '1e-3';
@@ -428,32 +404,31 @@ function PairCard({ pair, expanded, onToggle }: { pair: ForecastPair; expanded: 
                         return [`${log10.toFixed(2)} (${readable})`, 'Pc'];
                       }}
                     />
-                    {/* Screening threshold: 1e-4 (all public CDMs are above this) */}
-                    <ReferenceLine y={-4.0} stroke="#3b82f6" strokeDasharray="2 4" strokeWidth={1} strokeOpacity={0.4} label={!detailView ? { value: 'Screening (1e-4)', position: 'insideBottomRight', fill: '#3b82f6', fontSize: 10 } : undefined} />
+                    {/* Screening threshold: 1e-4 */}
+                    <ReferenceLine y={-4.0} stroke="#60a5fa" strokeDasharray="3 6" strokeWidth={1} label={!detailView ? { value: '1e-4', position: 'insideBottomLeft', fill: '#60a5fa', fontSize: 10 } : undefined} />
                     {/* Maneuver threshold: 5e-4 */}
-                    <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="4 3" strokeWidth={1.5} strokeOpacity={0.6} label={{ value: 'Maneuver (5e-4)', position: 'insideTopRight', fill: '#ef4444', fontSize: 10 }} />
-                    {/* Observed Pc data */}
-                    <Area type="monotone" dataKey="log10(Pc)" stroke={color} strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: color, strokeWidth: 0 }} activeDot={{ r: 5, fill: color }} connectNulls={false} />
-                    {/* Dotted forecast line from last CDM to predicted peak at TCA */}
-                    <Area type="monotone" dataKey="forecast" stroke={color} strokeWidth={2} strokeDasharray="4 3" fill="none" dot={false} connectNulls={false} />
-                    {/* BiLSTM predicted peak — amber dashed horizontal with uncertainty band */}
-                    {predMaxLog10 != null && (
-                      <>
-                        <Area type="monotone" dataKey="predUpper" stroke="none" fill="#f59e0b" fillOpacity={0.06} connectNulls />
-                        <Area type="monotone" dataKey="predLower" stroke="none" fill="#111118" fillOpacity={0.95} connectNulls />
-                        <ReferenceLine y={predMaxLog10} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="6 3" strokeOpacity={0.7}
-                          label={{ value: `Pred. Peak (10^${predMaxLog10.toFixed(1)})`, position: 'insideTopLeft', fill: '#f59e0b', fontSize: 10 }} />
-                      </>
-                    )}
+                    <ReferenceLine y={-3.3} stroke="#f87171" strokeDasharray="6 3" strokeWidth={1.5} label={{ value: '5e-4 Maneuver', position: 'insideTopLeft', fill: '#f87171', fontSize: 10 }} />
+                    {/* Observed Pc data — bright white line with dots */}
+                    <Area type="monotone" dataKey="log10(Pc)" stroke="#e8e8f0" strokeWidth={2} fill={`url(#pcG-${pair.sat1_norad})`} dot={{ r: 3, fill: '#e8e8f0', strokeWidth: 0 }} activeDot={{ r: 5, fill: '#ffffff' }} connectNulls={false} />
+                    {/* Forecast line — distinct cyan, dashed */}
+                    <Area type="monotone" dataKey="forecast" stroke="#38bdf8" strokeWidth={2} strokeDasharray="6 4" fill="none" dot={false} connectNulls={false} />
                   </AreaChart>
                 </ResponsiveContainer>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 16, fontSize: 11, color: '#3a3a4a', marginTop: 4 }}>
-                  <span><span style={{ color: '#ef4444' }}>---</span> Maneuver (5e-4)</span>
-                  <span><span style={{ color: '#3b82f6' }}>--</span> Screening (1e-4)</span>
-                  <span><span style={{ color: color }}>---</span> Observed</span>
-                  <span style={{ borderBottom: `1px dashed ${color}` }}>Forecast</span>
-                  {predMaxLog10 != null && <span><span style={{ color: '#f59e0b' }}>---</span> Pred. Peak</span>}
+                {/* Legend with SVG line samples */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 20, fontSize: 11, color: '#7c7c96', marginTop: 6 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#e8e8f0" strokeWidth="2" /></svg>
+                    Observed
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#38bdf8" strokeWidth="2" strokeDasharray="4 3" /></svg>
+                    Forecast
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#f87171" strokeWidth="1.5" strokeDasharray="4 2" /></svg>
+                    Maneuver
+                  </span>
                 </div>
               </div>
             )}
@@ -525,13 +500,19 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
     return data.pairs.filter(p => !p.tca || p.tca > now).length;
   }, [data]);
 
+  const futurePairs = useMemo(() => {
+    if (!data) return [];
+    const now = new Date().toISOString();
+    return data.pairs.filter(p => !p.tca || p.tca > now);
+  }, [data]);
+
   const counts = useMemo(() => {
     return {
-      HIGH: activePairs.filter(p => riskLevel(p) === 'HIGH').length,
-      MODERATE: activePairs.filter(p => riskLevel(p) === 'MODERATE').length,
-      LOW: activePairs.filter(p => riskLevel(p) === 'LOW').length,
+      HIGH: futurePairs.filter(p => riskLevel(p) === 'HIGH').length,
+      MODERATE: futurePairs.filter(p => riskLevel(p) === 'MODERATE').length,
+      LOW: futurePairs.filter(p => riskLevel(p) === 'LOW').length,
     };
-  }, [activePairs]);
+  }, [futurePairs]);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return activePairs;
@@ -543,7 +524,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
       visible={visible}
       onClose={onClose}
       title="Forecast"
-      subtitle={data ? `${data.n_pairs} conjunction pairs \u00b7 ${data.generated_at ? data.generated_at.slice(0, 16).replace('T', ' ') + ' UTC' : ''}` : undefined}
+      subtitle={data ? `${futurePairs.length} active pairs \u00b7 ${data.generated_at ? data.generated_at.slice(0, 16).replace('T', ' ') + ' UTC' : ''}` : undefined}
       maxWidth={1000}
     >
       {!data ? (
@@ -562,7 +543,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
               directly, this system screens whether collision probability (<GlossaryTooltip term="Pc">Pc</GlossaryTooltip>)
               will <em>escalate</em> above the maneuver planning threshold (5 &times; 10<sup>-4</sup>) before closest
               approach. It tells operators when to start planning an avoidance maneuver — not whether
-              a collision will occur. A sensitive early warning from {data.n_pairs} monitored <GlossaryTooltip term="CDM">CDM</GlossaryTooltip> conjunction pairs, updated daily.
+              a collision will occur. A sensitive early warning from {futurePairs.length} active <GlossaryTooltip term="CDM">CDM</GlossaryTooltip> conjunction pairs, updated daily.
             </p>
             {data.track_record && data.track_record.total > 0 && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
@@ -634,7 +615,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
           {/* ── Filters ────────────────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 0', borderBottom: '1px solid #1e1e2c' }}>
             {(['all', 'HIGH', 'MODERATE', 'LOW'] as const).map(f => {
-              const count = f === 'all' ? activePairs.length : counts[f];
+              const count = f === 'all' ? futurePairs.length : counts[f];
               const isActive = filter === f;
               return (
                 <button key={f} onClick={() => { setFilter(f); setExpandedIdx(null); }}

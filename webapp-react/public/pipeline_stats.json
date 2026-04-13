@@ -7,7 +7,8 @@
       "post_auc_pr": 0.2733593859730199,
       "keep_new_model": false,
       "n_outcomes": 1200,
-      "epochs_trained": 2
+      "epochs_trained": 2,
+      "stratified": false
     },
     {
       "date": "2026-03-01",
@@ -15,7 +16,8 @@
       "post_auc_pr": 0.4553056222466285,
       "keep_new_model": true,
       "n_outcomes": 3110,
-      "epochs_trained": 3
+      "epochs_trained": 3,
+      "stratified": false
     },
     {
       "date": "2026-03-08",
@@ -23,7 +25,8 @@
       "post_auc_pr": 0.3750629136844917,
       "keep_new_model": false,
       "n_outcomes": 3110,
-      "epochs_trained": 2
+      "epochs_trained": 2,
+      "stratified": false
     },
     {
       "date": "2026-03-15",
@@ -31,7 +34,8 @@
       "post_auc_pr": 0.3771136905052834,
       "keep_new_model": false,
       "n_outcomes": 3110,
-      "epochs_trained": 2
+      "epochs_trained": 2,
+      "stratified": false
     },
     {
       "date": "2026-03-22",
@@ -39,7 +43,8 @@
       "post_auc_pr": 0.38125723318299987,
       "keep_new_model": false,
       "n_outcomes": 3110,
-      "epochs_trained": 2
+      "epochs_trained": 2,
+      "stratified": false
     },
     {
       "date": "2026-03-29",
@@ -47,7 +52,8 @@
       "post_auc_pr": 0.378894282740467,
       "keep_new_model": false,
       "n_outcomes": 3110,
-      "epochs_trained": 2
+      "epochs_trained": 2,
+      "stratified": false
     },
     {
       "date": "2026-04-05",
@@ -55,7 +61,8 @@
       "post_auc_pr": 0.47665791655603573,
       "keep_new_model": true,
       "n_outcomes": 24403,
-      "epochs_trained": 5
+      "epochs_trained": 5,
+      "stratified": false
     },
     {
       "date": "2026-04-12",
@@ -63,7 +70,18 @@
       "post_auc_pr": 0.3096628924025403,
       "keep_new_model": false,
       "n_outcomes": 33149,
-      "epochs_trained": 2
+      "epochs_trained": 2,
+      "stratified": false
+    },
+    {
+      "date": "2026-04-13",
+      "pre_auc_pr": 0.2649,
+      "post_auc_pr": 0.3544,
+      "keep_new_model": true,
+      "n_outcomes": 34550,
+      "epochs_trained": 5,
+      "note": "stratified_val_split",
+      "stratified": true
     }
   ],
   "daily_history": [

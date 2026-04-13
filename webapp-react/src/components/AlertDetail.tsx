@@ -290,6 +290,25 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
         )}
       </div>
 
+      {/* Prediction verdict for resolved pairs */}
+      {isPast && isCDM && pair.pc != null && (
+        <div style={{
+          padding: '8px 20px',
+          background: pair.pc >= 5e-4 ? 'rgba(239,68,68,0.06)' : 'rgba(34,197,94,0.06)',
+          borderBottom: `1px solid ${pair.pc >= 5e-4 ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)'}`,
+          display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 13 }}>{'\u2713'}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: pair.pc >= 5e-4 ? '#ef4444' : '#22c55e' }}>
+            {pair.pc >= 5e-4
+              ? `Pc reached ${formatPcDisplay(pair.pc)} — exceeded maneuver threshold`
+              : `Pc stayed at ${formatPcDisplay(pair.pc)} — below maneuver threshold`
+            }
+          </span>
+          <span style={{ fontSize: 11, color: '#55556a', marginLeft: 'auto' }}>Resolved</span>
+        </div>
+      )}
+
       {/* Body */}
       <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
         {hasData ? (
@@ -448,25 +467,63 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
                   );
                 })()}
 
-                {/* CDM data section */}
-                {isCDM && pair.miss_distance_km != null && (
-                  <div style={{ padding: '12px 16px', background: '#111118', borderRadius: 8, textAlign: 'left', fontSize: 13 }}>
-                    <div style={{ fontWeight: 600, color: '#e8e8f0', marginBottom: 6 }}>CDM Data (authoritative)</div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7c7c96', marginBottom: 4 }}>
-                      <span>Collision Probability</span>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color }}>{formatPcDisplay(pair.pc ?? 0)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7c7c96', marginBottom: 4 }}>
-                      <span>Miss Distance</span>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>{pair.miss_distance_km.toFixed(1)} km</span>
-                    </div>
-                    {pair.cdm_tca && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7c7c96' }}>
-                        <span>TCA</span>
-                        <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>{new Date(pair.cdm_tca).toISOString().slice(0, 16).replace('T', ' ')} UTC</span>
+                {/* Prediction vs Actual for resolved pairs with forecast data */}
+                {isPast && isCDM && forecastMatch && forecastMatch.time_series?.length >= 2 ? (() => {
+                  const ts = forecastMatch.time_series;
+                  const firstPc = ts[0]?.pc ?? 0;
+                  const finalPc = pair.pc ?? forecastMatch.current_pc ?? 0;
+                  const exceeded = finalPc >= 5e-4;
+                  const ep = forecastMatch.ensemble_probability ?? forecastMatch.exceedance_probability ?? 0;
+                  const leadH = forecastMatch.prediction_lead_hours ?? ts[ts.length - 1]?.time_to_tca_hours ?? 0;
+                  const verdictColor = exceeded ? '#ef4444' : '#22c55e';
+                  return (
+                    <div style={{ padding: '12px 16px', background: '#111118', borderRadius: 8, textAlign: 'left', fontSize: 13 }}>
+                      <div style={{ fontWeight: 600, color: '#e8e8f0', marginBottom: 8 }}>Prediction vs Actual</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
+                        <div style={{ padding: '8px 10px', background: '#0c0c12', borderRadius: 6, borderLeft: '3px solid #3b82f6' }}>
+                          <div style={{ fontSize: 10, color: '#55556a', marginBottom: 3 }}>Model predicted</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>
+                            {ep >= 0.5 ? 'Escalation' : 'Safe'}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#7c7c96', marginTop: 2 }}>{(ep * 100).toFixed(0)}% confidence</div>
+                        </div>
+                        <div style={{ padding: '8px 10px', background: '#0c0c12', borderRadius: 6, borderLeft: `3px solid ${verdictColor}` }}>
+                          <div style={{ fontSize: 10, color: '#55556a', marginBottom: 3 }}>What happened</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: verdictColor, fontFamily: "'JetBrains Mono', monospace" }}>
+                            {exceeded ? 'Exceeded' : 'Stayed safe'}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#7c7c96', marginTop: 2 }}>
+                            {formatPcDisplay(firstPc)} {'\u2192'} {formatPcDisplay(finalPc)}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#7c7c96' }}>
+                        <span>Advance warning: <strong style={{ color: '#e8e8f0' }}>{leadH >= 24 ? `${(leadH / 24).toFixed(1)}d` : `${leadH.toFixed(0)}h`}</strong></span>
+                        {pair.cdm_tca && <span>TCA: {new Date(pair.cdm_tca).toISOString().slice(5, 16).replace('T', ' ')}</span>}
+                      </div>
+                    </div>
+                  );
+                })() : (
+                  /* CDM data section for active pairs */
+                  isCDM && pair.miss_distance_km != null && (
+                    <div style={{ padding: '12px 16px', background: '#111118', borderRadius: 8, textAlign: 'left', fontSize: 13 }}>
+                      <div style={{ fontWeight: 600, color: '#e8e8f0', marginBottom: 6 }}>CDM Data (authoritative)</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7c7c96', marginBottom: 4 }}>
+                        <span>Collision Probability</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, color }}>{formatPcDisplay(pair.pc ?? 0)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7c7c96', marginBottom: 4 }}>
+                        <span>Miss Distance</span>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>{pair.miss_distance_km.toFixed(1)} km</span>
+                      </div>
+                      {pair.cdm_tca && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7c7c96' }}>
+                          <span>TCA</span>
+                          <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>{new Date(pair.cdm_tca).toISOString().slice(0, 16).replace('T', ' ')} UTC</span>
+                        </div>
+                      )}
+                    </div>
+                  )
                 )}
 
                 {!forecastMatch && (

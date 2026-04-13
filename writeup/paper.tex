@@ -679,6 +679,15 @@ For NASA CARA deployment, we envision a two-stage pipeline:
 \item \textbf{Fallback (Baseline)}: When CDM data is stale ($>$2 days old), the altitude-based baseline provides coarse risk stratification rather than silence.
 \end{enumerate}
 
+\subsection{Online Learning: Validation Under Distribution Shift}
+\label{sec:online-learning}
+
+The LSTM fine-tunes weekly on accumulated CDM store data (resolved pairs where TCA has passed provide ground-truth max Pc labels). After 8 weekly runs, a data backfill added 16,600 prediction-negative outcome records alongside 870 CDM-derived labels. AUC-PR appeared to decline from 0.477 to 0.324---but investigation revealed the cause was not model degradation but a \emph{validation set composition shift}. The positive rate in the validation set had dropped from $\sim$25\% to $\sim$9\%, and AUC-PR is sensitive to the positive:negative ratio in ways that AUC-ROC is not.
+
+We replaced the flat random 80/20 split with a stratified split (\texttt{train\_test\_split} with \texttt{stratify=labels}), ensuring the validation set maintains a consistent class distribution regardless of how many outcomes accumulate. Under stratified validation, the model's honest AUC-PR is \textbf{0.354}---lower than the pre-backfill numbers but a reliable, reproducible metric. The fine-tuning pipeline now accepts or rejects model updates based on this stable measurement, preventing both false improvements (from lucky validation composition) and false regressions (from data dilution).
+
+This experience illustrates a general pitfall of online learning systems: when training data grows continuously, validation metrics can drift not because the model changes but because the \emph{yardstick} changes. Stratified validation is a minimal but essential safeguard.
+
 \subsection{The TLE Precision Wall: Why Counterfactual Labeling Fails}
 \label{sec:tle-wall}
 

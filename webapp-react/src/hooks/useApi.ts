@@ -83,8 +83,14 @@ export function useApi(tles?: TLERecord[]): UseApiResult {
           const data: StaticAlerts = await alertsResp.json();
           if (data?.pairs) {
             setScreeningPairs(data.pairs);
-            const cdmCount = data.n_cdm_alerts ?? data.pairs.filter(p => p.source === 'cdm').length;
-            const tleCount = data.n_tle_alerts ?? data.pairs.filter(p => p.source !== 'cdm').length;
+            // Only count future (active) alerts for the badge
+            const nowMs = Date.now();
+            const activePairs = data.pairs.filter((p: any) => {
+              const tca = p.cdm_tca || p.tca;
+              return tca ? new Date(tca).getTime() > nowMs : true;
+            });
+            const cdmCount = activePairs.filter((p: any) => p.source === 'cdm').length;
+            const tleCount = activePairs.filter((p: any) => p.source !== 'cdm').length;
             setAlertsMeta({ cdmCount, tleCount, dataDate: data.prediction_date });
           }
         }

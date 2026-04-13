@@ -278,6 +278,7 @@ def compute_forward_trajectory(
     tle_2: dict,
     hours_forward: float = 120.0,
     step_minutes: float = 20.0,
+    start_time: "datetime | None" = None,
 ) -> list[dict] | None:
     """Compute full trajectory time series for two satellites.
 
@@ -290,6 +291,7 @@ def compute_forward_trajectory(
         tle_2: CelesTrak GP JSON for satellite 2.
         hours_forward: How far to propagate (default 120h = 5 days).
         step_minutes: Time step for propagation (minutes).
+        start_time: Start epoch for propagation (default: now).
 
     Returns:
         List of dicts with: h (hours from start), d (distance km),
@@ -304,8 +306,8 @@ def compute_forward_trajectory(
     except (ValueError, Exception):
         return None
 
-    now = datetime.now(timezone.utc)
-    start_jd = _datetime_to_jd(now)
+    epoch = start_time or datetime.now(timezone.utc)
+    start_jd = _datetime_to_jd(epoch)
 
     n_steps = int(hours_forward * 60 / step_minutes) + 1
     points = []
@@ -345,6 +347,7 @@ def compute_tca_trail(
     tca_hours: float,
     half_window_min: float = 30.0,
     step_minutes: float = 0.25,
+    start_time: "datetime | None" = None,
 ) -> list[dict] | None:
     """Compute dense trail around TCA for globe orbital path visualization.
 
@@ -353,9 +356,10 @@ def compute_tca_trail(
     Args:
         tle_1: CelesTrak GP JSON for satellite 1.
         tle_2: CelesTrak GP JSON for satellite 2.
-        tca_hours: Hours from now to TCA (from compute_forward_tca).
+        tca_hours: Hours from start_time to TCA.
         half_window_min: Half window in minutes around TCA.
         step_minutes: Time step in minutes.
+        start_time: Reference epoch (default: now).
 
     Returns:
         List of dicts with s1 [x,y,z] and s2 [x,y,z] ECI km. None if fails.
@@ -369,8 +373,8 @@ def compute_tca_trail(
     except (ValueError, Exception):
         return None
 
-    now = datetime.now(timezone.utc)
-    start_jd = _datetime_to_jd(now)
+    epoch = start_time or datetime.now(timezone.utc)
+    start_jd = _datetime_to_jd(epoch)
 
     tca_min = tca_hours * 60.0
     t_start = tca_min - half_window_min

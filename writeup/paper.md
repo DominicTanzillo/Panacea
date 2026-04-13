@@ -471,7 +471,11 @@ The PI-TFT deep learning model retrains weekly (Sunday 02:00 UTC) on accumulated
 3. Fine-tune with conservative learning rate (1e-5) and early stopping
 4. Accept new weights only if AUC-PR improves over previous checkpoint
 
-This self-labeling approach -- using resolved pairs directly from the CDM store rather than requiring outcome matching -- provides 931+ training pairs that grow by ~15-20/day as new TCAs pass.
+This self-labeling approach -- using resolved pairs directly from the CDM store rather than requiring outcome matching -- provides 1,099+ training pairs that grow by ~15-20/day as new TCAs pass.
+
+**Validation methodology pivot.** Between weeks 7 and 9 of deployment, AUC-PR appeared to decline from 0.477 to 0.324. Investigation revealed the cause was not model degradation but a data distribution shift in the validation set. A March 30 backfill added 16,600 prediction-negative outcome records alongside 870 CDM-derived ground-truth labels, diluting the validation positive rate from ~25% to ~9%. Because AUC-PR is sensitive to the positive:negative ratio -- unlike AUC-ROC, it does not reward correctly ranking easy negatives -- the same model measured worse on the increasingly imbalanced validation set.
+
+The fix was straightforward: replace the flat random 80/20 validation split with a stratified split (`sklearn.model_selection.train_test_split` with `stratify=labels`), ensuring the validation set maintains a consistent class distribution regardless of how many outcome records accumulate. Under stratified validation, the model's honest AUC-PR is **0.354** -- lower than the pre-backfill numbers but a reliable, reproducible metric. The fine-tuning pipeline now accepts or rejects model updates based on this stable measurement, preventing both false improvements (from lucky validation composition) and false regressions (from data dilution).
 
 ### 6.3 Package Distribution
 

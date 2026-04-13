@@ -804,13 +804,31 @@ def main():
         if col not in train_df.columns:
             train_df[col] = 0.0
 
-    # Split training data for fine-tuning
-    n_val = max(int(len(train_df["event_id"].unique()) * VAL_FRACTION), 10)
-    event_ids = train_df["event_id"].unique()
-    np.random.seed(42)
-    np.random.shuffle(event_ids)
-    val_ids = set(event_ids[:n_val])
-    train_ids = set(event_ids[n_val:])
+    # Split training data for fine-tuning — stratified by class label
+    # Stratify across ALL events so the validation positive rate stays
+    # consistent regardless of how many outcomes accumulate over time.
+    from sklearn.model_selection import train_test_split
+
+    event_meta = train_df.groupby("event_id").agg(
+        risk=("risk", "last"),
+    ).reset_index()
+    event_meta["label"] = (event_meta["risk"] > -5).astype(int)
+
+    event_ids = event_meta["event_id"].values
+    labels = event_meta["label"].values
+
+    t_ids, v_ids = train_test_split(
+        event_ids, test_size=VAL_FRACTION,
+        stratify=labels, random_state=42,
+    )
+    train_ids = set(t_ids)
+    val_ids = set(v_ids)
+
+    val_pos = int(event_meta[event_meta["event_id"].isin(val_ids)]["label"].sum())
+    val_neg = len(val_ids) - val_pos
+    print(f"  Stratified split: val={len(val_ids)} events "
+          f"({val_pos} pos, {val_neg} neg, "
+          f"{100*val_pos/len(val_ids):.1f}% positive rate)")
 
     ft_train_df = train_df[train_df["event_id"].isin(train_ids)]
     ft_val_df = train_df[train_df["event_id"].isin(val_ids)]
