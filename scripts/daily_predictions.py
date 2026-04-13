@@ -1485,6 +1485,26 @@ def main():
             featured = featured_escalations[:6] + featured_safe[:3]
             for f in featured:
                 del f["impressiveness"]
+            # Enrich featured calls with trajectory data for flyby visualization
+            try:
+                from src.data.counterfactual import compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
+                if SGP4_AVAILABLE:
+                    for fc in featured:
+                        fc_tle1 = tle_by_id.get(fc["sat1_norad"])
+                        fc_tle2 = tle_by_id.get(fc["sat2_norad"])
+                        if not fc_tle1 or not fc_tle2:
+                            continue
+                        fc_traj = compute_forward_trajectory(fc_tle1, fc_tle2, hours_forward=120.0, step_minutes=20.0)
+                        if fc_traj:
+                            fc["trajectory"] = fc_traj
+                        fc_tca_h = fc.get("prediction_lead_hours", 0)
+                        if fc_tca_h and fc_tca_h > 0:
+                            fc_trail = compute_tca_trail(fc_tle1, fc_tle2, fc_tca_h)
+                            if fc_trail:
+                                fc["trail"] = fc_trail
+            except (ImportError, Exception):
+                pass
+
             forecast_data["featured_calls"] = featured
             if featured:
                 print(f"  Featured calls: {len(featured_escalations[:6])} escalations, "

@@ -86,25 +86,17 @@ export function ModelZooPage({ visible, onClose }: ModelZooPageProps) {
             <div style={{ fontSize: 13, color: '#55556a', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 8 }}>
               Prediction Task
             </div>
-            <p style={{ fontSize: 15, color: '#e8e8f0', lineHeight: 1.5, maxWidth: 700, marginBottom: 16 }}>
+            <p style={{ fontSize: 15, color: '#e8e8f0', lineHeight: 1.5, marginBottom: 16 }}>
               Given a sequence of CDM updates for a conjunction pair, predict whether collision probability (Pc)
               will exceed <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#3b82f6' }}>5 &times; 10<sup>-4</sup></span> before
               time of closest approach, the threshold at which operators begin planning avoidance maneuvers.
             </p>
-            <div style={{
-              padding: '14px 20px',
-              background: 'rgba(239,68,68,0.04)',
-              border: '1px solid rgba(239,68,68,0.12)',
-              borderRadius: 8,
-              maxWidth: 700,
-            }}>
-              <p style={{ fontSize: 14, color: '#e8e8f0', lineHeight: 1.6 }}>
-                <strong style={{ color: '#ef4444' }}>Recall is the primary metric.</strong> A false negative
-                means an undetected escalation: an operator doesn't plan a maneuver, and a $500M
-                satellite is at risk. A false positive means 30 minutes of extra monitoring. We optimize
-                for catching every dangerous event, even at the cost of more false alarms.
-              </p>
-            </div>
+            <p style={{ fontSize: 14, color: '#b0b0c4', lineHeight: 1.6 }}>
+              <strong style={{ color: '#ef4444' }}>Recall is the primary metric.</strong> A false negative
+              means an undetected escalation: an operator doesn't plan a maneuver, and a $500M
+              satellite is at risk. A false positive means 30 minutes of extra monitoring. We optimize
+              for catching every dangerous event, even at the cost of more false alarms.
+            </p>
           </div>
 
           {/* ── Section 2: Model Comparison Table ────────────── */}
@@ -714,19 +706,39 @@ function SummarizerDetail() {
 function BiLSTMProgress({ pstats }: { pstats: any }) {
   const ftData = useMemo(() => {
     if (!pstats?.finetune_history) return [];
-    return pstats.finetune_history.map((f: any) => ({
-      date: f.date?.slice(5, 10) ?? '',
-      auc_pr: +(f.post_auc_pr ?? 0).toFixed(3),
-      baseline: +(f.pre_auc_pr ?? 0).toFixed(3),
-      kept: f.keep_new_model,
-    }));
+    const history = pstats.finetune_history as any[];
+    // Compute day offset from first entry for proportional spacing
+    const firstDate = new Date(history[0]?.date ?? '2026-01-01');
+    return history.map((f: any) => {
+      const d = new Date(f.date ?? '2026-01-01');
+      const dayOffset = Math.round((d.getTime() - firstDate.getTime()) / 86400000);
+      return {
+        day: dayOffset,
+        label: f.date?.slice(5, 10)?.replace('-', '/') ?? '',
+        auc_pr: +(f.post_auc_pr ?? 0).toFixed(3),
+        baseline: +(f.pre_auc_pr ?? 0).toFixed(3),
+        kept: f.keep_new_model,
+        stratified: !!f.stratified,
+      };
+    });
   }, [pstats]);
 
   if (ftData.length < 2) return null;
 
-  const best = Math.max(...ftData.map((d: any) => d.auc_pr));
-  const latest = ftData[ftData.length - 1];
   const nKept = ftData.filter((d: any) => d.kept).length;
+  const stratified = ftData.filter((d: any) => d.stratified);
+  const latestStratified = stratified[stratified.length - 1];
+  const bestStratified = stratified.length > 0
+    ? Math.max(...stratified.map((d: any) => d.auc_pr))
+    : null;
+  // Day offset of last unstratified entry for the reference line
+  const lastOld = ftData.filter((d: any) => !d.stratified);
+  const boundaryDay = lastOld.length > 0
+    ? (lastOld[lastOld.length - 1].day + (stratified[0]?.day ?? lastOld[lastOld.length - 1].day)) / 2
+    : null;
+
+  // Build ticks from actual data points
+  const ticks = ftData.map((d: any) => d.day);
 
   return (
     <div style={{ padding: '24px 0', borderBottom: '1px solid #1e1e2c' }}>
@@ -734,39 +746,69 @@ function BiLSTMProgress({ pstats }: { pstats: any }) {
       <p style={{ fontSize: 13, color: '#7c7c96', marginBottom: 16, maxWidth: 700, lineHeight: 1.6 }}>
         Weekly fine-tuning on newly resolved conjunction pairs. The BiLSTM retrains each Sunday
         and keeps the new weights only if AUC-PR improves. {nKept} of {ftData.length} fine-tune
-        runs improved the model.
+        runs improved the model. Metrics after the dashed line use stratified validation for
+        consistent measurement across runs.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px', gap: 24, alignItems: 'start' }}>
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={ftData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={ftData} margin={{ top: 8, right: 24, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
-            <XAxis dataKey="date" tick={{ fill: '#55556a', fontSize: 12 }} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
+            <XAxis dataKey="day" type="number" domain={['dataMin', 'dataMax']} ticks={ticks}
+              tickFormatter={(day: number) => {
+                const entry = ftData.find((d: any) => d.day === day);
+                return entry?.label ?? '';
+              }}
+              tick={{ fill: '#55556a', fontSize: 11 }} axisLine={{ stroke: '#2a2a3a' }} tickLine={false} />
             <YAxis domain={[0, 'auto']} tick={{ fill: '#55556a', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Tooltip contentStyle={TOOLTIP_STYLE}
+              labelFormatter={(day: number) => {
+                const entry = ftData.find((d: any) => d.day === day);
+                return entry?.label ?? '';
+              }}
+              formatter={(value: number, name: string, props: any) => {
+                const suffix = props.payload?.stratified ? '' : ' (unstratified)';
+                return [`${value.toFixed(3)}${suffix}`, name];
+              }} />
+            {boundaryDay !== null && (
+              <ReferenceLine x={boundaryDay} stroke="#7c7c96" strokeDasharray="6 4" strokeWidth={1}
+                label={{ value: 'stratified \u2192', position: 'top', fill: '#7c7c96', fontSize: 10 }} />
+            )}
             <Line type="monotone" dataKey="baseline" stroke="#55556a" strokeWidth={1} strokeDasharray="4 3" dot={false} name="Pre-finetune" />
             <Line type="monotone" dataKey="auc_pr" stroke="#3b82f6" strokeWidth={2} dot={(props: any) => {
               const { cx, cy, payload } = props;
               if (!cx || !cy) return <circle key={props.key} />;
+              const isOld = !payload.stratified;
+              if (isOld) {
+                return (
+                  <circle key={props.key} cx={cx} cy={cy} r={payload.kept ? 4 : 3}
+                    fill={payload.kept ? '#22c55e' : '#ef4444'}
+                    stroke={payload.kept ? '#22c55e' : '#ef4444'}
+                    strokeWidth={1} opacity={0.35}
+                  />
+                );
+              }
               return (
-                <circle key={props.key} cx={cx} cy={cy} r={payload.kept ? 5 : 3}
+                <circle key={props.key} cx={cx} cy={cy} r={payload.kept ? 6 : 4}
                   fill={payload.kept ? '#22c55e' : '#ef4444'}
                   stroke={payload.kept ? '#22c55e' : '#ef4444'}
                   strokeWidth={payload.kept ? 2 : 1}
-                  opacity={payload.kept ? 1 : 0.5}
+                  opacity={1}
                 />
               );
             }} name="Post-finetune" />
           </LineChart>
         </ResponsiveContainer>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
-            <div style={{ fontSize: 12, color: '#55556a', marginBottom: 4 }}>Best AUC-PR</div>
-            <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>{best.toFixed(3)}</div>
-          </div>
+          {bestStratified !== null && (
+            <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
+              <div style={{ fontSize: 12, color: '#55556a', marginBottom: 4 }}>Best AUC-PR (stratified)</div>
+              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#e8e8f0' }}>{bestStratified.toFixed(3)}</div>
+            </div>
+          )}
           <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
             <div style={{ fontSize: 12, color: '#55556a', marginBottom: 4 }}>Latest Run</div>
-            <div style={{ fontSize: 15, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: latest?.kept ? '#22c55e' : '#7c7c96' }}>
-              {latest?.auc_pr.toFixed(3)} {latest?.kept ? '(kept)' : '(reverted)'}
+            <div style={{ fontSize: 15, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", color: latestStratified?.kept ? '#22c55e' : '#7c7c96' }}>
+              {latestStratified?.auc_pr.toFixed(3)} {latestStratified?.kept ? '(kept)' : '(reverted)'}
             </div>
           </div>
           <div style={{ padding: '10px 14px', background: '#111118', borderRadius: 6, border: '1px solid #1e1e2c' }}>
@@ -778,6 +820,7 @@ function BiLSTMProgress({ pstats }: { pstats: any }) {
           <div style={{ fontSize: 11, color: '#55556a', marginTop: 4 }}>
             <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#22c55e', marginRight: 4 }} /> Kept
             <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#ef4444', marginLeft: 12, marginRight: 4, opacity: 0.5 }} /> Reverted
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#55556a', marginLeft: 12, marginRight: 4, opacity: 0.35 }} /> Pre-stratified
           </div>
         </div>
       </div>

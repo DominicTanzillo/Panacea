@@ -341,7 +341,7 @@ function App() {
         activeOverlay={activeOverlay}
         onNavigate={navigate}
         healthy={healthy}
-        alertCount={screeningPairs.length}
+        alertCount={screeningPairs.filter(p => p.cdm_tca ? new Date(p.cdm_tca).getTime() > Date.now() : true).length}
         cdmAlertCount={alertsMeta.cdmCount}
         dataDate={alertsMeta.dataDate}
       />

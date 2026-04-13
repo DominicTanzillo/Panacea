@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  AreaChart, Area, XAxis, YAxis, ReferenceLine, ResponsiveContainer,
+} from 'recharts';
 import type { ScreeningPair } from '../lib/api';
 import { FullPagePanel } from './Overlay';
 
@@ -60,9 +63,10 @@ interface FeaturedCall {
   time_series: { update_idx: number; log10_pc: number; pc: number; miss_distance_km: number; time_to_tca_hours: number }[];
 }
 
-/** Convert a FeaturedCall to a ScreeningPair so AlertDetail + Globe can display it */
-function featuredToScreeningPair(call: FeaturedCall): ScreeningPair {
-  return {
+/** Convert a FeaturedCall to a ScreeningPair so AlertDetail + Globe can display it.
+ *  If alertPairs are available, try to match by NORAD IDs to inject trajectory data. */
+function featuredToScreeningPair(call: FeaturedCall, alertPairs?: ScreeningPair[]): ScreeningPair {
+  const base: ScreeningPair = {
     name_1: call.sat1_name,
     name_2: call.sat2_name,
     norad_1: call.sat1_norad,
@@ -75,11 +79,40 @@ function featuredToScreeningPair(call: FeaturedCall): ScreeningPair {
     miss_distance_km: call.current_miss_km,
     cdm_tca: call.tca,
   };
+  // Use trajectory data from featured call itself (future pipeline runs)
+  const callAny = call as any;
+  if (callAny.trajectory) {
+    base.trajectory = callAny.trajectory;
+    base.trail = callAny.trail;
+  }
+  // Fallback: match against alert pairs by NORAD IDs
+  if (!base.trajectory && alertPairs) {
+    const match = alertPairs.find(p =>
+      (p.norad_1 === call.sat1_norad && p.norad_2 === call.sat2_norad) ||
+      (p.norad_1 === call.sat2_norad && p.norad_2 === call.sat1_norad)
+    );
+    if (match) {
+      base.trajectory = match.trajectory;
+      base.trail = match.trail;
+      base.tle1 = match.tle1;
+      base.tle2 = match.tle2;
+    }
+  }
+  return base;
 }
 
 function FeaturedCallCard({ call, onClick }: { call: FeaturedCall; onClick: () => void }) {
   const isEscalation = call.call_type === 'escalation';
   const color = isEscalation ? '#ef4444' : '#22c55e';
+
+  // Build sparkline data from time_series
+  const sparkData = useMemo(() => {
+    if (!call.time_series || call.time_series.length < 2) return [];
+    return call.time_series
+      .slice()
+      .sort((a, b) => b.time_to_tca_hours - a.time_to_tca_hours)
+      .map(u => ({ h: -Math.round(u.time_to_tca_hours), pc: u.log10_pc }));
+  }, [call.time_series]);
 
   return (
     <button
@@ -93,30 +126,49 @@ function FeaturedCallCard({ call, onClick }: { call: FeaturedCall; onClick: () =
       onMouseEnter={e => { e.currentTarget.style.borderColor = '#2a2a3a'; e.currentTarget.style.background = '#131320'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = '#1e1e2c'; e.currentTarget.style.background = '#111118'; }}
     >
-      {/* Color accent bar */}
-      <div style={{ height: 3, background: color, opacity: 0.6 }} />
+      {/* Verdict banner */}
+      <div style={{ padding: '6px 16px', background: `${color}0a`, borderBottom: `1px solid ${color}18`, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 14 }}>{isEscalation ? '\u2713' : '\u2713'}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color }}>
+          Predicted {isEscalation ? 'escalation' : 'safe'} {formatLeadTime(call.prediction_lead_hours)} before TCA — Confirmed
+        </span>
+      </div>
 
-      <div style={{ padding: '14px 16px' }}>
+      <div style={{ padding: '12px 16px 14px' }}>
         {/* Names */}
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8f0', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#e8e8f0', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {call.sat1_name} <span style={{ color: '#3a3a4a', fontWeight: 400 }}>vs</span> {call.sat2_name}
         </div>
 
-        {/* Key metrics row */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 10, fontSize: 12 }}>
-          <span style={{ color: '#3b82f6', fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
-            {formatLeadTime(call.prediction_lead_hours)}
-          </span>
-          <span style={{ color: '#55556a' }}>advance warning</span>
-          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color, background: `${color}10`, padding: '2px 8px', borderRadius: 4 }}>
-            {isEscalation ? 'Escalation' : 'Safe'}
-          </span>
-        </div>
+        {/* Pc sparkline */}
+        {sparkData.length >= 2 && (
+          <div style={{ marginBottom: 10 }}>
+            <ResponsiveContainer width="100%" height={64}>
+              <AreaChart data={sparkData} margin={{ top: 2, right: 4, left: 4, bottom: 2 }}>
+                <defs>
+                  <linearGradient id={`spark-${call.sat1_norad}-${call.sat2_norad}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#e8e8f0" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#e8e8f0" stopOpacity={0.01} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="h" hide />
+                <YAxis hide domain={[-5, -1.5]} />
+                <ReferenceLine y={-3.3} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} strokeOpacity={0.5} />
+                <Area type="monotone" dataKey="pc" stroke="#e8e8f0" strokeWidth={1.5} fill={`url(#spark-${call.sat1_norad}-${call.sat2_norad})`} dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#3a3a4a', marginTop: 1, padding: '0 4px' }}>
+              <span>{sparkData[0]?.h}h</span>
+              <span style={{ color: '#55556a' }}>Pc over time</span>
+              <span>TCA</span>
+            </div>
+          </div>
+        )}
 
         {/* Stats grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, fontSize: 12 }}>
           <div>
-            <div style={{ color: '#3a3a4a', fontSize: 10, marginBottom: 2 }}>Pc</div>
+            <div style={{ color: '#3a3a4a', fontSize: 10, marginBottom: 2 }}>Final Pc</div>
             <div style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>{formatPc(call.current_pc)}</div>
           </div>
           <div>
@@ -136,7 +188,7 @@ function FeaturedCallCard({ call, onClick }: { call: FeaturedCall; onClick: () =
         {/* TCA + click hint */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11, color: '#3a3a4a' }}>
           <span>TCA: {call.tca.slice(0, 16).replace('T', ' ')} UTC</span>
-          <span style={{ color: '#3b82f6' }}>View fly-by &rarr;</span>
+          <span style={{ color: '#3b82f6' }}>{(call as any).trajectory ? 'View fly-by' : 'View detail'} &rarr;</span>
         </div>
       </div>
     </button>
@@ -162,8 +214,8 @@ export function ConjunctionAlerts({ pairs, visible, onClose, onSelectPair }: Con
   const highCount = pairs.filter(p => riskTier(p) === 'HIGH').length;
 
   const handleCallClick = useCallback((call: FeaturedCall) => {
-    onSelectPair(featuredToScreeningPair(call));
-  }, [onSelectPair]);
+    onSelectPair(featuredToScreeningPair(call, pairs));
+  }, [onSelectPair, pairs]);
 
   return (
     <FullPagePanel
