@@ -93,10 +93,10 @@ function formatPcDisplay(pc: number): string {
 
 // Forecast data for cross-referencing alerts with model predictions
 interface ForecastMatch {
-  exceedance_probability: number;
+  exceedance_probability?: number;
   ensemble_probability?: number | null;
   current_pc?: number;
-  forecast_pc: number;
+  forecast_pc?: number;
   risk_direction: string;
   n_updates: number;
   prediction_lead_hours?: number;
@@ -122,13 +122,16 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
     fetch('./cdm_forecast.json')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (!data?.pairs) return;
+        if (!data) return;
         const n1 = pair.norad_1, n2 = pair.norad_2;
-        const match = data.pairs.find((p: Record<string, unknown>) =>
+        const matchById = (p: Record<string, unknown>) =>
           (p.sat1_norad === n1 && p.sat2_norad === n2) ||
-          (p.sat1_norad === n2 && p.sat2_norad === n1)
-        );
-        setForecastMatch(match || null);
+          (p.sat1_norad === n2 && p.sat2_norad === n1);
+        // Search forecast pairs first, then featured calls
+        const match = (data.pairs || []).find(matchById)
+          || (data.featured_calls || []).find(matchById)
+          || null;
+        setForecastMatch(match as ForecastMatch | null);
       })
       .catch(() => setForecastMatch(null));
   }, [pair.norad_1, pair.norad_2]);
@@ -437,10 +440,10 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
                     pts.push({ hoursToTCA: 0, 'log10(Pc)': undefined, forecast: lastFs.predicted_log10_pc,
                       forecastUpper: lastFs.predicted_log10_pc + (lastFs.uncertainty_log10_pc || 0) * 1.2,
                       forecastLower: lastFs.predicted_log10_pc - (lastFs.uncertainty_log10_pc || 0) * 1.2 });
-                  } else if (pts.length > 0 && forecastMatch.forecast_pc > 0) {
+                  } else if (pts.length > 0 && (forecastMatch.forecast_pc ?? 0) > 0) {
                     const last = pts[pts.length - 1];
                     last.forecast = last['log10(Pc)'];
-                    pts.push({ hoursToTCA: 0, 'log10(Pc)': undefined, forecast: Math.log10(Math.max(forecastMatch.forecast_pc, 1e-20)) });
+                    pts.push({ hoursToTCA: 0, 'log10(Pc)': undefined, forecast: Math.log10(Math.max(forecastMatch.forecast_pc!, 1e-20)) });
                   }
                   return (
                     <div style={{ marginBottom: 12 }}>
@@ -458,7 +461,7 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
                         </AreaChart>
                       </ResponsiveContainer>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 8, fontSize: 12 }}>
-                        <div style={{ color: '#7c7c96' }}>P(Exceed) <span style={{ color: '#e8e8f0', fontWeight: 600 }}>{((forecastMatch.ensemble_probability ?? forecastMatch.exceedance_probability) * 100).toFixed(1)}%</span></div>
+                        <div style={{ color: '#7c7c96' }}>P(Exceed) <span style={{ color: '#e8e8f0', fontWeight: 600 }}>{((forecastMatch.ensemble_probability ?? forecastMatch.exceedance_probability ?? 0) * 100).toFixed(1)}%</span></div>
                         <div style={{ color: '#7c7c96' }}>Trend <span style={{ color: forecastMatch.risk_direction === 'escalating' ? '#ef4444' : forecastMatch.risk_direction === 'de-escalating' ? '#22c55e' : '#7c7c96', fontWeight: 600 }}>{forecastMatch.risk_direction}</span></div>
                         <div style={{ color: '#7c7c96' }}>CDM Updates <span style={{ color: '#e8e8f0' }}>{forecastMatch.n_updates}</span></div>
                         {forecastMatch.predicted_max_log10_pc != null && (

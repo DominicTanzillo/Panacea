@@ -1490,6 +1490,35 @@ def main():
             # flyby animation shows the actual closest approach geometry.
             try:
                 from src.data.counterfactual import compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
+                # Build TLE lookup from active_tles (available in main() scope)
+                tle_by_id = {int(t.get("NORAD_CAT_ID", 0)): t for t in active_tles if int(t.get("NORAD_CAT_ID", 0)) > 0}
+                # Fetch missing TLEs from Space-Track for featured call objects
+                # (debris/old payloads often not in CelesTrak active catalog)
+                fc_missing = set()
+                for fc in featured:
+                    for nid in (fc["sat1_norad"], fc["sat2_norad"]):
+                        if nid and nid not in tle_by_id:
+                            fc_missing.add(nid)
+                if fc_missing:
+                    try:
+                        from src.data.spacetrack_crossref import _get_session
+                        session, authenticated = _get_session()
+                        if session and authenticated:
+                            norad_list = ",".join(str(n) for n in sorted(fc_missing))
+                            url = (f"https://www.space-track.org/basicspacedata/query"
+                                   f"/class/gp/NORAD_CAT_ID/{norad_list}"
+                                   f"/orderby/NORAD_CAT_ID/format/json")
+                            resp = session.get(url, timeout=60)
+                            if resp.status_code == 200:
+                                for tle in resp.json():
+                                    nid = int(tle.get("NORAD_CAT_ID", 0))
+                                    if nid > 0:
+                                        existing = tle_by_id.get(nid)
+                                        if not existing or tle.get("EPOCH", "") > existing.get("EPOCH", ""):
+                                            tle_by_id[nid] = tle
+                                print(f"  Fetched {len(fc_missing)} featured-call TLEs from Space-Track")
+                    except Exception as e:
+                        print(f"  Space-Track TLE fetch for featured calls failed: {e}")
                 if SGP4_AVAILABLE:
                     n_fc_traj = 0
                     for fc in featured:
@@ -1521,8 +1550,8 @@ def main():
                                 fc["trail"] = fc_trail
                     if n_fc_traj:
                         print(f"  Featured calls: {n_fc_traj}/{len(featured)} enriched with trajectory")
-            except (ImportError, Exception):
-                pass
+            except Exception as e:
+                print(f"  Featured call trajectory enrichment failed: {e}")
 
             forecast_data["featured_calls"] = featured
             if featured:

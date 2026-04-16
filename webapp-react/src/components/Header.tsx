@@ -6,8 +6,7 @@ interface HeaderProps {
   activeOverlay: OverlayView;
   onNavigate: (view: OverlayView) => void;
   healthy: boolean;
-  alertCount: number;
-  cdmAlertCount: number;
+  cdmAlertCount?: number;
   dataDate?: string;
 }
 
@@ -39,7 +38,7 @@ const NAV_ITEMS: { key: Exclude<OverlayView, null>; label: string }[] = [
 ];
 
 export function Header({
-  activeOverlay, onNavigate, healthy, alertCount, cdmAlertCount, dataDate,
+  activeOverlay, onNavigate, healthy, cdmAlertCount, dataDate,
 }: HeaderProps) {
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   return (
@@ -75,7 +74,6 @@ export function Header({
       <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {NAV_ITEMS.map(item => {
           const isActive = activeOverlay === item.key;
-          const hasCount = item.key === 'alerts' && (cdmAlertCount > 0 || alertCount > 0);
           return (
             <button
               key={item.key}
@@ -110,23 +108,6 @@ export function Header({
               }}
             >
               {item.label}
-              {hasCount && (
-                <span
-                  aria-label={`${cdmAlertCount > 0 ? cdmAlertCount : alertCount} active conjunction alerts`}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: '#ef4444',
-                    background: 'rgba(239,68,68,0.12)',
-                    padding: '1px 7px',
-                    borderRadius: 10,
-                    minWidth: 20,
-                    textAlign: 'center',
-                    lineHeight: '18px',
-                  }}>
-                  {cdmAlertCount > 0 ? cdmAlertCount : alertCount}
-                </span>
-              )}
             </button>
           );
         })}
@@ -155,7 +136,7 @@ export function Header({
           width: 7,
           height: 7,
           borderRadius: '50%',
-          background: healthy ? '#22c55e' : cdmAlertCount > 0 ? '#3b82f6' : '#f59e0b',
+          background: healthy ? '#22c55e' : (cdmAlertCount ?? 0) > 0 ? '#3b82f6' : '#f59e0b',
           boxShadow: healthy ? '0 0 6px rgba(34,197,94,0.4)' : undefined,
         }} />
         <span style={{ fontWeight: 500 }}>{healthy ? 'Live' : dataDate || 'Static data'}</span>
