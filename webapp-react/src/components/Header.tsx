@@ -11,6 +11,7 @@ interface HeaderProps {
 }
 
 export function PanaceaLogo({ size = 28 }: { size?: number }) {
+  const iconSize = size * 0.6;
   return (
     <div
       style={{
@@ -24,7 +25,18 @@ export function PanaceaLogo({ size = 28 }: { size?: number }) {
         flexShrink: 0,
       }}
     >
-      <span style={{ fontWeight: 800, color: '#fff', fontSize: size * 0.46, lineHeight: 1 }}>P</span>
+      <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {/* Satellite body */}
+        <rect x="9" y="9" width="6" height="6" rx="1" transform="rotate(45 12 12)" />
+        {/* Solar panels */}
+        <line x1="6.3" y1="6.3" x2="3.5" y2="3.5" />
+        <rect x="1.5" y="1.5" width="3.5" height="3.5" rx="0.5" transform="rotate(45 3.25 3.25)" />
+        <line x1="17.7" y1="17.7" x2="20.5" y2="20.5" />
+        <rect x="19" y="19" width="3.5" height="3.5" rx="0.5" transform="rotate(45 20.75 20.75)" />
+        {/* Signal waves */}
+        <path d="M6 18c1.5-1.5 1.5-3 0-4.5" />
+        <path d="M3.5 20.5c3-3 3-6 0-9" />
+      </svg>
     </div>
   );
 }

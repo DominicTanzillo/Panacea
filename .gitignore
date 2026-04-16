@@ -64,3 +64,6 @@ CLAUDE.md
 *.nav
 *.snm
 *.vrb
+
+# Generated intro videos
+webapp-react/public/panacea_intro*.mp4

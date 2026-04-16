@@ -347,7 +347,16 @@ export function AlertDetail({ pair, tles, onBack, onProjection }: AlertDetailPro
             {simPoints.length > 5 && (
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button onClick={() => { if (!autoPlay && sliderIdx >= simPoints.length - 1) setSliderIdx(0); setAutoPlay(!autoPlay); }}
+                  <button onClick={() => {
+                    if (!autoPlay) {
+                      // Jump to ~15 min before TCA for best illustration of the approach
+                      if (sliderIdx >= simPoints.length - 1 || sliderIdx === simTcaIdx) {
+                        const pre15 = simPoints.findIndex(p => p.hourFromTCA >= -0.25);
+                        setSliderIdx(pre15 >= 0 ? pre15 : Math.max(simTcaIdx - 5, 0));
+                      }
+                    }
+                    setAutoPlay(!autoPlay);
+                  }}
                     aria-label={autoPlay ? 'Pause orbital approach animation' : 'Play orbital approach animation'}
                     style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #2a2a3a', borderRadius: 6, background: 'transparent', color: '#7c7c96', cursor: 'pointer', fontSize: 12, flexShrink: 0 }}>
                     {autoPlay ? '\u23F8' : '\u25B6'}
