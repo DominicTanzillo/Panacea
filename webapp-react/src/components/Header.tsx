@@ -6,12 +6,12 @@ interface HeaderProps {
   activeOverlay: OverlayView;
   onNavigate: (view: OverlayView) => void;
   healthy: boolean;
-  alertCount: number;
-  cdmAlertCount: number;
+  cdmAlertCount?: number;
   dataDate?: string;
 }
 
 export function PanaceaLogo({ size = 28 }: { size?: number }) {
+  const iconSize = size * 0.6;
   return (
     <div
       style={{
@@ -25,7 +25,18 @@ export function PanaceaLogo({ size = 28 }: { size?: number }) {
         flexShrink: 0,
       }}
     >
-      <span style={{ fontWeight: 800, color: '#fff', fontSize: size * 0.46, lineHeight: 1 }}>P</span>
+      <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        {/* Satellite body */}
+        <rect x="9" y="9" width="6" height="6" rx="1" transform="rotate(45 12 12)" />
+        {/* Solar panels */}
+        <line x1="6.3" y1="6.3" x2="3.5" y2="3.5" />
+        <rect x="1.5" y="1.5" width="3.5" height="3.5" rx="0.5" transform="rotate(45 3.25 3.25)" />
+        <line x1="17.7" y1="17.7" x2="20.5" y2="20.5" />
+        <rect x="19" y="19" width="3.5" height="3.5" rx="0.5" transform="rotate(45 20.75 20.75)" />
+        {/* Signal waves */}
+        <path d="M6 18c1.5-1.5 1.5-3 0-4.5" />
+        <path d="M3.5 20.5c3-3 3-6 0-9" />
+      </svg>
     </div>
   );
 }
@@ -39,7 +50,7 @@ const NAV_ITEMS: { key: Exclude<OverlayView, null>; label: string }[] = [
 ];
 
 export function Header({
-  activeOverlay, onNavigate, healthy, alertCount, cdmAlertCount, dataDate,
+  activeOverlay, onNavigate, healthy, cdmAlertCount, dataDate,
 }: HeaderProps) {
   const [glossaryOpen, setGlossaryOpen] = useState(false);
   return (
@@ -75,7 +86,6 @@ export function Header({
       <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         {NAV_ITEMS.map(item => {
           const isActive = activeOverlay === item.key;
-          const hasCount = item.key === 'alerts' && (cdmAlertCount > 0 || alertCount > 0);
           return (
             <button
               key={item.key}
@@ -110,23 +120,6 @@ export function Header({
               }}
             >
               {item.label}
-              {hasCount && (
-                <span
-                  aria-label={`${cdmAlertCount > 0 ? cdmAlertCount : alertCount} active conjunction alerts`}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: '#ef4444',
-                    background: 'rgba(239,68,68,0.12)',
-                    padding: '1px 7px',
-                    borderRadius: 10,
-                    minWidth: 20,
-                    textAlign: 'center',
-                    lineHeight: '18px',
-                  }}>
-                  {cdmAlertCount > 0 ? cdmAlertCount : alertCount}
-                </span>
-              )}
             </button>
           );
         })}
@@ -155,7 +148,7 @@ export function Header({
           width: 7,
           height: 7,
           borderRadius: '50%',
-          background: healthy ? '#22c55e' : cdmAlertCount > 0 ? '#3b82f6' : '#f59e0b',
+          background: healthy ? '#22c55e' : (cdmAlertCount ?? 0) > 0 ? '#3b82f6' : '#f59e0b',
           boxShadow: healthy ? '0 0 6px rgba(34,197,94,0.4)' : undefined,
         }} />
         <span style={{ fontWeight: 500 }}>{healthy ? 'Live' : dataDate || 'Static data'}</span>
