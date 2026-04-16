@@ -1,29 +1,29 @@
 {
-  "generated_at": "2026-04-16T02:11:44.570498+00:00",
+  "generated_at": "2026-04-16T14:04:46.402689+00:00",
   "gnn": {
-    "n_nodes": 1978,
-    "n_edges": 1167,
-    "n_positive_edges": 293,
+    "n_nodes": 1986,
+    "n_edges": 1172,
+    "n_positive_edges": 295,
     "with_graph_features": {
-      "f1": 0.9831,
-      "recall": 0.9932,
+      "f1": 0.9815,
+      "recall": 0.9898,
       "precision": 0.9734,
-      "accuracy": 0.9914
+      "accuracy": 0.9906
     },
     "without_graph_features": {
-      "f1": 0.9529,
+      "f1": 0.9566,
       "recall": 1.0,
-      "precision": 0.9103,
-      "accuracy": 0.9751
+      "precision": 0.9174,
+      "accuracy": 0.977
     },
     "graph_improvement": {
-      "f1_delta": 0.0302,
-      "recall_delta": -0.0068
+      "f1_delta": 0.0249,
+      "recall_delta": -0.0102
     },
     "degree_distribution": {
-      "1": 1679,
+      "1": 1686,
       "2": 248,
-      "3": 46,
+      "3": 47,
       "4": 4,
       "5": 1
     },
@@ -113,15 +113,15 @@
     "max_degree": 5
   },
   "autoregressive": {
-    "n_training_samples": 4415,
-    "n_test_samples": 883,
+    "n_training_samples": 4449,
+    "n_test_samples": 890,
     "metrics": {
-      "mae_log10_pc": 0.1022,
-      "rmse_log10_pc": 0.1849,
-      "correlation_pc": 0.9199,
-      "mae_log10_miss": 0.1248,
-      "correlation_miss": 0.854,
-      "uncertainty_std": 0.1848
+      "mae_log10_pc": 0.1006,
+      "rmse_log10_pc": 0.1828,
+      "correlation_pc": 0.9276,
+      "mae_log10_miss": 0.1244,
+      "correlation_miss": 0.8589,
+      "uncertainty_std": 0.1826
     },
     "example_forecasts": [
       {
@@ -137,10 +137,10 @@
         "predicted": [
           null,
           null,
-          -3.36,
+          -3.359,
           -3.518,
-          -3.52,
-          -3.595
+          -3.518,
+          -3.594
         ],
         "n_cdms": 6
       },
@@ -157,10 +157,10 @@
         "predicted": [
           null,
           null,
-          -3.804,
-          -3.728,
-          -3.726,
-          -3.596
+          -3.801,
+          -3.725,
+          -3.725,
+          -3.593
         ],
         "n_cdms": 6
       },
@@ -181,62 +181,62 @@
         "predicted": [
           null,
           null,
-          -2.69,
-          -2.428,
-          -2.426,
-          -2.441,
-          -2.441,
-          -2.365,
-          -2.364,
-          -2.309
+          -2.693,
+          -2.429,
+          -2.43,
+          -2.445,
+          -2.445,
+          -2.368,
+          -2.368,
+          -2.312
         ],
         "n_cdms": 10
       }
     ]
   },
   "conformal": {
-    "n_train": 700,
-    "n_calibration": 233,
-    "n_test": 234,
+    "n_train": 703,
+    "n_calibration": 234,
+    "n_test": 235,
     "classification_conformal": [
       {
         "alpha": 0.05,
         "target_coverage": 0.95,
-        "empirical_coverage": 0.9444,
-        "q_hat": 0.5665,
-        "avg_set_size": 1.034,
-        "n_singleton": 226,
+        "empirical_coverage": 0.9362,
+        "q_hat": 0.5213,
+        "avg_set_size": 1.013,
+        "n_singleton": 232,
         "n_empty": 0,
-        "n_both": 8
+        "n_both": 3
       },
       {
         "alpha": 0.1,
         "target_coverage": 0.9,
-        "empirical_coverage": 0.9017,
-        "q_hat": 0.4119,
-        "avg_set_size": 0.957,
+        "empirical_coverage": 0.8979,
+        "q_hat": 0.4138,
+        "avg_set_size": 0.953,
         "n_singleton": 224,
-        "n_empty": 10,
+        "n_empty": 11,
         "n_both": 0
       },
       {
         "alpha": 0.15,
         "target_coverage": 0.85,
-        "empirical_coverage": 0.8889,
-        "q_hat": 0.3354,
-        "avg_set_size": 0.94,
-        "n_singleton": 220,
-        "n_empty": 14,
+        "empirical_coverage": 0.8468,
+        "q_hat": 0.3035,
+        "avg_set_size": 0.889,
+        "n_singleton": 209,
+        "n_empty": 26,
         "n_both": 0
       },
       {
         "alpha": 0.2,
         "target_coverage": 0.8,
-        "empirical_coverage": 0.812,
-        "q_hat": 0.2271,
-        "avg_set_size": 0.846,
-        "n_singleton": 198,
-        "n_empty": 36,
+        "empirical_coverage": 0.783,
+        "q_hat": 0.2248,
+        "avg_set_size": 0.813,
+        "n_singleton": 191,
+        "n_empty": 44,
         "n_both": 0
       }
     ],
@@ -244,19 +244,19 @@
       {
         "alpha": 0.05,
         "target": 0.95,
-        "coverage": 0.9402,
+        "coverage": 0.9489,
         "interval_width": 0.0
       },
       {
         "alpha": 0.1,
         "target": 0.9,
-        "coverage": 0.8974,
+        "coverage": 0.9489,
         "interval_width": 0.0
       },
       {
         "alpha": 0.2,
         "target": 0.8,
-        "coverage": 0.7821,
+        "coverage": 0.8128,
         "interval_width": 0.0
       }
     ]
