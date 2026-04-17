@@ -1482,77 +1482,112 @@ def main():
             featured_escalations.sort(key=lambda x: x["impressiveness"], reverse=True)
             featured_safe.sort(key=lambda x: x["impressiveness"], reverse=True)
             # Keep top 6 escalations + top 3 safe = 9 featured calls
-            featured = featured_escalations[:6] + featured_safe[:3]
-            for f in featured:
+            new_featured = featured_escalations[:6] + featured_safe[:3]
+            for f in new_featured:
                 del f["impressiveness"]
-            # Enrich featured calls with trajectory data for flyby visualization.
-            # For resolved pairs (TCA in past), propagate centered on TCA so the
-            # flyby animation shows the actual closest approach geometry.
-            try:
-                from src.data.counterfactual import compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
-                # Build TLE lookup from active_tles (available in main() scope)
-                tle_by_id = {int(t.get("NORAD_CAT_ID", 0)): t for t in active_tles if int(t.get("NORAD_CAT_ID", 0)) > 0}
-                # Fetch missing TLEs from Space-Track for featured call objects
-                # (debris/old payloads often not in CelesTrak active catalog)
-                fc_missing = set()
-                for fc in featured:
-                    for nid in (fc["sat1_norad"], fc["sat2_norad"]):
-                        if nid and nid not in tle_by_id:
-                            fc_missing.add(nid)
-                if fc_missing:
-                    try:
-                        from src.data.spacetrack_crossref import _get_session
-                        session, authenticated = _get_session()
-                        if session and authenticated:
-                            norad_list = ",".join(str(n) for n in sorted(fc_missing))
-                            url = (f"https://www.space-track.org/basicspacedata/query"
-                                   f"/class/gp/NORAD_CAT_ID/{norad_list}"
-                                   f"/orderby/NORAD_CAT_ID/format/json")
-                            resp = session.get(url, timeout=60)
-                            if resp.status_code == 200:
-                                for tle in resp.json():
-                                    nid = int(tle.get("NORAD_CAT_ID", 0))
-                                    if nid > 0:
-                                        existing = tle_by_id.get(nid)
-                                        if not existing or tle.get("EPOCH", "") > existing.get("EPOCH", ""):
-                                            tle_by_id[nid] = tle
-                                print(f"  Fetched {len(fc_missing)} featured-call TLEs from Space-Track")
-                    except Exception as e:
-                        print(f"  Space-Track TLE fetch for featured calls failed: {e}")
-                if SGP4_AVAILABLE:
-                    n_fc_traj = 0
-                    for fc in featured:
-                        fc_tle1 = tle_by_id.get(fc["sat1_norad"])
-                        fc_tle2 = tle_by_id.get(fc["sat2_norad"])
-                        if not fc_tle1 or not fc_tle2:
-                            continue
-                        # Compute start epoch: 60h before TCA so trajectory spans the approach
-                        tca_str = fc.get("tca", "")
+
+            # ---- Persistent featured-call archive ----
+            # Featured calls + trajectories are expensive to compute and should
+            # survive across daily runs. We merge new candidates into an archive,
+            # preserving trajectory data that was already computed.
+            FEATURED_ARCHIVE = LOG_DIR / "featured_calls_archive.json"
+            archived = []
+            if FEATURED_ARCHIVE.exists():
+                try:
+                    with open(FEATURED_ARCHIVE) as af:
+                        archived = json.load(af)
+                except (json.JSONDecodeError, ValueError):
+                    archived = []
+
+            # Build lookup of archived calls by (norad1, norad2, tca) key
+            def _fc_key(fc):
+                return (fc["sat1_norad"], fc["sat2_norad"], fc.get("tca", ""))
+            archive_by_key = {_fc_key(fc): fc for fc in archived}
+
+            # Merge: new candidates get trajectory from archive if available
+            for fc in new_featured:
+                key = _fc_key(fc)
+                old = archive_by_key.get(key)
+                if old:
+                    # Preserve existing trajectory + trail data
+                    if old.get("trajectory") and not fc.get("trajectory"):
+                        fc["trajectory"] = old["trajectory"]
+                    if old.get("trail") and not fc.get("trail"):
+                        fc["trail"] = old["trail"]
+
+            # Compute trajectories only for calls that still need them
+            needs_traj = [fc for fc in new_featured if not fc.get("trajectory")]
+            if needs_traj:
+                try:
+                    from src.data.counterfactual import compute_forward_trajectory, compute_tca_trail, SGP4_AVAILABLE
+                    tle_by_id = {int(t.get("NORAD_CAT_ID", 0)): t for t in active_tles if int(t.get("NORAD_CAT_ID", 0)) > 0}
+                    # Fetch missing TLEs from Space-Track
+                    fc_missing = set()
+                    for fc in needs_traj:
+                        for nid in (fc["sat1_norad"], fc["sat2_norad"]):
+                            if nid and nid not in tle_by_id:
+                                fc_missing.add(nid)
+                    if fc_missing:
                         try:
-                            tca_dt = datetime.strptime(tca_str[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
-                            start_dt = tca_dt - timedelta(hours=60)
-                        except (ValueError, AttributeError):
-                            start_dt = None
-                        fc_traj = compute_forward_trajectory(
-                            fc_tle1, fc_tle2, hours_forward=120.0, step_minutes=20.0,
-                            start_time=start_dt,
-                        )
-                        if fc_traj:
-                            fc["trajectory"] = fc_traj
-                            n_fc_traj += 1
-                        # Trail: ±30 min around TCA (60h from start_dt)
-                        if start_dt:
-                            fc_trail = compute_tca_trail(
-                                fc_tle1, fc_tle2, tca_hours=60.0,
+                            from src.data.spacetrack_crossref import _get_session
+                            session, authenticated = _get_session()
+                            if session and authenticated:
+                                norad_list = ",".join(str(n) for n in sorted(fc_missing))
+                                url = (f"https://www.space-track.org/basicspacedata/query"
+                                       f"/class/gp/NORAD_CAT_ID/{norad_list}"
+                                       f"/orderby/NORAD_CAT_ID/format/json")
+                                resp = session.get(url, timeout=60)
+                                if resp.status_code == 200:
+                                    for tle in resp.json():
+                                        nid = int(tle.get("NORAD_CAT_ID", 0))
+                                        if nid > 0:
+                                            existing = tle_by_id.get(nid)
+                                            if not existing or tle.get("EPOCH", "") > existing.get("EPOCH", ""):
+                                                tle_by_id[nid] = tle
+                                    print(f"  Fetched {len(fc_missing)} featured-call TLEs from Space-Track")
+                        except Exception as e:
+                            print(f"  Space-Track TLE fetch for featured calls failed: {e}")
+                    if SGP4_AVAILABLE:
+                        n_fc_traj = 0
+                        for fc in needs_traj:
+                            fc_tle1 = tle_by_id.get(fc["sat1_norad"])
+                            fc_tle2 = tle_by_id.get(fc["sat2_norad"])
+                            if not fc_tle1 or not fc_tle2:
+                                continue
+                            tca_str = fc.get("tca", "")
+                            try:
+                                tca_dt = datetime.strptime(tca_str[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                                start_dt = tca_dt - timedelta(hours=60)
+                            except (ValueError, AttributeError):
+                                start_dt = None
+                            fc_traj = compute_forward_trajectory(
+                                fc_tle1, fc_tle2, hours_forward=120.0, step_minutes=20.0,
                                 start_time=start_dt,
                             )
-                            if fc_trail:
-                                fc["trail"] = fc_trail
-                    if n_fc_traj:
-                        print(f"  Featured calls: {n_fc_traj}/{len(featured)} enriched with trajectory")
-            except Exception as e:
-                print(f"  Featured call trajectory enrichment failed: {e}")
+                            if fc_traj:
+                                fc["trajectory"] = fc_traj
+                                n_fc_traj += 1
+                            if start_dt:
+                                fc_trail = compute_tca_trail(
+                                    fc_tle1, fc_tle2, tca_hours=60.0,
+                                    start_time=start_dt,
+                                )
+                                if fc_trail:
+                                    fc["trail"] = fc_trail
+                        if n_fc_traj:
+                            print(f"  Featured calls: {n_fc_traj}/{len(needs_traj)} newly enriched with trajectory")
+                except Exception as e:
+                    print(f"  Featured call trajectory enrichment failed: {e}")
+            else:
+                print(f"  Featured calls: all {len(new_featured)} already have trajectories from archive")
 
+            # Update archive: merge new into existing, keeping all unique calls
+            for fc in new_featured:
+                archive_by_key[_fc_key(fc)] = fc
+            with open(FEATURED_ARCHIVE, "w") as af:
+                json.dump(list(archive_by_key.values()), af)
+
+            featured = new_featured
             forecast_data["featured_calls"] = featured
             if featured:
                 print(f"  Featured calls: {len(featured_escalations[:6])} escalations, "
