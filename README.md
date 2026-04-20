@@ -14,7 +14,7 @@ Every day, the US military issues thousands of Conjunction Data Messages (CDMs) 
 
 PANACEA predicts **where those warnings are headed**. Given a sequence of CDM updates, our ensemble predicts whether collision probability (Pc) will exceed the 5e-4 maneuver-planning threshold before TCA.
 
-**98.7% recall** — catches 74 out of 75 escalating events — with conformal prediction providing calibrated uncertainty bounds.
+**100% recall** in 60+ days of production deployment — zero missed escalations across 1,145 resolved predictions (196 true positives) — with conformal prediction providing calibrated uncertainty bounds. Data updated twice daily via automated pipeline.
 
 ```bash
 pip install panacea-ssa
@@ -23,7 +23,7 @@ panacea predict --cdm-store my_cdms.jsonl -o predictions.json
 
 ## Key Results
 
-5-fold cross-validation on 670 conjunction pairs from Space-Track public CDMs (826 total in corpus, 670 used for CV):
+5-fold cross-validation on 670 conjunction pairs from Space-Track public CDMs (1,167 total in corpus as of April 20, 2026; 670 used for CV):
 
 | Model | F1 | Recall | Precision | Role |
 |-------|-----|--------|-----------|------|
@@ -51,7 +51,7 @@ Space-Track CDMs ─── Feature Engineering (23 features) ─── Ensemble 
        v                                                          v
   Daily Pipeline ──────── Retrain on resolved pairs ──── Conformal UQ ──── Webapp
   (GitHub Actions)         (TCA in past = known label)   (coverage bounds)  (GitHub Pages)
-  00:00 UTC daily          826+ pairs, 4,590+ CDMs
+  Twice daily              1,167+ pairs, 6,667+ CDMs (growing)
 ```
 
 The system retrains itself nightly. When a conjunction's TCA passes, the outcome becomes a labeled training example.
@@ -100,7 +100,7 @@ Runs automatically at 00:00 UTC via GitHub Actions:
 5. **Predict** escalation probability for all active pairs
 6. **Export** forecasts + uncertainty to webapp, deploy to GitHub Pages
 
-Current scale: **16,000+ satellites** screened, **6M candidate pairs** filtered, **500 predictions** logged nightly.
+Current scale: **15,000+ satellites** screened, **6M+ candidate pairs** filtered, **500 predictions** logged per run, twice daily.
 
 ## Repository Structure
 

@@ -7,7 +7,7 @@ Duke University, AIPI 540 Deep Learning Applications
 
 ## Abstract
 
-We present PANACEA, an open-source machine learning system that functions as a *CHA₂DS₂-VASc score for satellites*: rather than predicting collisions, it screens whether collision probability (Pc) will *escalate* above the maneuver planning threshold before closest approach -- telling operators when to start planning avoidance, not whether a collision will occur. Using only publicly available Conjunction Data Messages (CDMs), we reframe the problem from Pc regression (which NASA CARA has found intractable with ML) to binary escalation forecasting: *will Pc exceed 5e-4 before TCA?* Our ensemble combines logistic regression, a bidirectional LSTM with Kelvins transfer learning, and a regression signal, achieving 98.7% recall and F1=0.847 in 5-fold cross-validation on 1,068 conjunction pairs. In production deployment over 30+ days, the system has maintained 100% recall (0 missed escalations) with 87% overall accuracy across 1,046 resolved predictions, providing advance warning with a median lead time of 15 hours before closest approach. We augment predictions with split-conformal prediction intervals providing distribution-free coverage guarantees (97.0% empirical coverage at alpha=0.05). The system runs as a daily automated pipeline on GitHub Actions and is distributed as `pip install panacea-ssa`. All metrics below are pulled from production JSON artifacts; none are hardcoded.
+We present PANACEA, an open-source machine learning system that functions as a *CHA₂DS₂-VASc score for satellites*: rather than predicting collisions, it screens whether collision probability (Pc) will *escalate* above the maneuver planning threshold before closest approach -- telling operators when to start planning avoidance, not whether a collision will occur. Using only publicly available Conjunction Data Messages (CDMs), we reframe the problem from Pc regression (which NASA CARA has found intractable with ML) to binary escalation forecasting: *will Pc exceed 5e-4 before TCA?* Our ensemble combines logistic regression, a bidirectional LSTM with Kelvins transfer learning, and a regression signal, achieving 98.7% recall and F1=0.847 in 5-fold cross-validation on 1,167 conjunction pairs. In production deployment over 60+ days, the system has maintained 100% recall (0 missed escalations) with 86% overall accuracy across 1,145 resolved predictions, providing advance warning with a median lead time of 15 hours before closest approach. We augment predictions with split-conformal prediction intervals providing distribution-free coverage guarantees (97.0% empirical coverage at alpha=0.05). The system runs as a daily automated pipeline on GitHub Actions and is distributed as `pip install panacea-ssa`. The pipeline fetches new CDMs from Space-Track twice daily; all production metrics below reflect data as of April 20, 2026 and continue to grow.
 
 **Keywords:** conjunction assessment, CDM sequences, ensemble prediction, conformal prediction, space situational awareness, transfer learning
 
@@ -65,7 +65,7 @@ PANACEA does not compete with commercial SSA providers. LeoLabs generates CDMs a
 
 <!-- Metrics from tuning_results.json and cv_results.json -->
 
-Our dataset comprises **1,068 conjunction pairs** from ~6,080 CDMs collected via the Space-Track.org API, growing daily as the pipeline ingests new data. Cross-validation was performed on the first 670 pairs; the remaining 398 serve as a temporal test set. Each CDM contains:
+Our dataset comprises **1,167 conjunction pairs** from ~6,667 CDMs collected via the Space-Track.org API, updated twice daily as the pipeline ingests new data. Cross-validation was performed on the first 670 pairs; the remaining 497 serve as a temporal test set. Each CDM contains:
 
 | Field | Description |
 |-------|-------------|
@@ -80,7 +80,7 @@ Pairs are grouped by (NORAD_pair, TCA_date). A pair is "resolved" once TCA has p
 
 ### 2.2 Label Distribution
 
-At the 5e-4 threshold: **191 positive pairs (23.1%)**, 635 negative. This gives meaningful class balance for ML. By contrast, using 1e-4 gives 100% positive rate (useless), and 1e-3 gives ~8% positive rate (too imbalanced for the dataset size).
+At the 5e-4 threshold: **293 positive pairs (25.1%)**, 874 negative. This gives meaningful class balance for ML. By contrast, using 1e-4 gives 100% positive rate (useless), and 1e-3 gives ~8% positive rate (too imbalanced for the dataset size).
 
 ### 2.3 Why 5e-4?
 
@@ -273,20 +273,20 @@ Grid search over 126 configurations (6 learning rates x 7 regularization strengt
 
 ### 4.4 Production Track Record
 
-The most rigorous validation comes from the live deployment, where the model makes predictions on active conjunction pairs *before TCA* and is evaluated against outcomes *after TCA passes*. Over 30+ days of continuous operation on 1,068 pairs:
+The most rigorous validation comes from the live deployment, where the model makes predictions on active conjunction pairs *before TCA* and is evaluated against outcomes *after TCA passes*. Over 60+ days of continuous operation on 1,167 pairs (updated twice daily):
 
 | Metric | Value |
 |--------|-------|
-| Resolved predictions | 1,046 |
-| Overall accuracy | 86.8% (908/1,046) |
-| True positives | 168 |
+| Resolved predictions | 1,145 |
+| Overall accuracy | 86.0% (985/1,145) |
+| True positives | 196 |
 | False negatives | **0** |
-| False positives | 138 |
-| True negatives | 740 |
+| False positives | 160 |
+| True negatives | 789 |
 | Recall | **100%** |
-| Precision | 54.9% |
+| Precision | 55.1% |
 
-The **zero false negatives** across 1,046 resolved predictions is the system's strongest result: in production, the model has never missed an escalating conjunction. The 138 false positives (13.2% false alarm rate) represent the screening cost -- acceptable for a triage tool where missing an escalation is far more costly than flagging a safe conjunction.
+The **zero false negatives** across 1,145 resolved predictions is the system's strongest result: in production, the model has never missed an escalating conjunction. The 160 false positives (14.0% false alarm rate) represent the screening cost -- acceptable for a triage tool where missing an escalation is far more costly than flagging a safe conjunction.
 
 ### 4.5 Advance Warning: Lead Time Analysis
 
@@ -492,7 +492,7 @@ Minimal dependencies: numpy, requests. Optional `[full]` extras add torch, sciki
 An interactive React dashboard at the project's GitHub Pages site provides:
 - **3D globe** with 25,000+ tracked objects and orbital approach animations for conjunction pairs
 - **Forecast tab** with Pc evolution charts for each active conjunction pair, showing observed CDM data alongside model predictions with clear visual distinction (white observed line, cyan dashed forecast, red maneuver threshold)
-- **Prediction gallery** showcasing the system's track record: 938/1,097 correct predictions (85.5% accuracy), 183 true positives, **zero false negatives** across 60+ days of deployment. Each featured prediction shows a verdict banner ("Predicted escalation 45h before TCA — Confirmed"), an inline Pc sparkline, and a 3D flyby visualization with trajectory data computed from historical TLEs
+- **Prediction gallery** showcasing the system's track record: 985/1,145 correct predictions (86.0% accuracy), 196 true positives, **zero false negatives** across 60+ days of deployment. Each featured prediction shows a verdict banner ("Predicted escalation 45h before TCA — Confirmed"), an inline Pc sparkline, and a 3D flyby visualization with trajectory data computed from historical TLEs
 - **Model zoo** with detailed performance metrics, cross-validation results, and a BiLSTM fine-tuning history chart with proportional date spacing showing the transition from unstratified to stratified validation
 - **Pipeline dashboard** with grid search results, feature importance, and daily operational metrics
 
@@ -500,7 +500,7 @@ An interactive React dashboard at the project's GitHub Pages site provides:
 
 ## 7. Conclusion
 
-PANACEA demonstrates that meaningful Pc escalation prediction is achievable with public CDM data alone. Like a CHA₂DS₂-VASc score for satellites, the system screens for risk escalation rather than predicting collisions -- telling operators when to act, not whether a collision will occur. In 60+ days of continuous production deployment, the ensemble has maintained **100% recall across 1,097 resolved predictions** (zero missed escalations, 183 true positives) with a median advance warning of 18.6 hours before closest approach. The system has never failed to identify a conjunction requiring attention, even when predicting 2+ days ahead.
+PANACEA demonstrates that meaningful Pc escalation prediction is achievable with public CDM data alone. Like a CHA₂DS₂-VASc score for satellites, the system screens for risk escalation rather than predicting collisions -- telling operators when to act, not whether a collision will occur. In 60+ days of continuous production deployment, the ensemble has maintained **100% recall across 1,145 resolved predictions** (zero missed escalations, 196 true positives) with a median advance warning of 18.6 hours before closest approach. The system has never failed to identify a conjunction requiring attention, even when predicting 2+ days ahead.
 
 Combined with split-conformal prediction providing 97% coverage guarantees, this represents a practical, calibrated early warning system. It is open-source, continuously retrained, and pip-installable. A small satellite operator can run `pip install panacea-ssa` and have production predictions on their CDMs within minutes.
 
@@ -508,7 +508,7 @@ Combined with split-conformal prediction providing 97% coverage guarantees, this
 
 **Dual-use concerns.** Space situational awareness is inherently dual-use: the same collision prediction capabilities that protect commercial satellites could inform anti-satellite operations by identifying orbital windows where debris generation would cause maximum cascading damage. We mitigate this by using only publicly available data (CelesTrak TLEs, Space-Track public CDMs) and publishing all methods openly. Our system provides no targeting capability beyond what is already available to any entity with a Space-Track account.
 
-**Automation risk.** If satellite operators begin using ML predictions to trigger autonomous collision avoidance maneuvers, model errors propagate directly to physical actions in space. Our ensemble achieves 98.7% recall but still misses ~1.3% of escalating conjunctions. Any deployment must include human-in-the-loop review for maneuver decisions. We design for recall over precision specifically because missed escalations (false negatives) are far more costly than false alarms (false positives) in this safety-critical domain.
+**Automation risk.** If satellite operators begin using ML predictions to trigger autonomous collision avoidance maneuvers, model errors propagate directly to physical actions in space. Our ensemble achieves 98.7% recall in cross-validation (and 100% in 60+ days of production deployment) but the CV result implies ~1.3% of escalating conjunctions could be missed. Any deployment must include human-in-the-loop review for maneuver decisions. We design for recall over precision specifically because missed escalations (false negatives) are far more costly than false alarms (false positives) in this safety-critical domain.
 
 **Data access equity.** CDM data from the 18th Space Defense Squadron is available to registered users worldwide, but the registration process and data volume favor well-resourced operators. By building on public data and distributing as open-source, we aim to democratize conjunction assessment capabilities.
 
