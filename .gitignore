@@ -67,3 +67,12 @@ CLAUDE.md
 
 # Generated intro videos
 webapp-react/public/panacea_intro*.mp4
+
+# Writeup build artifacts (PDF, slides, generated figures)
+writeup/*.pdf
+writeup/*.pptx
+writeup/figures/slide_*.png
+writeup/figures/knd_poster.png
+
+# Backup bundles
+*.bundle

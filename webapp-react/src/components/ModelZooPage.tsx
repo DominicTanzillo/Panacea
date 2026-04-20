@@ -751,7 +751,7 @@ function BiLSTMProgress({ pstats }: { pstats: any }) {
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 200px', gap: 24, alignItems: 'start' }}>
         <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={ftData} margin={{ top: 8, right: 24, left: 0, bottom: 4 }}>
+          <LineChart data={ftData} margin={{ top: 20, right: 24, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2c" />
             <XAxis dataKey="day" type="number" domain={['dataMin', 'dataMax']} ticks={ticks}
               tickFormatter={(day: number) => {

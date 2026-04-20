@@ -1,5 +1,66 @@
+import { useEffect, useState } from 'react';
 import type { OverlayView } from '../App';
 import { FullPagePanel } from './Overlay';
+
+interface LiveStats {
+  nPairs: number;
+  nCdms: number;
+  lrF1: number;
+  nSpaceTrackPairs: number;
+  positiveRate: number;
+  ensembleRecall: number;
+  ensembleFnCount: number;
+  ensembleTpCount: number;
+  conformalCoverage: number;
+  arCorrelation: number;
+}
+
+const FALLBACK: LiveStats = {
+  nPairs: 866, nCdms: 5100, lrF1: 0.854, nSpaceTrackPairs: 670,
+  positiveRate: 0.251,
+  ensembleRecall: 98.7, ensembleFnCount: 2, ensembleTpCount: 152,
+  conformalCoverage: 90.8, arCorrelation: 0.931,
+};
+
+function useLiveStats(): LiveStats {
+  const [stats, setStats] = useState<LiveStats>(FALLBACK);
+  useEffect(() => {
+    Promise.all([
+      fetch('/cdm_forecast.json').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/pipeline_stats.json').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([forecast, pipeline]) => {
+      if (!forecast && !pipeline) return;
+      const s: LiveStats = { ...FALLBACK };
+      if (pipeline?.cdm_stats) {
+        s.nCdms = pipeline.cdm_stats.total_cdms ?? s.nCdms;
+      }
+      if (pipeline?.forecast_model) {
+        const fm = pipeline.forecast_model;
+        s.nPairs = fm.n_pairs_total ?? s.nPairs;
+        s.nSpaceTrackPairs = fm.n_pairs_total ?? s.nSpaceTrackPairs;
+        if (fm.positive_rate) s.positiveRate = fm.positive_rate;
+        if (fm.test?.f1) s.lrF1 = fm.test.f1;
+      }
+      if (forecast?.track_record) {
+        const tr = forecast.track_record;
+        const tp = tr.n_true_positives ?? 0;
+        const fn = tr.n_false_negatives ?? 0;
+        s.ensembleTpCount = tp;
+        s.ensembleFnCount = fn;
+        s.ensembleRecall = tp + fn > 0 ? (tp / (tp + fn)) * 100 : s.ensembleRecall;
+      }
+      if (forecast?.conformal) {
+        const cov = forecast.conformal.regression_coverage;
+        if (cov != null) s.conformalCoverage = cov * 100;
+      }
+      if (forecast?.autoregressive_metrics?.correlation_pc != null) {
+        s.arCorrelation = forecast.autoregressive_metrics.correlation_pc;
+      }
+      setStats(s);
+    });
+  }, []);
+  return stats;
+}
 
 interface AboutPageProps {
   visible: boolean;
@@ -8,6 +69,8 @@ interface AboutPageProps {
 }
 
 export function AboutPage({ visible, onClose, onNavigate }: AboutPageProps) {
+  const live = useLiveStats();
+
   const navLink = (label: string, view: OverlayView) => (
     <button
       onClick={() => { onNavigate?.(view); }}
@@ -76,13 +139,19 @@ export function AboutPage({ visible, onClose, onNavigate }: AboutPageProps) {
 
         {/* Technical approach */}
         <Section title="Technical Approach">
+          <p>
+            PANACEA is a <strong style={{ color: '#e8e8f0' }}>screening mechanism</strong>: catch every escalating event, then run detailed analysis on the flagged subset.
+            The naive approach — assume nothing escalates — gets {((1 - live.positiveRate) * 100).toFixed(0)}% accuracy but catches zero events.
+            Sensitivity is what matters.
+          </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <ApproachRow label="01" title="Logistic Regression" desc="23 engineered features from CDM sequences. Retrained daily on resolved pairs. F1 = 0.854, the strongest single model." />
-            <ApproachRow label="02" title="BiLSTM with Transfer Learning" desc="Pre-trained on 13K ESA Kelvins events, fine-tuned on 670 Space-Track pairs. Focal loss for class imbalance. Attention-weighted pooling." />
-            <ApproachRow label="03" title="Ensemble" desc="40% LR + 30% BiLSTM + 30% regression signal. Achieves 98.7% recall, misses only 2 out of 152 positive events." />
+            <ApproachRow label="00" title="Naive Baseline" desc={`Predict no escalation. Accuracy = ${((1 - live.positiveRate) * 100).toFixed(0)}%, but recall = 0%. Misses every dangerous event.`} />
+            <ApproachRow label="01" title="Logistic Regression" desc={`23 engineered features from CDM sequences. Retrained daily on resolved pairs. F1 = ${live.lrF1.toFixed(3)}, the strongest single model.`} />
+            <ApproachRow label="02" title="BiLSTM with Transfer Learning" desc={`Pre-trained on 13K ESA Kelvins events, fine-tuned on ${live.nSpaceTrackPairs.toLocaleString()} Space-Track pairs. Focal loss for class imbalance. Attention-weighted pooling.`} />
+            <ApproachRow label="03" title="Ensemble" desc={`40% LR + 30% BiLSTM + 30% regression signal. Achieves ${live.ensembleRecall.toFixed(1)}% recall${live.ensembleFnCount === 0 ? `, missing zero out of ${live.ensembleTpCount} positive events` : `, misses only ${live.ensembleFnCount} out of ${live.ensembleTpCount + live.ensembleFnCount} positive events`}.`} />
             <ApproachRow label="04" title="Graph Neural Network" desc="GraphSAGE on the conjunction network. Captures orbital neighborhood effects that per-pair models cannot." />
-            <ApproachRow label="05" title="Autoregressive Forecaster" desc="Predicts next CDM update. Multi-step rollouts with Monte Carlo dropout uncertainty. Correlation r = 0.931." />
-            <ApproachRow label="06" title="Conformal Prediction" desc="Distribution-free coverage guarantees. 90.8% empirical coverage at 90% target with no distributional assumptions." />
+            <ApproachRow label="05" title="Autoregressive Forecaster" desc={`Predicts next CDM update. Multi-step rollouts with Monte Carlo dropout uncertainty. Correlation r = ${live.arCorrelation.toFixed(3)}.`} />
+            <ApproachRow label="06" title="Conformal Prediction" desc={`Distribution-free coverage guarantees. ${live.conformalCoverage.toFixed(1)}% empirical coverage at 90% target with no distributional assumptions.`} />
           </div>
         </Section>
 
@@ -90,7 +159,7 @@ export function AboutPage({ visible, onClose, onNavigate }: AboutPageProps) {
         <Section title="Data Sources">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <DataCard title="ESA Kelvins Challenge" stats="162,634 CDMs · 13,154 events · 103 features" desc="Real operational data from ESA's Space Debris Office. Used for pre-training and benchmark evaluation." />
-            <DataCard title="Space-Track CDMs" stats="866+ pairs · 5,100+ CDMs · 23 features" desc="Public conjunction data from the 18th Space Defense Squadron. Updated twice daily via automated pipeline." />
+            <DataCard title="Space-Track CDMs" stats={`${live.nPairs.toLocaleString()}+ pairs · ${live.nCdms.toLocaleString()}+ CDMs · 23 features`} desc="Public conjunction data from the 18th Space Defense Squadron. Updated twice daily via automated pipeline." />
           </div>
         </Section>
 

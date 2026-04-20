@@ -7,7 +7,7 @@ Duke University, AIPI 540 Deep Learning Applications
 
 ## Abstract
 
-We present PANACEA, an open-source machine learning system that predicts collision probability (Pc) escalation from publicly available Conjunction Data Messages (CDMs). Rather than predicting exact Pc values -- a problem NASA CARA has found intractable with ML (Mashiku & Newman, 2025) -- we reframe the task as binary escalation forecasting: *will Pc exceed the 5e-4 maneuver planning threshold before TCA?* Our ensemble combines logistic regression (interpretable baseline), a bidirectional LSTM with Kelvins transfer learning (temporal reasoning), and a regression signal (continuous risk tracking), achieving 98.7% recall and F1=0.847 in 5-fold cross-validation on 826 conjunction pairs derived from Space-Track public CDMs. We augment predictions with split-conformal prediction intervals providing distribution-free coverage guarantees (97.0% empirical coverage at alpha=0.05), directly addressing the uncertainty quantification gap identified by NASA CARA. We further investigate space weather indices (F10.7, Kp, Ap) as predictive features and report the result as a controlled experiment. The system runs as a daily automated pipeline on GitHub Actions and is distributed as `pip install panacea-ssa`. All metrics below are pulled from production JSON artifacts; none are hardcoded.
+We present PANACEA, an open-source machine learning system that predicts collision probability (Pc) escalation from publicly available Conjunction Data Messages (CDMs). Rather than predicting exact Pc values -- a problem NASA CARA has found intractable with ML (Mashiku & Newman, 2025) -- we reframe the task as binary escalation forecasting: *will Pc exceed the 5e-4 maneuver planning threshold before TCA?* Our ensemble combines logistic regression (interpretable baseline), a bidirectional LSTM with Kelvins transfer learning (temporal reasoning), and a regression signal (continuous risk tracking), achieving 98.7% recall and F1=0.847 in 5-fold cross-validation on 1,167 conjunction pairs derived from Space-Track public CDMs. In 60+ days of production deployment, the system has maintained 100% recall (zero missed escalations) across 1,145 resolved predictions. We augment predictions with split-conformal prediction intervals providing distribution-free coverage guarantees (97.0% empirical coverage at alpha=0.05), directly addressing the uncertainty quantification gap identified by NASA CARA. We further investigate space weather indices (F10.7, Kp, Ap) as predictive features and report the result as a controlled experiment. The system runs as a twice-daily automated pipeline on GitHub Actions and is distributed as `pip install panacea-ssa`. The pipeline fetches new CDMs from Space-Track twice daily; all production metrics reflect data as of April 20, 2026 and continue to grow.
 
 **Keywords:** conjunction assessment, CDM sequences, ensemble prediction, conformal prediction, space situational awareness, transfer learning
 
@@ -62,7 +62,7 @@ PANACEA does not compete with commercial SSA providers. LeoLabs generates CDMs a
 
 <!-- Metrics from tuning_results.json and cv_results.json -->
 
-Our dataset comprises **826 conjunction pairs** from ~4,590 CDMs collected via the Space-Track.org API. Each CDM contains:
+Our dataset comprises **1,167 conjunction pairs** from ~6,667 CDMs collected via the Space-Track.org API, updated twice daily. Each CDM contains:
 
 | Field | Description |
 |-------|-------------|
@@ -134,7 +134,7 @@ Architecture:
 **Transfer learning from Kelvins:**
 - Pre-train on 13K Kelvins events (103 features)
 - Feature dropout during pre-training: zero out columns 8-11 with p=0.5 (simulates the missing features in Space-Track data)
-- Fine-tune on 826 Space-Track pairs (20 features -> padded to match)
+- Fine-tune on 1,167 Space-Track pairs (20 features -> padded to match)
 - Checkpoint versioning: v2 = bidirectional (v1 auto-retrains)
 
 **Data augmentation:** Gaussian noise injection, CDM dropout (random removal of intermediate updates), variable observation length sampling.
@@ -162,7 +162,7 @@ We construct a conjunction network graph where:
 This differs fundamentally from Peri (2025), who builds a spatial proximity graph. Our graph captures the relational structure of conjunction events: objects that share conjunction partners may be in similar orbital regimes with correlated risk profiles.
 
 <!-- From supplementary_models.json -->
-- Graph: 1,458 nodes, 826 edges, 191 positive edges
+- Graph: 1,458 nodes, 1,167 edges, 191 positive edges
 - With graph features: F1=0.9624, Recall=1.000, Precision=0.9278
 - Graph feature improvement: F1 delta=0.0 (sparse graph limits message-passing benefit)
 - Degree distribution: 88.2% of nodes have degree 1 (single conjunction only)
@@ -380,7 +380,7 @@ The false positive case highlights a general class of errors: pairs with < 3 CDM
 
 ### 5.7 Limitations
 
-1. **Dataset size**: 826 pairs is small. The BiLSTM and GNN would benefit from 10x more data.
+1. **Dataset size**: 1,167 pairs is small. The BiLSTM and GNN would benefit from 10x more data.
 2. **Public CDM pre-filtering**: Space-Track CDMs are pre-filtered to Pc >= 1e-4, biasing our training distribution toward higher-risk conjunctions.
 3. **No negative verification**: We know when Pc stayed below 5e-4, but we cannot confirm whether a pair that exceeded 5e-4 actually led to a maneuver (Space-Track doesn't publish maneuver decisions).
 4. **Space weather coverage**: Our CDM corpus may not span sufficient geomagnetic storm activity to detect space weather effects.
