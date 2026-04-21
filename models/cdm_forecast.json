@@ -114,11 +114,11 @@
     }
   },
   "global_stats": {
-    "n_cdms": 7062,
+    "n_cdms": 7063,
     "n_pairs": 1251,
-    "n_pairs_multi_update": 1122,
+    "n_pairs_multi_update": 1123,
     "mean_log10_pc": -3.5,
-    "n_above_threshold": 1803,
-    "fraction_above_threshold": 0.2553
+    "n_above_threshold": 1804,
+    "fraction_above_threshold": 0.2554
   }
 }
