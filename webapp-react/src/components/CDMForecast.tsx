@@ -550,7 +550,7 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
                 <TrackStatCard
                   value={`${data.track_record.correct}/${data.track_record.total}`}
                   label="Correct Predictions"
-                  detail={`${((data.track_record.correct / data.track_record.total) * 100).toFixed(0)}% accuracy`}
+                  detail={`${((data.track_record.correct / data.track_record.total) * 100).toFixed(0)}% overall`}
                 />
                 <TrackStatCard value={String(data.track_record.tp)} label="True Positives" detail="Correctly flagged escalations" color="#22c55e" />
                 <TrackStatCard value={String(data.track_record.fn)} label="Missed Events" detail="False negatives" color={data.track_record.fn > 5 ? '#ef4444' : '#f59e0b'} />
@@ -562,8 +562,8 @@ export function CDMForecast({ visible, onClose }: { visible: boolean; onClose: (
           {/* ── Model metrics (compact) ────────────────────── */}
           {data.model_metrics && (
             <div style={{ padding: '16px 0', borderBottom: '1px solid #1e1e2c', display: 'flex', gap: 24, alignItems: 'center', fontSize: 13 }}>
-              <span style={{ color: '#55556a', fontWeight: 600 }}>Model:</span>
-              <span style={{ color: '#7c7c96' }}>Accuracy <strong style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>{(data.model_metrics.test_accuracy * 100).toFixed(0)}%</strong></span>
+              <span style={{ color: '#55556a', fontWeight: 600 }}>Current Model (test set):</span>
+              <span style={{ color: '#7c7c96' }}>Acc <strong style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>{(data.model_metrics.test_accuracy * 100).toFixed(0)}%</strong></span>
               <span style={{ color: '#7c7c96' }}>F1 <strong style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>{data.model_metrics.test_f1.toFixed(3)}</strong></span>
               <span style={{ color: '#7c7c96' }}>AUC-PR <strong style={{ color: '#e8e8f0', fontFamily: "'JetBrains Mono', monospace" }}>{data.model_metrics.test_auc_pr.toFixed(3)}</strong></span>
               {data.conformal && (
