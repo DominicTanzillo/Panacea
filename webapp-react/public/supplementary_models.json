@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-05-29T15:57:07.824901+00:00",
+  "generated_at": "2026-05-30T02:44:42.423770+00:00",
   "gnn": {
     "n_nodes": 2869,
     "n_edges": 1815,
     "n_positive_edges": 474,
     "with_graph_features": {
-      "f1": 0.9792,
-      "recall": 0.9895,
-      "precision": 0.9694,
-      "accuracy": 0.989
+      "f1": 0.9813,
+      "recall": 0.9916,
+      "precision": 0.9713,
+      "accuracy": 0.9901
     },
     "without_graph_features": {
       "f1": 0.9423,
@@ -17,8 +17,8 @@
       "accuracy": 0.9681
     },
     "graph_improvement": {
-      "f1_delta": 0.0369,
-      "recall_delta": -0.0084
+      "f1_delta": 0.039,
+      "recall_delta": -0.0063
     },
     "degree_distribution": {
       "1": 2268,
@@ -113,15 +113,15 @@
     "max_degree": 5
   },
   "autoregressive": {
-    "n_training_samples": 7044,
+    "n_training_samples": 7045,
     "n_test_samples": 1409,
     "metrics": {
-      "mae_log10_pc": 0.0995,
-      "rmse_log10_pc": 0.181,
-      "correlation_pc": 0.9236,
-      "mae_log10_miss": 0.1313,
-      "correlation_miss": 0.856,
-      "uncertainty_std": 0.181
+      "mae_log10_pc": 0.1006,
+      "rmse_log10_pc": 0.1811,
+      "correlation_pc": 0.9241,
+      "mae_log10_miss": 0.1318,
+      "correlation_miss": 0.8609,
+      "uncertainty_std": 0.1811
     },
     "example_forecasts": [
       {
@@ -137,10 +137,10 @@
         "predicted": [
           null,
           null,
-          -3.363,
+          -3.362,
           -3.525,
           -3.523,
-          -3.6
+          -3.601
         ],
         "n_cdms": 6
       },
@@ -157,10 +157,10 @@
         "predicted": [
           null,
           null,
-          -3.807,
-          -3.729,
+          -3.806,
+          -3.728,
           -3.73,
-          -3.596
+          -3.595
         ],
         "n_cdms": 6
       },
@@ -181,14 +181,14 @@
         "predicted": [
           null,
           null,
-          -2.69,
+          -2.689,
           -2.422,
           -2.427,
           -2.442,
           -2.442,
           -2.364,
           -2.366,
-          -2.309
+          -2.31
         ],
         "n_cdms": 10
       }
