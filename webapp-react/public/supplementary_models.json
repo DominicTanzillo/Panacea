@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-07-12T02:18:55.164070+00:00",
+  "generated_at": "2026-07-12T05:36:09.534714+00:00",
   "gnn": {
     "n_nodes": 3557,
     "n_edges": 2386,
     "n_positive_edges": 623,
     "with_graph_features": {
-      "f1": 0.9833,
-      "recall": 0.9952,
-      "precision": 0.9718,
-      "accuracy": 0.9912
+      "f1": 0.9818,
+      "recall": 0.9936,
+      "precision": 0.9702,
+      "accuracy": 0.9904
     },
     "without_graph_features": {
       "f1": 0.9274,
@@ -17,8 +17,8 @@
       "accuracy": 0.9598
     },
     "graph_improvement": {
-      "f1_delta": 0.0559,
-      "recall_delta": 0.0129
+      "f1_delta": 0.0544,
+      "recall_delta": 0.0113
     },
     "degree_distribution": {
       "1": 2656,
@@ -245,19 +245,19 @@
       {
         "alpha": 0.05,
         "target": 0.95,
-        "coverage": 0.9519,
+        "coverage": 0.9895,
         "interval_width": 0.0
       },
       {
         "alpha": 0.1,
         "target": 0.9,
-        "coverage": 0.9519,
+        "coverage": 0.9498,
         "interval_width": 0.0
       },
       {
         "alpha": 0.2,
         "target": 0.8,
-        "coverage": 0.8515,
+        "coverage": 0.795,
         "interval_width": 0.0
       }
     ]
