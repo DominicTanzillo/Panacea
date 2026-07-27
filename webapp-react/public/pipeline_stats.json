@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-25T13:45:58.578486Z",
+  "generated_at": "2026-07-27T02:19:58.293051Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -183,6 +183,14 @@
       "post_auc_pr": 0.38813601003347653,
       "keep_new_model": false,
       "n_outcomes": 80955,
+      "epochs_trained": 2
+    },
+    {
+      "date": "2026-07-26",
+      "pre_auc_pr": 0.4474348298703019,
+      "post_auc_pr": 0.40612940277404264,
+      "keep_new_model": false,
+      "n_outcomes": 85754,
       "epochs_trained": 2
     }
   ],
@@ -1545,15 +1553,21 @@
       "n_satellites_screened": 16493,
       "n_candidate_pairs": 8451681,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-07-27",
+      "n_satellites_screened": 16465,
+      "n_candidate_pairs": 8471602,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 14780,
-    "last_fetch": "2026-07-25T13:43:20.720967+00:00",
-    "fetch_count": 189,
-    "pc_high": 3908,
-    "pc_moderate": 10872,
-    "emergency_count": 14780
+    "total_cdms": 14837,
+    "last_fetch": "2026-07-27T02:17:18.089554+00:00",
+    "fetch_count": 190,
+    "pc_high": 3932,
+    "pc_moderate": 10905,
+    "emergency_count": 14837
   },
   "forecast_model": {
     "n_pairs_total": 2569,
@@ -1591,27 +1605,13 @@
   },
   "space_weather": {
     "current": {
-      "date": "2026-07-25",
+      "date": "2026-07-27",
       "f107": 138.21,
       "kp": 2.3,
       "ap": 10.0,
-      "source": "cache"
+      "source": "swpc"
     },
     "history": [
-      {
-        "date": "2026-06-26",
-        "f107": 125.69,
-        "kp": 2.3,
-        "ap": 10.0,
-        "source": "cache"
-      },
-      {
-        "date": "2026-06-27",
-        "f107": 125.69,
-        "kp": 2.3,
-        "ap": 10.0,
-        "source": "cache"
-      },
       {
         "date": "2026-06-28",
         "f107": 125.69,
@@ -1807,6 +1807,20 @@
         "kp": 2.3,
         "ap": 10.0,
         "source": "cache"
+      },
+      {
+        "date": "2026-07-26",
+        "f107": 138.21,
+        "kp": 2.3,
+        "ap": 10.0,
+        "source": "swpc"
+      },
+      {
+        "date": "2026-07-27",
+        "f107": 138.21,
+        "kp": 2.3,
+        "ap": 10.0,
+        "source": "swpc"
       }
     ]
   }
