@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-29T02:03:47.623409Z",
+  "generated_at": "2026-07-29T14:21:17.003636Z",
   "finetune_history": [
     {
       "date": "2026-02-22",
@@ -1571,48 +1571,54 @@
       "n_satellites_screened": 16446,
       "n_candidate_pairs": 8475739,
       "n_predictions_logged": 500
+    },
+    {
+      "date": "2026-07-29",
+      "n_satellites_screened": 16593,
+      "n_candidate_pairs": 8498511,
+      "n_predictions_logged": 500
     }
   ],
   "cdm_stats": {
-    "total_cdms": 14995,
-    "last_fetch": "2026-07-29T02:01:15.694005+00:00",
-    "fetch_count": 192,
-    "pc_high": 3972,
-    "pc_moderate": 11023,
-    "emergency_count": 14995
+    "total_cdms": 15044,
+    "last_fetch": "2026-07-29T14:18:36.653320+00:00",
+    "fetch_count": 193,
+    "pc_high": 3979,
+    "pc_moderate": 11065,
+    "emergency_count": 15044
   },
   "forecast_model": {
-    "n_pairs_total": 2588,
-    "n_labeled": 2588,
-    "n_positive": 684,
-    "n_negative": 1904,
-    "positive_rate": 0.2643,
-    "n_train": 1811,
-    "n_test": 777,
+    "n_pairs_total": 2612,
+    "n_labeled": 2612,
+    "n_positive": 694,
+    "n_negative": 1918,
+    "positive_rate": 0.2657,
+    "n_train": 1828,
+    "n_test": 784,
     "mode": "logistic_regression",
     "train": {
-      "n": 1811,
-      "accuracy": 0.9244,
-      "precision": 0.83,
-      "recall": 0.8917,
-      "f1": 0.8598,
-      "auc_pr": 0.9426,
-      "tp": 420,
-      "fp": 86,
-      "fn": 51,
-      "tn": 1254
+      "n": 1828,
+      "accuracy": 0.924,
+      "precision": 0.8294,
+      "recall": 0.8905,
+      "f1": 0.8589,
+      "auc_pr": 0.7788,
+      "tp": 423,
+      "fp": 87,
+      "fn": 52,
+      "tn": 1266
     },
     "test": {
-      "n": 777,
-      "accuracy": 0.9215,
-      "precision": 0.8455,
-      "recall": 0.8732,
-      "f1": 0.8591,
-      "auc_pr": 0.8668,
-      "tp": 186,
-      "fp": 34,
-      "fn": 27,
-      "tn": 530
+      "n": 784,
+      "accuracy": 0.9247,
+      "precision": 0.867,
+      "recall": 0.863,
+      "f1": 0.865,
+      "auc_pr": 0.9361,
+      "tp": 189,
+      "fp": 29,
+      "fn": 30,
+      "tn": 536
     }
   },
   "space_weather": {
@@ -1621,7 +1627,7 @@
       "f107": 138.21,
       "kp": 2.3,
       "ap": 10.0,
-      "source": "swpc"
+      "source": "cache"
     },
     "history": [
       {
@@ -1825,14 +1831,14 @@
         "f107": 138.21,
         "kp": 2.3,
         "ap": 10.0,
-        "source": "swpc"
+        "source": "cache"
       },
       {
         "date": "2026-07-29",
         "f107": 138.21,
         "kp": 2.3,
         "ap": 10.0,
-        "source": "swpc"
+        "source": "cache"
       }
     ]
   }
