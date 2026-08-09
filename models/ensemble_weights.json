@@ -1,39 +1,39 @@
 {
-  "generated_at": "2026-08-02T05:35:36.073269+00:00",
+  "generated_at": "2026-08-09T03:54:50.374388+00:00",
   "method": "stacking_meta_learner",
   "n_folds": 5,
-  "n_samples": 2672,
-  "n_positive": 711,
+  "n_samples": 2778,
+  "n_positive": 742,
   "weights": {
-    "LR": 0.9822,
-    "BiLSTM_signal": 0.0178,
+    "LR": 0.9842,
+    "BiLSTM_signal": 0.0158,
     "GNN": 0.0
   },
   "model_stats": {
     "LR": {
-      "weight": 0.9822,
-      "individual_f1": 0.8499,
+      "weight": 0.9842,
+      "individual_f1": 0.8491,
       "individual_recall": 0.872,
-      "individual_precision": 0.8289
+      "individual_precision": 0.8274
     },
     "BiLSTM_signal": {
-      "weight": 0.0178,
-      "individual_f1": 0.8714,
-      "individual_recall": 0.7722,
+      "weight": 0.0158,
+      "individual_f1": 0.8689,
+      "individual_recall": 0.7682,
       "individual_precision": 1.0
     },
     "GNN": {
       "weight": 0.0,
-      "individual_f1": 0.404,
-      "individual_recall": 0.8439,
-      "individual_precision": 0.2656
+      "individual_f1": 0.4007,
+      "individual_recall": 0.8302,
+      "individual_precision": 0.264
     }
   },
   "ensemble_metrics": {
-    "f1": 0.8491,
-    "recall": 0.8706,
-    "precision": 0.8286,
-    "accuracy": 0.9177
+    "f1": 0.8502,
+    "recall": 0.872,
+    "precision": 0.8295,
+    "accuracy": 0.9179
   },
-  "meta_learner_loss": 0.312249
+  "meta_learner_loss": 0.313179
 }
