@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-08-16T01:05:48.034850+00:00",
+  "generated_at": "2026-08-16T03:12:28.364812+00:00",
   "gnn": {
     "n_nodes": 4078,
     "n_edges": 2870,
     "n_positive_edges": 770,
     "with_graph_features": {
-      "f1": 0.9733,
-      "recall": 0.9909,
-      "precision": 0.9566,
-      "accuracy": 0.9854
+      "f1": 0.9751,
+      "recall": 0.9896,
+      "precision": 0.9611,
+      "accuracy": 0.9864
     },
     "without_graph_features": {
       "f1": 0.9157,
@@ -17,8 +17,8 @@
       "accuracy": 0.9519
     },
     "graph_improvement": {
-      "f1_delta": 0.0576,
-      "recall_delta": 0.0208
+      "f1_delta": 0.0594,
+      "recall_delta": 0.0195
     },
     "degree_distribution": {
       "1": 2906,
