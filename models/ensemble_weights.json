@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-13T07:29:09.384509+00:00",
+  "generated_at": "2026-09-20T07:44:41.081244+00:00",
   "method": "stacking_meta_learner",
   "n_folds": 5,
   "n_samples": 3049,
@@ -24,9 +24,9 @@
     },
     "GNN": {
       "weight": 0.0,
-      "individual_f1": 0.399,
-      "individual_recall": 0.811,
-      "individual_precision": 0.2646
+      "individual_f1": 0.3995,
+      "individual_recall": 0.8122,
+      "individual_precision": 0.2649
     }
   },
   "ensemble_metrics": {
